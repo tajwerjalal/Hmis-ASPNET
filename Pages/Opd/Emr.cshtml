@@ -1,0 +1,420 @@
+@page "/opd/emr"
+@model HmisWeb.Pages.Opd.EmrModel
+@{
+    ViewData["Title"] = "OPD EMR";
+}
+
+<div class="mb-3">
+    <h4 class="mb-0 fw-bold">OPD Electronic Medical Record</h4>
+    <span class="text-secondary small">Capture the clinical record, examination, vitals, diagnosis and treatment plan for an OPD visit</span>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.SuccessMessage))
+{
+    <div class="alert alert-success py-2">
+        <i class="bi bi-check-circle me-1"></i>@Model.SuccessMessage
+    </div>
+}
+
+@if (Model.SelectedPatient == null)
+{
+    <form method="post" asp-page-handler="SearchPatients" class="card mb-3">
+        <div class="card-body">
+            <h6 class="card-title"><i class="bi bi-search me-1"></i>Find Patient</h6>
+            <div class="row g-2 align-items-end">
+                <div class="col-md-8">
+                    <input asp-for="PatientSearch" class="form-control"
+                           placeholder="Search by PHN, Mobile number or patient name..." autofocus />
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-primary w-100"><i class="bi bi-search me-1"></i>Search</button>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    @if (Model.PatientResults.Any())
+    {
+        <div class="card mb-3">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Patient ID</th>
+                                <th>PHN</th>
+                                <th>Name</th>
+                                <th>Mobile</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var p in Model.PatientResults)
+                            {
+                                <tr>
+                                    <td>@p.Id</td>
+                                    <td>@(p.Phn ?? "-")</td>
+                                    <td>@(p.Person?.NameWithInitials ?? p.Person?.Name ?? "Unnamed")</td>
+                                    <td>@(p.Person?.Mobile ?? "-")</td>
+                                    <td class="text-end">
+                                        <form method="post" asp-page-handler="SelectPatient">
+                                            <input type="hidden" asp-for="SelectedPatientId" value="@p.Id" />
+                                            <button type="submit" class="btn btn-sm btn-outline-primary">Select</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+
+    <div class="alert alert-info py-2">
+        <i class="bi bi-info-circle me-1"></i>Select a patient to start capturing an OPD clinical record.
+    </div>
+}
+else
+{
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="row g-3 align-items-center">
+                <div class="col-md-6">
+                    <div class="text-secondary small fw-bold text-uppercase">Patient</div>
+                    <div class="fw-semibold fs-5">@(Model.SelectedPatient.Person?.NameWithInitials ?? Model.SelectedPatient.Person?.Name ?? "Unnamed")</div>
+                    <small class="text-secondary">PHN: @(Model.SelectedPatient.Phn ?? "-") &middot; PID: @Model.SelectedPatient.Id</small>
+                </div>
+                <div class="col-md-4">
+                    <div class="text-secondary small fw-bold text-uppercase mb-1">Recent OPD Visits</div>
+                    <span class="badge bg-primary">@Model.RecentVisits.Count</span>
+                </div>
+                <div class="col-md-2 text-end">
+                    <button type="submit" form="emrstart" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-arrow-left me-1"></i>Different patient
+                    </button>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrEmpty(Model.Message))
+            {
+                <div class="alert alert-warning py-2 mt-3 mb-0">
+                    <i class="bi bi-pencil-square me-1"></i>@Model.Message
+                </div>
+            }
+        </div>
+    </div>
+
+    <form id="emrstart" method="post" asp-page-handler="StartNew">
+        <input type="hidden" asp-for="SelectedPatientId" value="@Model.SelectedPatient.Id" />
+    </form>
+
+    <div class="row g-3">
+        <div class="col-lg-8">
+            <form method="post" asp-page-handler="Save" id="emrform">
+                <input type="hidden" asp-for="EditId" />
+
+                <div class="card mb-3">
+                    <div class="card-header bg-white fw-semibold">
+                        <i class="bi bi-calendar2-check me-1 text-primary"></i>Visit &amp; Doctor
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label asp-for="VisitDate" class="form-label">Visit Date</label>
+                                <input asp-for="VisitDate" type="date" class="form-control" />
+                            </div>
+                            <div class="col-md-4">
+                                <label asp-for="VisitTime" class="form-label">Visit Time</label>
+                                <input asp-for="VisitTime" type="time" class="form-control" />
+                            </div>
+                            <div class="col-md-4">
+                                <label asp-for="DoctorId" class="form-label">Consulting Doctor</label>
+                                <select asp-for="DoctorId" class="form-select">
+                                    <option value="">-- Select --</option>
+                                    @foreach (var d in Model.DoctorList)
+                                    {
+                                        <option value="@d.Value">@d.Text</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="ReferredById" class="form-label">Referred By (Doctor)</label>
+                                <select asp-for="ReferredById" class="form-select">
+                                    <option value="">-- Select --</option>
+                                    @foreach (var d in Model.ReferredByList)
+                                    {
+                                        <option value="@d.Value">@d.Text</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-3">
+                    <div class="card-header bg-white fw-semibold">
+                        <i class="bi bi-clipboard2-pulse me-1 text-primary"></i>Presenting Complaint &amp; History
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label asp-for="ChiefComplaint" class="form-label">Chief Complaint</label>
+                                <textarea asp-for="ChiefComplaint" class="form-control" rows="2" placeholder="Reason for visit in the patient's own words..."></textarea>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="HistoryOfPresentingComplaint" class="form-label">History of Presenting Complaint</label>
+                                <textarea asp-for="HistoryOfPresentingComplaint" class="form-control" rows="3" placeholder="Onset, duration, progression..."></textarea>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="PastMedicalHistory" class="form-label">Past Medical History</label>
+                                <textarea asp-for="PastMedicalHistory" class="form-control" rows="3" placeholder="Comorbidities, surgeries, allergies, medications..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-3">
+                    <div class="card-header bg-white fw-semibold">
+                        <i class="bi bi-activity me-1 text-primary"></i>Vital Signs
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-2 col-6">
+                                <label asp-for="Weight" class="form-label">Weight (kg)</label>
+                                <input asp-for="Weight" type="number" step="0.1" min="0" class="form-control" />
+                            </div>
+                            <div class="col-md-2 col-6">
+                                <label asp-for="Height" class="form-label">Height (cm)</label>
+                                <input asp-for="Height" type="number" step="0.1" min="0" class="form-control" />
+                            </div>
+                            <div class="col-md-2 col-6">
+                                <label class="form-label">BMI</label>
+                                <input class="form-control" id="bmi-display" value="@(Model.Bmi?.ToString("0.00"))" readonly tabindex="-1" />
+                            </div>
+                            <div class="col-md-2 col-6">
+                                <label asp-for="Sbp" class="form-label">BP Systolic</label>
+                                <input asp-for="Sbp" type="number" min="0" class="form-control" />
+                            </div>
+                            <div class="col-md-2 col-6">
+                                <label asp-for="Dbp" class="form-label">BP Diastolic</label>
+                                <input asp-for="Dbp" type="number" min="0" class="form-control" />
+                            </div>
+                            <div class="col-md-2 col-6">
+                                <label asp-for="Pr" class="form-label">Pulse (PR)</label>
+                                <input asp-for="Pr" type="number" min="0" class="form-control" />
+                            </div>
+                            <div class="col-md-2 col-6">
+                                <label asp-for="RespiratoryRate" class="form-label">Resp. Rate</label>
+                                <input asp-for="RespiratoryRate" type="number" min="0" class="form-control" />
+                            </div>
+                            <div class="col-md-2 col-6">
+                                <label asp-for="Saturation" class="form-label">SpO2 (%)</label>
+                                <input asp-for="Saturation" type="number" min="0" max="100" class="form-control" />
+                            </div>
+                            <div class="col-md-2 col-6">
+                                <label asp-for="Pfr" class="form-label">PEFR</label>
+                                <input asp-for="Pfr" type="number" min="0" class="form-control" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-3">
+                    <div class="card-header bg-white fw-semibold">
+                        <i class="bi bi-heart-pulse me-1 text-primary"></i>Examination, Diagnosis &amp; Plan
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label asp-for="Examination" class="form-label">Clinical Examination</label>
+                                <textarea asp-for="Examination" class="form-control" rows="3" placeholder="General and systemic examination findings..."></textarea>
+                            </div>
+                            <div class="col-12">
+                                <label asp-for="Diagnosis" class="form-label">Diagnosis</label>
+                                <textarea asp-for="Diagnosis" class="form-control" rows="2" placeholder="Working / final diagnosis..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-3">
+                    <div class="card-header bg-white fw-semibold">
+                        <i class="bi bi-droplet me-1 text-primary"></i>Investigations
+                    </div>
+                    <div class="card-body">
+                        <label class="form-label">Advised Investigations</label>
+                        @if (Model.InvestigationList.Any())
+                        {
+                            <div class="row g-2 mb-2">
+                                @foreach (var inv in Model.InvestigationList)
+                                {
+                                    <div class="col-md-6">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox"
+                                                   name="SelectedInvestigationIds" value="@inv.Value"
+                                                   id="inv-@inv.Value" />
+                                            <label class="form-check-label small" for="inv-@inv.Value">@inv.Text</label>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <span class="text-secondary small">No billable investigations in the catalog.</span>
+                        }
+                        <label asp-for="Investigations" class="form-label">Investigation Notes</label>
+                        <textarea asp-for="Investigations" class="form-control" rows="2" placeholder="Other investigations / remarks (appended to the selected ones)..."></textarea>
+                    </div>
+                </div>
+
+                <div class="card mb-3">
+                    <div class="card-header bg-white fw-semibold">
+                        <i class="bi bi-prescription2 me-1 text-primary"></i>Treatment &amp; Follow-up
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label asp-for="TreatmentPlan" class="form-label">Treatment Plan</label>
+                                <textarea asp-for="TreatmentPlan" class="form-control" rows="3" placeholder="Medications, procedures prescribed..."></textarea>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="Management" class="form-label">Management / Advice</label>
+                                <textarea asp-for="Management" class="form-control" rows="3" placeholder="Lifestyle advice, precautions..."></textarea>
+                            </div>
+                            <div class="col-12">
+                                <label asp-for="FollowUp" class="form-label">Follow-up</label>
+                                <textarea asp-for="FollowUp" class="form-control" rows="2" placeholder="Next review date and instructions..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                @if (Model.CurrentPrescriptions.Any())
+                {
+                    <div class="card mb-3">
+                        <div class="card-header bg-white fw-semibold">
+                            <i class="bi bi-capsule me-1 text-primary"></i>Prescriptions (This Visit)
+                        </div>
+                        <div class="card-body p-0">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr><th>Medicine</th><th>Dose</th><th>Frequency</th><th>Duration</th><th>Route</th><th>Qty</th></tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var rx in Model.CurrentPrescriptions)
+                                    {
+                                        <tr>
+                                            <td class="fw-semibold">@rx.MedicineName</td>
+                                            <td>@rx.Dose</td>
+                                            <td>@rx.Frequency</td>
+                                            <td>@rx.Duration</td>
+                                            <td>@rx.Route</td>
+                                            <td>@rx.Qty</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                }
+
+                @if (Model.CurrentInvestigationOrders.Any())
+                {
+                    <div class="card mb-3">
+                        <div class="card-header bg-white fw-semibold">
+                            <i class="bi bi-droplet me-1 text-primary"></i>Investigation Orders (This Visit)
+                        </div>
+                        <div class="card-body p-0">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr><th>Investigation</th><th>Description</th><th>Status</th></tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var inv in Model.CurrentInvestigationOrders)
+                                    {
+                                        <tr>
+                                            <td class="fw-semibold">@inv.InvestigationName</td>
+                                            <td>@inv.Description</td>
+                                            <td>
+                                                @if (inv.Completed)
+                                                {
+                                                    <span class="badge bg-success">Completed</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-warning text-dark">Ordered</span>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                }
+
+                <button type="submit" class="btn btn-primary px-4">
+                    <i class="bi bi-check2-circle me-1"></i>@(Model.EditId.HasValue ? "Update EMR Record" : "Save EMR Record")
+                </button>
+                <a asp-page="/opd/emr" class="btn btn-outline-secondary ms-2">Start New</a>
+            </form>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header bg-white fw-semibold">
+                    <i class="bi bi-journal-medical me-1 text-primary"></i>Recent OPD Visits
+                </div>
+                <div class="card-body p-0">
+                    @if (Model.RecentVisits.Any())
+                    {
+                        <ul class="list-group list-group-flush">
+                            @foreach (var v in Model.RecentVisits)
+                            {
+                                <li class="list-group-item @(v.Id == Model.EditId ? "bg-primary bg-opacity-10" : "")">
+                                    <div class="d-flex justify-content-between align-items-start gap-2">
+                                        <div>
+                                            <div class="small fw-semibold">#@v.Id &middot; @(v.EncounterDate?.ToString("dd MMM yyyy") ?? "-")</div>
+                                            <div class="small text-secondary">Doctor: @(v.OpdDoctor?.Person?.Surname ?? v.OpdDoctor?.Person?.Name ?? "-")</div>
+                                            <div class="small text-truncate" style="max-width:240px;">
+                                                <span class="badge bg-soft-info text-dark border">Diag:</span> @(v.Diagnosis ?? "-")
+                                            </div>
+                                        </div>
+                                        <a asp-page="/opd/emr" asp-route-id="@v.Id" class="btn btn-sm btn-outline-primary" title="Open record">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                    </div>
+                                </li>
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        <div class="p-3 text-secondary small">No OPD EMR records yet for this patient.</div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <script>
+        $(function () {
+            function updateBmi() {
+                var w = parseFloat($('#Weight').val());
+                var h = parseFloat($('#Height').val());
+                if (!isNaN(w) && !isNaN(h) && h > 0) {
+                    var bmi = w / Math.pow(h / 100, 2);
+                    $('#bmi-display').val(bmi.toFixed(2));
+                } else {
+                    $('#bmi-display').val('');
+                }
+            }
+            $('#Weight, #Height').on('input', updateBmi);
+            updateBmi();
+        });
+    </script>
+}

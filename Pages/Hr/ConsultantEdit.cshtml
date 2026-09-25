@@ -1,0 +1,162 @@
+@page "/hr/consultants/edit"
+@model HmisWeb.Pages.Hr.ConsultantEditModel
+@using HmisWeb.Data.Enums
+@{
+    ViewData["Title"] = "Edit Consultant";
+}
+
+<div class="d-flex gap-2 align-items-center mb-3">
+    <a asp-page="/Hr/Consultants" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Consultants</a>
+    <h4 class="mb-0 fw-bold"><i class="bi bi-person-gear me-1 text-primary"></i>Edit Consultant</h4>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger py-2"><i class="bi bi-exclamation-triangle me-1"></i>@Model.ErrorMessage</div>
+}
+
+<form method="post" class="row g-3">
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header bg-white fw-semibold"><i class="bi bi-person-vcard me-1 text-primary"></i>Personal Details</div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label asp-for="Input.Name" class="form-label">Full Name *</label>
+                        <input asp-for="Input.Name" class="form-control" />
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="Input.NameWithInitials" class="form-label">Name with Initials *</label>
+                        <input asp-for="Input.NameWithInitials" class="form-control" placeholder="e.g. Dr. A. B. Silva" />
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="Input.Nic" class="form-label">NIC</label>
+                        <input asp-for="Input.Nic" class="form-control" />
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="Input.Mobile" class="form-label">Contact No</label>
+                        <input asp-for="Input.Mobile" class="form-control" />
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="Input.Email" class="form-label">Email</label>
+                        <input asp-for="Input.Email" class="form-control" />
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="Input.Sex" class="form-label">Sex</label>
+                        <select asp-for="Input.Sex" asp-items="Html.GetEnumSelectList<Sex>()" class="form-select">
+                            <option value="">-- Select --</option>
+                        </select>
+                    </div>
+                    <div class="col-md-8">
+                        <label asp-for="Input.Degrees" class="form-label">Degrees / Qualifications</label>
+                        <input asp-for="Input.Degrees" class="form-control" placeholder="e.g. MBBS, MD, MRCP" />
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-header bg-white fw-semibold"><i class="bi bi-briefcase me-1 text-primary"></i>Practice &amp; Fees</div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label asp-for="Input.SpecialityId" class="form-label">Speciality</label>
+                        <select asp-for="Input.SpecialityId" asp-items="Model.SpecialityList" class="form-select">
+                            <option value="">-- Select --</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="Input.DepartmentId" class="form-label">Department</label>
+                        <select asp-for="Input.DepartmentId" asp-items="Model.DepartmentList" class="form-select">
+                            <option value="">-- Select --</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="Input.FirstVisitFee" class="form-label">First Visit Fee (Rs.)</label>
+                        <input asp-for="Input.FirstVisitFee" type="number" step="0.01" min="0" class="form-control" />
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="Input.SubsequentVisitFee" class="form-label">Subsequent Visit Fee (Rs.)</label>
+                        <input asp-for="Input.SubsequentVisitFee" type="number" step="0.01" min="0" class="form-control" />
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="Input.SltRegNo" class="form-label">SLMC Reg No</label>
+                        <input asp-for="Input.SltRegNo" class="form-control" />
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="Input.PmcNumber" class="form-label">PMC Number</label>
+                        <input asp-for="Input.PmcNumber" class="form-control" />
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-white fw-semibold"><i class="bi bi-calendar-week me-1 text-primary"></i>Weekly OPD Schedule</div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Working Days</label>
+                        <div id="workDaysChips">
+                            @foreach (var day in new[] { "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" })
+                            {
+                                var marked = (Model.Input.WorkDays ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries).Contains(day);
+                                <button type="button" class="btn btn-sm @(marked ? "btn-primary" : "btn-outline-secondary") day-chip me-1 mb-1"
+                                        data-day="@day">@day</button>
+                            }
+                        </div>
+                        <input type="hidden" asp-for="Input.WorkDays" id="WorkDays" />
+                        <div class="form-text mt-1">Click the days the consultant attends OPD. Used to warn when creating a session on a non-working day.</div>
+                    </div>
+                    <div class="col-md-2">
+                        <label asp-for="Input.SessionStartTime" class="form-label">Default Start Time</label>
+                        <input asp-for="Input.SessionStartTime" type="time" class="form-control" />
+                    </div>
+                    <div class="col-md-2">
+                        <label asp-for="Input.SessionEndTime" class="form-label">Default End Time</label>
+                        <input asp-for="Input.SessionEndTime" type="time" class="form-control" />
+                    </div>
+                    <div class="col-md-2">
+                        <label asp-for="Input.DefaultRoomNo" class="form-label">Default Room</label>
+                        <input asp-for="Input.DefaultRoomNo" class="form-control" placeholder="OPD-1" />
+                    </div>
+                    <div class="col-md-3">
+                        <label asp-for="Input.DefaultHospitalFee" class="form-label">Default Hospital Charge (Rs.)</label>
+                        <input asp-for="Input.DefaultHospitalFee" type="number" step="0.01" min="0" class="form-control" />
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 d-flex gap-2">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i>Save Changes</button>
+        <a asp-page="/Hr/Consultants" class="btn btn-outline-secondary">Cancel</a>
+    </div>
+</form>
+
+@section Scripts {
+    <script>
+        $(function () {
+            var $hidden = $('#WorkDays');
+            function refresh() {
+                var marked = [];
+                document.querySelectorAll('.day-chip.btn-primary').forEach(function (b) {
+                    marked.push(b.getAttribute('data-day'));
+                });
+                $hidden.val(marked.join(','));
+            }
+            document.querySelectorAll('.day-chip').forEach(function (b) {
+                b.addEventListener('click', function () {
+                    this.classList.toggle('btn-primary');
+                    this.classList.toggle('btn-outline-secondary');
+                    refresh();
+                });
+            });
+        });
+    </script>
+}

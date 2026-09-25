@@ -1,0 +1,227 @@
+@page "/opd/tokenboard"
+@model HmisWeb.Pages.Opd.TokenBoardModel
+@using HmisWeb.Data.Enums
+@{
+    ViewData["Title"] = "OPD Token Board";
+    var active = Model.Tokens.Where(t => t.Status == TokenStatus.InConsultation || t.Status == TokenStatus.Called).ToList();
+    var waiting = Model.Tokens.Where(t => t.Status == TokenStatus.Waiting).ToList();
+    var completed = Model.Tokens.Where(t => t.Status == TokenStatus.Completed).ToList();
+    var noShow = Model.Tokens.Where(t => t.Status == TokenStatus.NoShow || t.Status == TokenStatus.Cancelled).ToList();
+    var nowServing = active.FirstOrDefault();
+    var nextUp = waiting.FirstOrDefault();
+    var maxToken = Model.Tokens.Count > 0 ? Model.Tokens.Max(t => t.Number) : 0;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div>
+        <h4 class="mb-0 fw-bold"><i class="bi bi-display me-1 text-primary"></i>OPD Token Board</h4>
+        <div class="text-secondary small">Consultant calls patients one by one from the waiting queue.</div>
+    </div>
+    <form method="get" class="d-flex gap-2 align-items-center">
+        <input asp-for="SessionDate" type="date" class="form-control form-control-sm" onchange="this.form.submit()" />
+        <select asp-for="SessionId" asp-items="Model.SessionOptions" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">-- Select a session --</option>
+        </select>
+        <a asp-page="/Opd/Registration" asp-route-SessionDate="@(Model.SessionDate?.ToString("yyyy-MM-dd"))" class="btn btn-sm btn-outline-secondary text-nowrap">
+            <i class="bi bi-person-plus me-1"></i>Reception
+        </a>
+    </form>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.Message))
+{
+    <div class="alert alert-info py-2">@Model.Message</div>
+}
+
+@if (Model.SelectedSession == null)
+{
+    <div class="card">
+        <div class="card-body text-center text-muted py-5">
+            <i class="bi bi-stopwatch fs-1 d-block mb-2"></i>
+            Select an OPD session to open its token board.
+        </div>
+    </div>
+}
+else
+{
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="row align-items-center g-2">
+                <div class="col-md-7">
+                    <div class="fw-bold fs-5">
+                        @(Model.SelectedSession.Consultant?.Person?.NameWithInitials ?? Model.SelectedSession.Consultant?.Person?.Name ?? "Consultant")
+                        @if (Model.SelectedSession.Status == OpdSessionStatus.Active)
+                        {
+                            <span class="badge bg-success">OPD ACTIVE</span>
+                        }
+                        else if (Model.SelectedSession.Status == OpdSessionStatus.Scheduled)
+                        {
+                            <span class="badge bg-secondary">Not Started</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-dark">Ended</span>
+                        }
+                    </div>
+                    <div class="small text-secondary">
+                        <i class="bi bi-stethoscope me-1"></i>@(Model.SelectedSession.Speciality?.Name ?? "General")
+                        &middot; <i class="bi bi-door-open me-1"></i>Room @Model.SelectedSession.RoomNo
+                        &middot; @Model.SelectedSession.FromTime – @Model.SelectedSession.ToTime
+                        &middot; Tokens @(Model.SelectedSession.TokenStartingNo) – @(Model.SelectedSession.TokenStartingNo + Model.SelectedSession.TokenMax - 1)
+                    </div>
+                </div>
+                <div class="col-md-5 d-flex justify-content-md-end gap-2 align-items-center">
+                    @if (Model.SelectedSession.Status != OpdSessionStatus.Completed)
+                    {
+                        <form method="post" asp-page-handler="@(Model.SelectedSession.Status == OpdSessionStatus.Scheduled ? "StartSession" : "CompleteSession")" asp-route-sessionId="@Model.SelectedSession.Id">
+                            @if (Model.SelectedSession.Status == OpdSessionStatus.Scheduled)
+                            {
+                                <button type="submit" class="btn btn-success"><i class="bi bi-play-fill me-1"></i>Start OPD</button>
+                            }
+                            else
+                            {
+                                <button type="submit" class="btn btn-dark"><i class="bi bi-stop-fill me-1"></i>End OPD</button>
+                            }
+                        </form>
+                    }
+                    <span class="text-secondary small">@maxToken/@(Model.SelectedSession.TokenMax) tokens</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header bg-white fw-semibold text-primary"><i class="bi bi-bell me-1"></i>Now Consulting</div>
+                <div class="card-body text-center py-4">
+                    @if (nowServing != null)
+                    {
+                        <div class="display-1 fw-bold text-primary">@nowServing.TokenNumber</div>
+                        <div class="fw-semibold">@nowServing.PatientName</div>
+                        <div class="small text-secondary mb-3">PHN: @(nowServing.Phn?.ToString() ?? "-") @(nowServing.CalledAt.HasValue ? "&middot; Called " + nowServing.CalledAt.Value.ToString("HH:mm") : "")</div>
+                        <div class="d-flex justify-content-center gap-2">
+                            <form method="post" asp-page-handler="Complete" asp-route-tokenId="@nowServing.Id">
+                                <button type="submit" class="btn btn-success"><i class="bi bi-check-lg me-1"></i>Complete</button>
+                            </form>
+                            <form method="post" asp-page-handler="NoShow" asp-route-tokenId="@nowServing.Id">
+                                <button type="submit" class="btn btn-outline-danger"><i class="bi bi-x-lg me-1"></i>No Show</button>
+                            </form>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-muted py-3">No patient is being consulted right now.</div>
+                        @if (nextUp != null)
+                        {
+                            <form method="post" asp-page-handler="Call" asp-route-tokenId="@nextUp.Id">
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="bi bi-megaphone me-1"></i>Call Next Token @nextUp.TokenNumber - @nextUp.PatientName
+                                </button>
+                            </form>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header bg-white fw-semibold"><i class="bi bi-hourglass-split me-1 text-warning"></i>Waiting Queue (@waiting.Count)</div>
+                <div class="card-body p-0" style="max-height:240px; overflow-y:auto;">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="sticky-top">
+                            <tr class="table-light">
+                                <th>Token</th>
+                                <th>Patient</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (!waiting.Any())
+                            {
+                                <tr><td colspan="3" class="text-muted text-center small py-4">No patients waiting.</td></tr>
+                            }
+                            @foreach (var t in waiting)
+                            {
+                                <tr class="@(t.Id == nextUp?.Id ? "table-warning" : "")">
+                                    <td class="fw-bold fs-5">@t.TokenNumber</td>
+                                    <td>
+                                        <div>@t.PatientName</div>
+                                        <div class="small text-secondary">PHN: @(t.Phn?.ToString() ?? "-")</div>
+                                    </td>
+                                    <td class="text-end">
+                                        <form method="post" asp-page-handler="Call" asp-route-tokenId="@t.Id">
+                                            <button type="submit" class="btn btn-sm btn-primary">Call</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-white fw-semibold text-success"><i class="bi bi-check2-circle me-1"></i>Completed (@completed.Count)</div>
+                <div class="card-body p-0" style="max-height:260px; overflow-y:auto;">
+                    <table class="table table-sm align-middle mb-0">
+                        <tbody>
+                            @if (!completed.Any())
+                            {
+                                <tr><td class="text-muted text-center small py-3">No completed patients yet.</td></tr>
+                            }
+                            @foreach (var t in completed.OrderByDescending(x => x.Number))
+                            {
+                                <tr>
+                                    <td class="fw-bold">@t.TokenNumber</td>
+                                    <td>@t.PatientName</td>
+                                    <td class="text-end text-secondary small">@(t.IssuedAt?.ToString("HH:mm") ?? "-")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-white fw-semibold text-danger"><i class="bi bi-x-circle me-1"></i>No Show (@noShow.Count)</div>
+                <div class="card-body p-0" style="max-height:260px; overflow-y:auto;">
+                    <table class="table table-sm align-middle mb-0">
+                        <tbody>
+                            @if (!noShow.Any())
+                            {
+                                <tr><td class="text-muted text-center small py-3">No missed patients.</td></tr>
+                            }
+                            @foreach (var t in noShow.OrderByDescending(x => x.Number))
+                            {
+                                <tr>
+                                    <td class="fw-bold">@t.TokenNumber</td>
+                                    <td>@t.PatientName</td>
+                                    <td class="text-end">
+                                        <form method="post" asp-page-handler="Requeue" asp-route-tokenId="@t.Id">
+                                            <button type="submit" class="btn btn-sm btn-outline-secondary">Requeue</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    @if (Model.SelectedSession != null && Model.SelectedSession.Status == OpdSessionStatus.Active)
+    {
+        <script>
+            setTimeout(function () { window.location.reload(); }, 15000);
+        </script>
+    }
+}

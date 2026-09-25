@@ -1,0 +1,49 @@
+@page
+@model HmisWeb.Pages.Channel.BookingModel
+@{
+    ViewData["Title"] = "Channel Booking";
+}
+
+<h4>Channel Booking</h4>
+
+@if (!string.IsNullOrEmpty(Model.Message))
+{
+    <div class="alert alert-success">@Model.Message</div>
+}
+
+<div class="card mt-3">
+    <div class="card-body">
+        <form method="post">
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Patient Name *</label>
+                    <input asp-for="Input.PatientName" class="form-control" required />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Patient NIC / Mobile</label>
+                    <input asp-for="Input.PatientNic" class="form-control" />
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Doctor *</label>
+                    <select asp-for="Input.StaffId" asp-items="Model.DoctorList" class="form-select" required>
+                        <option value="">-- Select Doctor --</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Appointment Date *</label>
+                    <input asp-for="Input.AppointmentDate" class="form-control" type="date" required />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Fee Amount *</label>
+                    <input asp-for="Input.FeeAmount" class="form-control" type="number" step="0.01" required />
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">Save Booking</button>
+                <a asp-page="/Channel/Schedule" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>

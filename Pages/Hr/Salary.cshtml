@@ -1,0 +1,45 @@
+@page
+@model HmisWeb.Pages.Hr.SalaryModel
+@{
+    ViewData["Title"] = "Staff Salary";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4>Staff Salary</h4>
+    <a asp-page="/Hr/NewSalary" class="btn btn-primary btn-sm">Add Salary</a>
+</div>
+
+<table class="table table-bordered table-sm table-hover">
+    <thead class="table-light">
+        <tr>
+            <th>Staff</th>
+            <th class="text-end">Gross Salary</th>
+            <th class="text-end">EPF</th>
+            <th class="text-end">ETF</th>
+            <th class="text-end">PAYE</th>
+            <th class="text-end">Net Salary</th>
+            <th>Salary Date</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (Model.Salaries.Any())
+        {
+            @foreach (var s in Model.Salaries)
+            {
+                <tr>
+                    <td>@(s.Staff != null && s.Staff.Person != null ? (s.Staff.Person.NameWithInitials ?? s.Staff.Person.Name ?? "") : "")</td>
+                    <td class="text-end">@s.GrossSalary?.ToString("N2")</td>
+                    <td class="text-end">@s.EpfEmployee?.ToString("N2")</td>
+                    <td class="text-end">@s.Etf?.ToString("N2")</td>
+                    <td class="text-end">@s.Payee?.ToString("N2")</td>
+                    <td class="text-end">@s.NetSalary?.ToString("N2")</td>
+                    <td>@(s.SalaryDate?.ToString("yyyy-MM-dd") ?? "")</td>
+                </tr>
+            }
+        }
+        else
+        {
+            <tr><td colspan="7" class="text-center text-muted">No salary records found.</td></tr>
+        }
+    </tbody>
+</table>

@@ -1,0 +1,81 @@
+@page
+@model HmisWeb.Pages.PaymentSchemes.IndexModel
+@{
+    ViewData["Title"] = "Payment Schemes";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h4 class="mb-0">Payment Schemes</h4>
+        <div class="text-muted small">Manage Payment Schemes records.</div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7 col-12">
+        <div class="card">
+            <div class="card-header bg-white d-flex align-items-center justify-content-between">
+                <strong>Payment Schemes</strong>
+                <span class="badge bg-primary rounded-pill">@Model.Items.Count</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Description</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.Items.Count == 0)
+                        {
+                            <tr><td colspan="3" class="text-center text-muted py-3">No records yet. Add the first one on the right.</td></tr>
+                        }
+                        @foreach (var item in Model.Items)
+                        {
+                            <tr>
+                                <td>@item.Name</td>
+                                <td>@(item.Description ?? "-")</td>
+                                <td class="text-end">
+                                    <form method="post">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="handler" value="Delete" />
+                                        <input type="hidden" name="id" value="@item.Id" />
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Retire" onclick="return confirm('Retire this record?');"><i class="bi bi-trash"></i></button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5 col-12">
+        <div class="card">
+            <div class="card-header bg-white fw-semibold">Add New</div>
+            <div class="card-body">
+                @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+                {
+                    <div class="alert alert-danger py-2">@Model.ErrorMessage</div>
+                }
+                <form method="post">
+                    @Html.AntiForgeryToken()
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label asp-for="Input.Name" class="form-label">Name *</label>
+                            <input asp-for="Input.Name" class="form-control" required />
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Input.Description" class="form-label">Description</label>
+                            <input asp-for="Input.Description" class="form-control" />
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary mt-3 w-100"><i class="bi bi-plus-lg"></i> Save</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

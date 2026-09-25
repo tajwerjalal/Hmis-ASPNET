@@ -1,0 +1,634 @@
+@page "/opd/doctor"
+@model HmisWeb.Pages.Opd.DoctorModel
+@{
+    ViewData["Title"] = "OPD Doctor Workbench";
+    Layout = "_Layout";
+}
+
+<div class="no-print-zone">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0"><i class="bi bi-stethoscope"></i> OPD Doctor Workbench</h4>
+        <div class="d-flex gap-2">
+            <select id="sessionSelect" class="form-select form-select-sm" style="width:250px" onchange="loadPatients()">
+                <option value="">-- Select Session --</option>
+                @foreach (var s in Model.Sessions)
+                {
+                    if (s.Id == Model.SelectedSessionId)
+                    {
+                        <option value="@s.Id" selected>@s.Consultant?.Person?.NameWithInitials - @s.RoomNo (@s.FromTime)</option>
+                    }
+                    else
+                    {
+                        <option value="@s.Id">@s.Consultant?.Person?.NameWithInitials - @s.RoomNo (@s.FromTime)</option>
+                    }
+                }
+            </select>
+            <button class="btn btn-outline-secondary btn-sm" onclick="loadPatients()"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.SuccessMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @Model.SuccessMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="row">
+        <!-- Patient Queue Panel -->
+        <div class="col-md-4">
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-people"></i> Patient Queue</span>
+                    <span class="badge bg-primary" id="queueCount">@Model.PatientQueue.Count</span>
+                </div>
+                <div class="card-body p-0" style="max-height:500px; overflow-y:auto;">
+                    @if (Model.PatientQueue.Count == 0)
+                    {
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-inbox" style="font-size:2rem"></i>
+                            <p class="mt-2 mb-0">No patients in queue.</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="list-group list-group-flush">
+                            @foreach (var p in Model.PatientQueue)
+                            {
+                                var statusColor = p.Status switch
+                                {
+                                    "Waiting" => "border-start border-4 border-warning",
+                                    "Called" => "border-start border-4 border-info",
+                                    "InConsultation" => "border-start border-4 border-primary",
+                                    "Completed" => "border-start border-4 border-success",
+                                    "NoShow" => "border-start border-4 border-secondary",
+                                    _ => ""
+                                };
+                                <button type="button" class="list-group-item list-group-item-action @statusColor"
+                                        onclick="selectPatient(@p.TokenId, @p.PatientId, @p.EncounterId, '@p.PatientName', '@p.Phn', '@p.TokenNo', '@p.Status')">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <div class="fw-bold">
+                                                <span class="badge bg-secondary me-1">#@p.TokenNo</span>
+                                                @p.PatientName
+                                            </div>
+                                            <small class="text-muted">PHN: @p.Phn | @p.Age</small>
+                                        </div>
+                                        <span class="badge @GetStatusBadgeClass(p.Status)">@p.Status</span>
+                                    </div>
+                                    @if (!string.IsNullOrEmpty(p.ChiefComplaint))
+                                    {
+                                        <small class="text-muted d-block mt-1"><i class="bi bi-chat-left-text"></i> @p.ChiefComplaint</small>
+                                    }
+                                </button>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Work Area -->
+        <div class="col-md-8">
+            <div id="noPatientSelected" class="card">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-arrow-left-circle" style="font-size:3rem; color:#ccc"></i>
+                    <p class="mt-3 text-muted">Select a patient from the queue to begin consultation.</p>
+                </div>
+            </div>
+
+            <div id="patientWorkArea" style="display:none">
+                <!-- Patient Header -->
+                <div class="card mb-3 border-primary">
+                    <div class="card-body py-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="badge bg-primary me-2" id="displayToken">Token #</span>
+                                <strong id="displayPatientName">Patient Name</strong>
+                                <span class="text-muted ms-2" id="displayPhn">PHN</span>
+                                <span class="text-muted ms-2" id="displayAge">Age</span>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-success btn-sm" id="btnCallPatient" onclick="callPatient()">
+                                    <i class="bi bi-mic"></i> Call Patient
+                                </button>
+                                <button class="btn btn-primary btn-sm" id="btnFinalize" onclick="finalizeVisit()" style="display:none">
+                                    <i class="bi bi-check-circle"></i> Finalize
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Clinical Tabs -->
+                <ul class="nav nav-tabs" id="clinicalTabs">
+                    <li class="nav-item">
+                        <a class="nav-link active" data-bs-toggle="tab" href="#tabSymptoms"><i class="bi bi-activity"></i> Symptoms</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#tabVitals"><i class="bi bi-heart-pulse"></i> Vitals</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#tabDiagnosis"><i class="bi bi-clipboard2-check"></i> Diagnosis</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#tabPrescriptions"><i class="bi bi-capsule"></i> Prescriptions</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#tabInvestigations"><i class="bi bi-droplet"></i> Investigations</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#tabNotes"><i class="bi bi-journal-text"></i> Notes</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#tabFollowUp"><i class="bi bi-calendar-plus"></i> Follow-Up</a>
+                    </li>
+                </ul>
+
+                <div class="tab-content border border-top-0 rounded-bottom p-3">
+                    <!-- Symptoms Tab -->
+                    <div class="tab-pane fade show active" id="tabSymptoms">
+                        <div class="row mb-3">
+                            <div class="col-md-8">
+                                <input id="symptomSearch" class="form-control" placeholder="Search symptom (e.g. headache, fever, cough...)" autocomplete="off" />
+                            </div>
+                            <div class="col-md-2">
+                                <select id="symptomSeverity" class="form-select">
+                                    <option value="1">Mild (1)</option>
+                                    <option value="2" selected>Moderate (2)</option>
+                                    <option value="3">Severe (3)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <button class="btn btn-primary w-100" onclick="addSymptom()"><i class="bi bi-plus"></i> Add</button>
+                            </div>
+                        </div>
+                        <div id="symptomList" class="mb-3">
+                            @foreach (var s in Model.CurrentSymptoms)
+                            {
+                                <span class="badge bg-info me-1 mb-1" style="font-size:.85rem">
+                                    @s.Description <span class="text-warning">(@s.Severity)</span>
+                                    <a href="#" class="text-white ms-1" onclick="removeSymptom(@s.Id); return false;">&times;</a>
+                                </span>
+                            }
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Chief Complaint</label>
+                            <textarea id="chiefComplaint" class="form-control" rows="2" placeholder="Enter chief complaint...">@Model.CurrentEncounter?.ChiefComplaint</textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">History of Presenting Complaint</label>
+                            <textarea id="hpc" class="form-control" rows="2" placeholder="Enter history...">@Model.CurrentEncounter?.HistoryOfPresentingComplaint</textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Past Medical History</label>
+                            <textarea id="pmh" class="form-control" rows="2" placeholder="Enter past history...">@Model.CurrentEncounter?.PastMedicalHistory</textarea>
+                        </div>
+                        <button class="btn btn-outline-primary btn-sm" onclick="saveClinicalNotes()"><i class="bi bi-save"></i> Save Notes</button>
+                    </div>
+
+                    <!-- Vitals Tab -->
+                    <div class="tab-pane fade" id="tabVitals">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label class="form-label">Weight (kg)</label>
+                                <input id="vWeight" type="number" step="0.1" class="form-control" value="@Model.CurrentEncounter?.Weight" />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Height (cm)</label>
+                                <input id="vHeight" type="number" step="0.1" class="form-control" value="@Model.CurrentEncounter?.Height" onchange="calcBMI()" />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">BMI</label>
+                                <input id="vBMI" type="text" class="form-control" readonly />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">BP (Sys/Dia)</label>
+                                <div class="input-group">
+                                    <input id="vBPSys" type="number" class="form-control" placeholder="120" value="@Model.CurrentEncounter?.Sbp" />
+                                    <span class="input-group-text">/</span>
+                                    <input id="vBPDia" type="number" class="form-control" placeholder="80" value="@Model.CurrentEncounter?.Dbp" />
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Pulse (bpm)</label>
+                                <input id="vPulse" type="number" class="form-control" value="@Model.CurrentEncounter?.Pr" />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Resp Rate (/min)</label>
+                                <input id="vResp" type="number" class="form-control" value="@Model.CurrentEncounter?.RespiratoryRate" />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">SpO2 (%)</label>
+                                <input id="vSpO2" type="number" step="0.1" class="form-control" value="@Model.CurrentEncounter?.Saturation" />
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">PEFR</label>
+                                <input id="vTemp" type="number" step="0.1" class="form-control" value="@Model.CurrentEncounter?.Pfr" />
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <button class="btn btn-outline-primary btn-sm" onclick="saveVitals()"><i class="bi bi-save"></i> Save Vitals</button>
+                        </div>
+                    </div>
+
+                    <!-- Diagnosis Tab -->
+                    <div class="tab-pane fade" id="tabDiagnosis">
+                        <div class="row mb-3">
+                            <div class="col-md-8">
+                                <input id="diagnosisSearch" class="form-control" placeholder="Search diagnosis (e.g. malaria, diabetes...)" autocomplete="off" />
+                            </div>
+                            <div class="col-md-2">
+                                <select id="diagnosisType" class="form-select">
+                                    <option value="Primary">Primary</option>
+                                    <option value="Secondary">Secondary</option>
+                                    <option value="Differential">Differential</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <button class="btn btn-primary w-100" onclick="addDiagnosis()"><i class="bi bi-plus"></i> Add</button>
+                            </div>
+                        </div>
+                        <div id="diagnosisList">
+                            @foreach (var d in Model.CurrentDiagnoses)
+                            {
+                                <div class="d-flex justify-content-between align-items-center border-bottom py-2">
+                                    <div>
+                                        <span class="badge @GetTypeBadgeClass(d.DiagnosisType) me-1">@d.DiagnosisType</span>
+                                        <strong>@d.DiagnosisName</strong>
+                                        @if (!string.IsNullOrEmpty(d.Notes))
+                                        {
+                                            <span class="text-muted ms-2">- @d.Notes</span>
+                                        }
+                                    </div>
+                                    <button class="btn btn-outline-danger btn-sm" onclick="removeDiagnosis(@d.Id)"><i class="bi bi-trash"></i></button>
+                                </div>
+                            }
+                        </div>
+                        <div class="mt-3 mb-3">
+                            <label class="form-label fw-bold">Custom Diagnosis (if not in catalog)</label>
+                            <div class="input-group">
+                                <input id="customDiagnosis" class="form-control" placeholder="Enter custom diagnosis..." />
+                                <button class="btn btn-outline-primary" onclick="addCustomDiagnosis()"><i class="bi bi-plus"></i> Add Custom</button>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Examination Findings</label>
+                            <textarea id="examination" class="form-control" rows="3" placeholder="Clinical examination findings...">@Model.CurrentEncounter?.Examination</textarea>
+                        </div>
+                        <button class="btn btn-outline-primary btn-sm" onclick="saveExamination()"><i class="bi bi-save"></i> Save</button>
+                    </div>
+
+                    <!-- Prescriptions Tab -->
+                    <div class="tab-pane fade" id="tabPrescriptions">
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-4">
+                                <input id="medicineSearch" class="form-control" placeholder="Search medicine..." autocomplete="off" />
+                            </div>
+                            <div class="col-md-2">
+                                <input id="medDose" class="form-control" placeholder="Dose (e.g. 500mg)" />
+                            </div>
+                            <div class="col-md-2">
+                                <select id="medFrequency" class="form-select">
+                                    <option value="">Frequency</option>
+                                    <option value="OD">OD (Once daily)</option>
+                                    <option value="BD">BD (Twice daily)</option>
+                                    <option value="TDS">TDS (Three times)</option>
+                                    <option value="QID">QID (Four times)</option>
+                                    <option value="PRN">PRN (As needed)</option>
+                                    <option value="HS">HS (At bedtime)</option>
+                                    <option value="STAT">STAT (Immediately)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-1">
+                                <input id="medDuration" class="form-control" placeholder="Days" />
+                            </div>
+                            <div class="col-md-1">
+                                <input id="medQty" type="number" class="form-control" placeholder="Qty" value="1" />
+                            </div>
+                            <div class="col-md-2">
+                                <button class="btn btn-primary w-100" onclick="addPrescription()"><i class="bi bi-plus"></i> Add</button>
+                            </div>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-3">
+                                <select id="medRoute" class="form-select">
+                                    <option value="Oral">Oral</option>
+                                    <option value="IV">IV</option>
+                                    <option value="IM">IM</option>
+                                    <option value="SC">SC</option>
+                                    <option value="Topical">Topical</option>
+                                    <option value="Inhalation">Inhalation</option>
+                                    <option value="Rectal">Rectal</option>
+                                    <option value="Sublingual">Sublingual</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <input id="medInstructions" class="form-control" placeholder="Special instructions (e.g. after food, before bed...)" />
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check mt-2">
+                                    <input class="form-check-input" type="checkbox" id="medRequiredAction" />
+                                    <label class="form-check-label" for="medRequiredAction">Required Action (Pharmacy)</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover" id="prescriptionTable">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Medicine</th>
+                                        <th>Dose</th>
+                                        <th>Frequency</th>
+                                        <th>Duration</th>
+                                        <th>Route</th>
+                                        <th>Qty</th>
+                                        <th>Instructions</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="prescriptionBody">
+                                    @foreach (var rx in Model.CurrentPrescriptions)
+                                    {
+                                        <tr data-id="@rx.Id">
+                                            <td>@rx.MedicineName</td>
+                                            <td>@rx.Dose</td>
+                                            <td>@rx.Frequency</td>
+                                            <td>@rx.Duration</td>
+                                            <td>@rx.Route</td>
+                                            <td>@rx.Qty</td>
+                                            <td>@rx.Instructions</td>
+                                            <td><button class="btn btn-outline-danger btn-sm" onclick="removePrescription(@rx.Id)"><i class="bi bi-trash"></i></button></td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Investigations Tab -->
+                    <div class="tab-pane fade" id="tabInvestigations">
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-5">
+                                <input id="invSearch" class="form-control" placeholder="Search investigation (e.g. CBC, X-Ray, U&E...)" autocomplete="off" />
+                            </div>
+                            <div class="col-md-3">
+                                <input id="invDescription" class="form-control" placeholder="Clinical notes" />
+                            </div>
+                            <div class="col-md-2">
+                                <input id="invPrecautions" class="form-control" placeholder="Precautions" />
+                            </div>
+                            <div class="col-md-2">
+                                <button class="btn btn-primary w-100" onclick="addInvestigation()"><i class="bi bi-plus"></i> Add</button>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover" id="investigationTable">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Investigation</th>
+                                        <th>Description</th>
+                                        <th>Precautions</th>
+                                        <th>Status</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="investigationBody">
+                                    @foreach (var inv in Model.CurrentInvestigations)
+                                    {
+                                        <tr data-id="@inv.Id">
+                                            <td>@inv.InvestigationName</td>
+                                            <td>@inv.Description</td>
+                                            <td>@inv.Precautions</td>
+                                            <td>
+                                                @if (inv.Completed)
+                                                {
+                                                    <span class="badge bg-success">Completed</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-warning text-dark">Ordered</span>
+                                                }
+                                            </td>
+                                            <td><button class="btn btn-outline-danger btn-sm" onclick="removeInvestigation(@inv.Id)"><i class="bi bi-trash"></i></button></td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Notes Tab -->
+                    <div class="tab-pane fade" id="tabNotes">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Treatment Plan</label>
+                            <textarea id="treatmentPlan" class="form-control" rows="3" placeholder="Enter treatment plan...">@Model.CurrentEncounter?.TreatmentPlan</textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Management / Advice</label>
+                            <textarea id="management" class="form-control" rows="3" placeholder="Management and advice...">@Model.CurrentEncounter?.Management</textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Internal Notes (not printed)</label>
+                            <textarea id="internalNotes" class="form-control" rows="2" placeholder="Private notes...">@Model.CurrentEncounter?.EncounterComments</textarea>
+                        </div>
+                        <button class="btn btn-outline-primary btn-sm" onclick="saveNotes()"><i class="bi bi-save"></i> Save Notes</button>
+                    </div>
+
+                    <!-- Follow-Up Tab -->
+                    <div class="tab-pane fade" id="tabFollowUp">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Next Visit Date</label>
+                                <input id="followUpDate" type="date" class="form-control" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Recommended Doctor</label>
+                                <select id="followUpDoctor" class="form-select">
+                                    <option value="">Same Doctor</option>
+                                    @foreach (var d in Model.Doctors)
+                                    {
+                                        <option value="@d.Id">@d.Person?.NameWithInitials</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-12">
+                                <label class="form-label fw-bold">Treatment Plan / Instructions</label>
+                                <textarea id="followUpPlan" class="form-control" rows="3" placeholder="Treatment plan for next visit..."></textarea>
+                            </div>
+                            <div class="col-md-12">
+                                <button class="btn btn-primary" onclick="saveFollowUp()"><i class="bi bi-calendar-plus"></i> Schedule Follow-Up</button>
+                            </div>
+                        </div>
+                        @if (Model.CurrentFollowUp != null)
+                        {
+                            <hr />
+                            <div class="alert alert-info">
+                                <strong>Existing Follow-Up:</strong> @Model.CurrentFollowUp.NextVisitDate?.ToString("dd-MMM-yyyy")
+                                @if (Model.CurrentFollowUp.RecommendedDoctor != null)
+                                {
+                                    <span> with @Model.CurrentFollowUp.RecommendedDoctor.Person?.NameWithInitials</span>
+                                }
+                                <br /><small>@Model.CurrentFollowUp.TreatmentPlan</small>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@functions {
+    string GetStatusBadgeClass(string status) => status switch
+    {
+        "Waiting" => "bg-warning text-dark",
+        "Called" => "bg-info",
+        "InConsultation" => "bg-primary",
+        "Completed" => "bg-success",
+        "NoShow" => "bg-secondary",
+        _ => "bg-light"
+    };
+
+    string GetTypeBadgeClass(string type) => type switch
+    {
+        "Primary" => "bg-danger",
+        "Secondary" => "bg-warning text-dark",
+        "Differential" => "bg-info",
+        _ => "bg-secondary"
+    };
+}
+
+@section Scripts {
+    <script>
+        var currentPatientId = 0, currentEncounterId = 0, currentTokenId = 0;
+        var initialSessionId = '@Model.SelectedSessionId';
+
+        $(function () {
+            if (initialSessionId && initialSessionId !== '') {
+                $('#sessionSelect').val(initialSessionId);
+            }
+        });
+
+        function selectPatient(tokenId, patientId, encounterId, name, phn, tokenNo, status) {
+            currentTokenId = tokenId;
+            currentPatientId = patientId;
+            currentEncounterId = encounterId;
+            document.getElementById('noPatientSelected').style.display = 'none';
+            document.getElementById('patientWorkArea').style.display = '';
+            document.getElementById('displayToken').textContent = 'Token #' + tokenNo;
+            document.getElementById('displayPatientName').textContent = name;
+            document.getElementById('displayPhn').textContent = 'PHN: ' + phn;
+            document.getElementById('displayAge').textContent = '';
+            document.getElementById('btnCallPatient').style.display = (status === 'Waiting') ? '' : 'none';
+            document.getElementById('btnFinalize').style.display = (status === 'InConsultation' || status === 'Called') ? '' : 'none';
+        }
+
+        function callPatient() {
+            fetch('/opd/doctor?handler=CallPatient&tokenId=' + currentTokenId, { method: 'POST', headers: { 'RequestVerificationToken': document.querySelector('input[name=__RequestVerificationToken]').value } })
+                .then(r => r.json()).then(d => { if (d.success) { location.reload(); } else { alert(d.message); } });
+        }
+
+        function finalizeVisit() {
+            if (!confirm('Finalize this consultation?')) return;
+            fetch('/opd/doctor?handler=Finalize&encounterId=' + currentEncounterId, { method: 'POST', headers: { 'RequestVerificationToken': document.querySelector('input[name=__RequestVerificationToken]').value } })
+                .then(r => r.json()).then(d => { if (d.success) { location.reload(); } else { alert(d.message); } });
+        }
+
+        function saveClinicalNotes() {
+            var data = { encounterId: currentEncounterId, chiefComplaint: document.getElementById('chiefComplaint').value, hpc: document.getElementById('hpc').value, pmh: document.getElementById('pmh').value };
+            postHandler('SaveClinicalNotes', data);
+        }
+
+        function saveVitals() {
+            var data = { encounterId: currentEncounterId, weight: document.getElementById('vWeight').value, height: document.getElementById('vHeight').value, bpSys: document.getElementById('vBPSys').value, bpDia: document.getElementById('vBPDia').value, pulse: document.getElementById('vPulse').value, resp: document.getElementById('vResp').value, spo2: document.getElementById('vSpO2').value, temp: document.getElementById('vTemp').value };
+            postHandler('SaveVitals', data);
+        }
+
+        function saveExamination() {
+            var data = { encounterId: currentEncounterId, examination: document.getElementById('examination').value };
+            postHandler('SaveExamination', data);
+        }
+
+        function saveNotes() {
+            var data = { encounterId: currentEncounterId, treatmentPlan: document.getElementById('treatmentPlan').value, management: document.getElementById('management').value, notes: document.getElementById('internalNotes').value };
+            postHandler('SaveNotes', data);
+        }
+
+        function addSymptom() {
+            var name = document.getElementById('symptomSearch').value;
+            var sev = document.getElementById('symptomSeverity').value;
+            if (!name) return;
+            postHandler('AddSymptom', { encounterId: currentEncounterId, patientId: currentPatientId, description: name, severity: sev });
+        }
+
+        function removeSymptom(id) { postHandler('RemoveSymptom', { id: id }); }
+
+        function addDiagnosis() {
+            var name = document.getElementById('diagnosisSearch').value;
+            var type = document.getElementById('diagnosisType').value;
+            if (!name) return;
+            postHandler('AddDiagnosis', { encounterId: currentEncounterId, patientId: currentPatientId, diagnosisName: name, diagnosisType: type });
+        }
+
+        function addCustomDiagnosis() {
+            var name = document.getElementById('customDiagnosis').value;
+            if (!name) return;
+            postHandler('AddDiagnosis', { encounterId: currentEncounterId, patientId: currentPatientId, diagnosisName: name, diagnosisType: 'Primary' });
+        }
+
+        function removeDiagnosis(id) { postHandler('RemoveDiagnosis', { id: id }); }
+
+        function addPrescription() {
+            var name = document.getElementById('medicineSearch').value;
+            if (!name) return;
+            var data = {
+                encounterId: currentEncounterId, patientId: currentPatientId, medicineName: name,
+                dose: document.getElementById('medDose').value, frequency: document.getElementById('medFrequency').value,
+                duration: document.getElementById('medDuration').value, qty: document.getElementById('medQty').value,
+                route: document.getElementById('medRoute').value, instructions: document.getElementById('medInstructions').value,
+                requiredAction: document.getElementById('medRequiredAction').checked
+            };
+            postHandler('AddPrescription', data);
+        }
+
+        function removePrescription(id) { postHandler('RemovePrescription', { id: id }); }
+
+        function addInvestigation() {
+            var name = document.getElementById('invSearch').value;
+            if (!name) return;
+            var data = {
+                encounterId: currentEncounterId, patientId: currentPatientId, investigationName: name,
+                description: document.getElementById('invDescription').value, precautions: document.getElementById('invPrecautions').value
+            };
+            postHandler('AddInvestigation', data);
+        }
+
+        function removeInvestigation(id) { postHandler('RemoveInvestigation', { id: id }); }
+
+        function saveFollowUp() {
+            var data = { encounterId: currentEncounterId, patientId: currentPatientId, nextDate: document.getElementById('followUpDate').value, doctorId: document.getElementById('followUpDoctor').value, plan: document.getElementById('followUpPlan').value };
+            postHandler('SaveFollowUp', data);
+        }
+
+        function calcBMI() {
+            var w = parseFloat(document.getElementById('vWeight').value);
+            var h = parseFloat(document.getElementById('vHeight').value) / 100;
+            if (w > 0 && h > 0) document.getElementById('vBMI').value = (w / (h * h)).toFixed(1);
+        }
+
+        function postHandler(handler, data) {
+            data.handler = handler;
+            fetch('/opd/doctor?handler=' + handler, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'RequestVerificationToken': document.querySelector('input[name=__RequestVerificationToken]').value },
+                body: JSON.stringify(data)
+            }).then(r => r.json()).then(d => {
+                if (d.success) { location.reload(); } else { alert(d.message || 'Error'); }
+            }).catch(e => { alert('Network error'); });
+        }
+
+        function loadPatients() { window.location.href = '/opd/doctor?sessionId=' + document.getElementById('sessionSelect').value; }
+    </script>
+}

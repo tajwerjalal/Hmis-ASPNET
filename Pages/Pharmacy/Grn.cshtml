@@ -1,0 +1,175 @@
+@page
+@model HmisWeb.Pages.Pharmacy.GrnModel
+@{
+    ViewData["Title"] = "Pharmacy GRN";
+}
+
+<h4 class="mb-3">Pharmacy - Goods Received Note</h4>
+
+@if (!string.IsNullOrEmpty(Model.SuccessMessage))
+{
+    <div class="alert alert-success">@Model.SuccessMessage</div>
+}
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger">@Model.ErrorMessage</div>
+}
+
+<ul class="nav nav-tabs mb-3" id="grnTabs" role="tablist">
+    <li class="nav-item">
+        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tabPending" type="button">Receive Pending Bills</button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tabManual" type="button">Manual GRN</button>
+    </li>
+</ul>
+
+<div class="tab-content">
+    <div class="tab-pane fade show active" id="tabPending">
+        <div class="card">
+            <div class="card-header"><strong>Pending Purchase Bills</strong></div>
+            <div class="card-body">
+                @if (Model.PendingBills.Any())
+                {
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr><th>Bill #</th><th>Date</th><th>Total</th><th>Supplier ID</th><th></th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var b in Model.PendingBills)
+                            {
+                                <tr class="@(Model.SelectedBillId == b.Id ? "table-active" : "")">
+                                    <td>@b.Id</td>
+                                    <td>@(b.BillDate?.ToString("yyyy-MM-dd") ?? "-")</td>
+                                    <td>@b.Total.ToString("N2")</td>
+                                    <td>@b.FromInstitutionId</td>
+                                    <td>
+                                        <form method="post" asp-page-handler="Receive" style="display:inline">
+                                            <input type="hidden" name="selectedBillId" value="@b.Id" />
+                                            <button type="submit" class="btn btn-sm btn-success">Receive</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <p class="text-muted mb-0">No pending purchase bills found.</p>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="tab-pane fade" id="tabManual">
+        <div class="row">
+            <div class="col-md-5">
+                <div class="card mb-3">
+                    <div class="card-header"><strong>Item Search</strong></div>
+                    <div class="card-body">
+                        <form method="post" asp-page-handler="SearchManual">
+                            <div class="input-group mb-2">
+                                <input type="text" name="searchTerm" class="form-control" placeholder="Search items..." value="@Model.SearchTerm" />
+                                <button type="submit" class="btn btn-outline-primary">Search</button>
+                            </div>
+                        </form>
+
+                        @if (Model.SearchResults.Any())
+                        {
+                            <div style="max-height:250px;overflow-y:auto;" class="mt-2">
+                                <table class="table table-sm table-hover">
+                                    <thead><tr><th>Item</th><th>Code</th><th></th></tr></thead>
+                                    <tbody>
+                                        @foreach (var item in Model.SearchResults)
+                                        {
+                                            <tr>
+                                                <td>@(item.PrintName ?? item.Name)</td>
+                                                <td>@item.Code</td>
+                                                <td>
+                                                    <form method="post" asp-page-handler="AddManualToCart" style="display:inline">
+                                                        <input type="hidden" name="itemId" value="@item.Id" />
+                                                        <button type="submit" class="btn btn-sm btn-success">+ Add</button>
+                                                    </form>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-7">
+                <div class="card mb-3">
+                    <div class="card-header"><strong>Supplier</strong></div>
+                    <div class="card-body">
+                        <select asp-for="ManualSupplierId" class="form-select">
+                            <option value="">-- Select Supplier --</option>
+                            @foreach (var s in Model.Suppliers)
+                            {
+                                <option value="@s.Id">@s.Name</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+
+                <div class="card mb-3">
+                    <div class="card-header"><strong>Manual GRN Items</strong></div>
+                    <div class="card-body p-0">
+                        @if (Model.ManualCart.Any())
+                        {
+                            <table class="table table-sm table-striped mb-0">
+                                <thead>
+                                    <tr><th>#</th><th>Item</th><th>Qty</th><th>Free</th><th>Cost</th><th>Total</th><th></th></tr>
+                                </thead>
+                                <tbody>
+                                    @{ var idx = 0; }
+                                    @foreach (var c in Model.ManualCart)
+                                    {
+                                        <tr>
+                                            <td>@(idx + 1)</td>
+                                            <td>@c.ItemName</td>
+                                            <td>@c.Qty</td>
+                                            <td>@c.FreeQty</td>
+                                            <td>@c.CostPrice.ToString("N2")</td>
+                                            <td>@c.LineTotal.ToString("N2")</td>
+                                            <td>
+                                                <form method="post" asp-page-handler="RemoveManualFromCart" style="display:inline">
+                                                    <input type="hidden" name="index" value="@idx" />
+                                                    <button type="submit" class="btn btn-sm btn-danger">X</button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                        idx++;
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                        else
+                        {
+                            <p class="text-muted p-3 mb-0">No items added.</p>
+                        }
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-6"><h5 class="mb-0">Total</h5></div>
+                            <div class="col-6 text-end"><h5 class="mb-0">@Model.ManualTotal.ToString("N2")</h5></div>
+                        </div>
+                        <form method="post" asp-page-handler="SaveManualGrn">
+                            <input type="hidden" asp-for="ManualSupplierId" />
+                            <button type="submit" class="btn btn-primary w-100" @(Model.ManualCart.Any() ? "" : "disabled")>
+                                Save Manual GRN (Paid)
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

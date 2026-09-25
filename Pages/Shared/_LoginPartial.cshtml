@@ -1,0 +1,18 @@
+﻿@inject HmisWeb.Services.IAppSession AppSession
+@{
+    var user = AppSession.LoggedUser;
+}
+@if (user != null)
+{
+    <div class="d-flex align-items-center gap-2">
+        <div class="text-end small">
+            <div style="font-weight:600; line-height:1.1;">@user.UserName</div>
+            <div style="color:#6c757d;">@(user.WebUserPerson?.NameWithInitials ?? "")</div>
+        </div>
+        <a asp-page="/Account/Logout" class="btn btn-outline-secondary btn-sm">Logout</a>
+    </div>
+}
+else
+{
+    <a asp-page="/Account/Login" class="btn btn-primary btn-sm">Login</a>
+}

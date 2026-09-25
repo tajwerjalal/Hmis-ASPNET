@@ -1,0 +1,296 @@
+@page
+@model HmisWeb.Pages.Inward.AdmissionModel
+@{
+    ViewData["Title"] = "Inward Admission";
+}
+
+<div class="mb-3 d-flex justify-content-between align-items-center">
+    <div>
+        <h4 class="mb-0 fw-bold">Inward Admission</h4>
+        <span class="text-secondary small">Register a new inpatient admission</span>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.Message))
+{
+    <div class="alert alert-success">@Model.Message</div>
+}
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form asp-page="/Inward/Admission" asp-page-handler="Search" method="post">
+            <label class="form-label">Patient Search</label>
+            <div class="input-group">
+                <input asp-for="SearchTerm" class="form-control" placeholder="Search by name, PHN or mobile number..." />
+                <button type="submit" class="btn btn-primary"><i class="bi bi-search me-1"></i>Search</button>
+            </div>
+        </form>
+
+        @if (Model.SearchResults.Any())
+        {
+            <div class="mt-3">
+                <h6 class="text-secondary small fw-bold text-uppercase mb-2">Search Results</h6>
+                <div class="list-group">
+                    @foreach (var p in Model.SearchResults)
+                    {
+                        <a asp-page="/Inward/Admission"
+                           asp-route-searchTerm="@Model.SearchTerm"
+                           asp-route-patientId="@p.Id"
+                           class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="fw-semibold">@(p.Person?.NameWithInitials ?? "Unnamed Patient")</div>
+                                <small class="text-secondary">
+                                    @if (p.Person?.Dob != null)
+                                    {
+                                        <text>@p.Person.Dob.Value.ToString("dd MMM yyyy") &middot; @p.Person.GetAgeString()</text>
+                                    }
+                                    else
+                                    {
+                                        <text>DOB: N/A</text>
+                                    }
+                                </small>
+                            </div>
+                            <span class="badge bg-light text-secondary">PHN: @(p.Phn ?? "-")</span>
+                        </a>
+                    }
+                </div>
+            </div>
+        }
+        else if (!string.IsNullOrWhiteSpace(Model.SearchTerm))
+        {
+            <div class="alert alert-secondary mt-3 mb-0 py-2 small">No patients found.</div>
+        }
+    </div>
+</div>
+
+@if (Model.SelectedPatient != null)
+{
+    <div class="alert alert-info py-2 fw-semibold">
+        <i class="bi bi-person-check me-1"></i>
+        Selected: @Model.SelectedPatient.Person?.NameWithInitials
+        <span class="text-secondary fw-normal">
+            @if (Model.SelectedPatient.Person?.Dob != null)
+            {
+                <text>&middot; DOB: @Model.SelectedPatient.Person.Dob.Value.ToString("dd MMM yyyy") (@Model.SelectedPatient.Person.GetAgeString())</text>
+            }
+            @if (!string.IsNullOrWhiteSpace(Model.SelectedPatient.Phn))
+            {
+                <text>&middot; PHN: @Model.SelectedPatient.Phn</text>
+            }
+        </span>
+    </div>
+}
+
+<div class="card">
+    <div class="card-body">
+        <h5 class="card-title fw-semibold mb-3">Admission Details</h5>
+
+        @if (!ViewData.ModelState.IsValid)
+        {
+            <div asp-validation-summary="All" class="alert alert-danger py-2 small"></div>
+        }
+
+        <form method="post" asp-page="/Inward/Admission" asp-page-handler="Save">
+            <input type="hidden" asp-for="SelectedPatientId" />
+            <input type="hidden" asp-for="SearchTerm" />
+
+            <div class="card mb-3">
+                <div class="card-header bg-white fw-semibold"><i class="bi bi-hospital"></i> Admission Info</div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Patient</label>
+                            <input type="text" class="form-control" value="@(Model.SelectedPatient?.Person?.NameWithInitials ?? "No patient selected")" readonly disabled />
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="BhtNo" class="form-label">BHT Number</label>
+                            <input asp-for="BhtNo" class="form-control" placeholder="Auto generated if blank" />
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="DateOfAdmission" class="form-label">Date of Admission</label>
+                            <input asp-for="DateOfAdmission" type="date" class="form-control" />
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="TimeOfAdmission" class="form-label">Time of Admission</label>
+                            <input asp-for="TimeOfAdmission" type="time" class="form-control" />
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="AdmissionType" class="form-label">Admission Type</label>
+                            <select asp-for="AdmissionType" class="form-select">
+                                <option value="">-- Select Type --</option>
+                                @foreach (var t in Model.AdmissionTypeList)
+                                {
+                                    <option value="@t.Value">@t.Text</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="RoomId" class="form-label">Room / Ward</label>
+                            <select asp-for="RoomId" class="form-select">
+                                <option value="">-- No Room / Ward --</option>
+                                @foreach (var room in Model.Rooms)
+                                {
+                                    <option value="@room.Id">@room.Name</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Comments" class="form-label">Comments</label>
+                            <textarea asp-for="Comments" class="form-control" rows="2"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-3">
+                <div class="card-header bg-white fw-semibold"><i class="bi bi-person-badge"></i> Doctors</div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label asp-for="ReferringConsultantId" class="form-label">Referring Consultant</label>
+                            <select asp-for="ReferringConsultantId" class="form-select">
+                                <option value="">-- None --</option>
+                                @foreach (var doc in Model.DoctorList)
+                                {
+                                    <option value="@doc.Value">@doc.Text</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="OpdDoctorId" class="form-label">OPD Doctor</label>
+                            <select asp-for="OpdDoctorId" class="form-select">
+                                <option value="">-- None --</option>
+                                @foreach (var doc in Model.DoctorList)
+                                {
+                                    <option value="@doc.Value">@doc.Text</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-3">
+                <div class="card-header bg-white fw-semibold"><i class="bi bi-people"></i> Guardian</div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-5">
+                            <label asp-for="GuardianName" class="form-label">Guardian Name</label>
+                            <input asp-for="GuardianName" class="form-control" placeholder="Optional" />
+                        </div>
+                        <div class="col-md-3">
+                            <label asp-for="GuardianMobile" class="form-label">Guardian Mobile</label>
+                            <input asp-for="GuardianMobile" class="form-control" />
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="GuardianRelationshipToPatientId" class="form-label">Relationship</label>
+                            <select asp-for="GuardianRelationshipToPatientId" class="form-select">
+                                <option value="">-- Select --</option>
+                                @foreach (var rel in Model.RelationList)
+                                {
+                                    <option value="@rel.Value">@rel.Text</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="GuardianNic" class="form-label">Guardian NIC</label>
+                            <input asp-for="GuardianNic" class="form-control" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-3">
+                <div class="card-header bg-white fw-semibold"><i class="bi bi-credit-card"></i> Payment / Credit</div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label asp-for="PaymentMethod" class="form-label">Payment Method</label>
+                            <select asp-for="PaymentMethod" class="form-select">
+                                @foreach (var m in Model.PaymentMethodList)
+                                {
+                                    <option value="@m.Value">@m.Text</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="CreditCompanyId" class="form-label">Credit Company</label>
+                            <select asp-for="CreditCompanyId" class="form-select">
+                                <option value="">-- None --</option>
+                                @foreach (var inst in Model.CreditCompanyList)
+                                {
+                                    <option value="@inst.Value">@inst.Text</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="CreditLimit" class="form-label">Credit Limit</label>
+                            <input asp-for="CreditLimit" type="number" min="0" step="0.01" class="form-control" />
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="ReferenceNo" class="form-label">Reference No</label>
+                            <input asp-for="ReferenceNo" class="form-control" />
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="PolicyNo" class="form-label">Policy No</label>
+                            <input asp-for="PolicyNo" class="form-control" />
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <div class="form-check form-switch">
+                                <input asp-for="Claimable" class="form-check-input" type="checkbox" />
+                                <label asp-for="Claimable" class="form-check-label">Claimable</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-3">
+                <div class="card-header bg-white fw-semibold"><i class="bi bi-heart-pulse"></i> Vital Signs</div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label asp-for="Weight" class="form-label">Weight (kg)</label>
+                            <input asp-for="Weight" type="number" min="0" step="0.1" class="form-control" />
+                        </div>
+                        <div class="col-md-3">
+                            <label asp-for="Height" class="form-label">Height (cm)</label>
+                            <input asp-for="Height" type="number" min="0" step="0.1" class="form-control" />
+                        </div>
+                        <div class="col-md-3">
+                            <label asp-for="Sbp" class="form-label">Systolic BP (mmHg)</label>
+                            <input asp-for="Sbp" type="number" min="0" class="form-control" />
+                        </div>
+                        <div class="col-md-3">
+                            <label asp-for="Dbp" class="form-label">Diastolic BP (mmHg)</label>
+                            <input asp-for="Dbp" type="number" min="0" class="form-control" />
+                        </div>
+                        <div class="col-md-3">
+                            <label asp-for="Pr" class="form-label">Pulse Rate</label>
+                            <input asp-for="Pr" type="number" min="0" class="form-control" />
+                        </div>
+                        <div class="col-md-3">
+                            <label asp-for="RespiratoryRate" class="form-label">Respiratory Rate</label>
+                            <input asp-for="RespiratoryRate" type="number" min="0" class="form-control" />
+                        </div>
+                        <div class="col-md-3">
+                            <label asp-for="Saturation" class="form-label">O2 Saturation (%)</label>
+                            <input asp-for="Saturation" type="number" min="0" max="100" class="form-control" />
+                        </div>
+                        <div class="col-md-3">
+                            <label asp-for="Pfr" class="form-label">Peak Flow (PFR)</label>
+                            <input asp-for="Pfr" type="number" min="0" class="form-control" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary px-4">
+                    <i class="bi bi-hospital me-1"></i>Admit Patient
+                </button>
+                <a asp-page="/Inward/PatientList" class="btn btn-outline-secondary ms-2">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>

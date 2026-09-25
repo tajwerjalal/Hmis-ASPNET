@@ -1,0 +1,21 @@
+﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using HmisWeb.Data.Enums;
+
+namespace HmisWeb.Models
+{
+    [Table("VTM")]
+    public class Vtm
+    {
+        [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        public long Id { get; set; }
+        public string Name { get; set; }
+        public string Code { get; set; }
+        public long? CreaterId { get; set; }
+        public DateTime? CreatedAt { get; set; }
+        public bool Retired { get; set; }
+        [ForeignKey("CreaterId")]
+        public virtual WebUser Creater { get; set; }
+    }
+}

@@ -1,0 +1,77 @@
+@page "/hr/EditStaff"
+@model HmisWeb.Pages.Hr.EditStaffModel
+@{
+    ViewData["Title"] = "Edit Staff";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h4 class="mb-0">Edit Staff</h4>
+        <div class="text-muted small">Update the staff member's details.</div>
+    </div>
+    <a asp-page="/Hr/Staff" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back</a>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger">@Model.ErrorMessage</div>
+}
+
+<div class="card mt-3">
+    <div class="card-body">
+        <form method="post">
+            <input type="hidden" asp-for="Id" />
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <label class="form-label">Name *</label>
+                    <input asp-for="Input.Name" class="form-control" required />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Name with Initials *</label>
+                    <input asp-for="Input.NameWithInitials" class="form-control" required />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">NIC</label>
+                    <input asp-for="Input.Nic" class="form-control" />
+                </div>
+            </div>
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <label class="form-label">Sex</label>
+                    <select asp-for="Input.Sex" asp-items="Html.GetEnumSelectList<Sex>()" class="form-select">
+                        <option value="">-- Select --</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Mobile</label>
+                    <input asp-for="Input.Mobile" class="form-control" />
+                </div>
+            </div>
+            <hr />
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <label class="form-label">Designation</label>
+                    <select asp-for="Input.DesignationId" asp-items="Model.DesignationList" class="form-select">
+                        <option value="">-- None --</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Department</label>
+                    <select asp-for="Input.DepartmentId" asp-items="Model.DepartmentList" class="form-select">
+                        <option value="">-- None --</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Staff Category</label>
+                    <select asp-for="Input.StaffCategoryId" asp-items="Model.StaffCategoryList" class="form-select">
+                        <option value="">-- None --</option>
+                    </select>
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+                <a asp-page="/Hr/Staff" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>

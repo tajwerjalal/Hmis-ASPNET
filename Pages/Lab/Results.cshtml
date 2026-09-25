@@ -1,0 +1,57 @@
+@page
+@model HmisWeb.Pages.Lab.ResultsModel
+@{
+    ViewData["Title"] = "Investigation Results";
+}
+
+<h4>Investigation Results</h4>
+
+<div class="card mt-3 mb-3">
+    <div class="card-body">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label">Search by Patient Name</label>
+                <input asp-for="SearchTerm" class="form-control" placeholder="Patient name..." />
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary">Search</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<table class="table table-bordered table-sm table-hover">
+    <thead class="table-light">
+        <tr>
+            <th>Bill Id</th>
+            <th>Patient</th>
+            <th>Investigation</th>
+            <th class="text-center">Qty</th>
+            <th class="text-end">Rate</th>
+            <th>Created</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (Model.Results.Any())
+        {
+            @foreach (var r in Model.Results)
+            {
+                <tr>
+                    <td>@r.BillId</td>
+                    <td>@r.PatientName</td>
+                    <td>@r.ItemName</td>
+                    <td class="text-center">@r.Qty</td>
+                    <td class="text-end">@r.Rate.ToString("N2")</td>
+                    <td>@(r.CreatedAt?.ToString("yyyy-MM-dd HH:mm") ?? "")</td>
+                </tr>
+            }
+        }
+        else
+        {
+            <tr><td colspan="6" class="text-center text-muted">No results found.</td></tr>
+        }
+    </tbody>
+</table>
+
+@functions {
+}

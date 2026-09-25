@@ -1,0 +1,264 @@
+@page "/opd/PreBilling"
+@model HmisWeb.Pages.Opd.PreBillingModel
+@{
+    ViewData["Title"] = "OPD Pre-Billing";
+    var hasPatient = Model.SelectedPatient != null;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h4 class="mb-0">OPD Pre-Billing</h4>
+        <div class="text-muted small">Search a patient, add billed items and save a pre-bill for settlement.</div>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.Message))
+{
+    <div class="alert alert-success">@Model.Message</div>
+}
+
+<div class="row g-3">
+    <div class="col-lg-7">
+        <div class="card mb-3">
+            <div class="card-header bg-white fw-semibold"><i class="bi bi-person"></i> Patient</div>
+            <div class="card-body">
+                <form method="post" asp-page="/opd/PreBilling" asp-page-handler="SearchPatients" class="input-group">
+                    <input asp-for="PatientSearch" class="form-control" placeholder="Search by PHN / name / mobile" />
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i> Search</button>
+                </form>
+
+                @if (hasPatient)
+                {
+                    var p = Model.SelectedPatient;
+                    var pname = p.Person?.NameWithInitials ?? p.Person?.Name ?? "-";
+                    <div class="alert alert-success mt-3 mb-0 d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="fw-semibold">@pname</div>
+                            <div class="small">
+                                PHN: @(p.PatientId?.ToString() ?? p.Phn ?? "-") &middot;
+                                @(p.Person?.GetAgeString() ?? "-") &middot;
+                                @(p.Person?.Sex?.ToString() ?? "-")
+                            </div>
+                        </div>
+                        <form method="post" asp-page="/opd/PreBilling" asp-page-handler="SelectPatient" class="mb-0">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-sm btn-outline-secondary">Change</button>
+                        </form>
+                    </div>
+                }
+
+                @if (Model.PatientResults.Any())
+                {
+                    <div class="table-responsive mt-3">
+                        <table class="table table-sm table-striped mb-0">
+                            <thead>
+                                <tr>
+                                    <th>PHN</th>
+                                    <th>Name</th>
+                                    <th>Age</th>
+                                    <th>Sex</th>
+                                    <th class="text-end">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var p in Model.PatientResults)
+                                {
+                                    var pname = p.Person?.NameWithInitials ?? p.Person?.Name ?? "-";
+                                    <tr>
+                                        <td>@(p.PatientId?.ToString() ?? p.Phn ?? "-")</td>
+                                        <td>@pname</td>
+                                        <td>@(p.Person?.GetAgeString() ?? "-")</td>
+                                        <td>@(p.Person?.Sex?.ToString() ?? "-")</td>
+                                        <td class="text-end">
+                                            <form method="post" asp-page="/opd/PreBilling" asp-page-handler="SelectPatient" class="mb-0">
+                                                <input type="hidden" name="SelectedPatientId" value="@p.Id" />
+                                                @Html.AntiForgeryToken()
+                                                <button type="submit" class="btn btn-sm btn-outline-success">Add Patient</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else if (!string.IsNullOrEmpty(Model.PatientSearch) && !hasPatient)
+                {
+                    <div class="text-muted small mt-2">No patients found.</div>
+                }
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header bg-white fw-semibold"><i class="bi bi-cart3"></i> Items</div>
+            <div class="card-body">
+                <form method="post" asp-page="/opd/PreBilling" asp-page-handler="SearchItems" class="input-group">
+                    <input asp-for="ItemSearch" class="form-control" placeholder="Search billed services / investigations by name or code" />
+                    <button type="submit" class="btn btn-outline-primary"><i class="bi bi-search"></i> Find</button>
+                </form>
+
+                @if (Model.ItemResults.Any())
+                {
+                    <div class="table-responsive mt-3">
+                        <table class="table table-sm table-striped mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Code</th>
+                                    <th>Item</th>
+                                    <th>Type</th>
+                                    <th class="text-end">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in Model.ItemResults)
+                                {
+                                    <tr>
+                                        <td>@(item.Code ?? "-")</td>
+                                        <td class="fw-semibold">@(string.IsNullOrWhiteSpace(item.PrintName) ? item.Name : item.PrintName)</td>
+                                        <td>@(item.ItemType?.ToString() ?? "-")</td>
+                                        <td class="text-end">
+                                            <form method="post" asp-page="/opd/PreBilling" asp-page-handler="AddItem" class="mb-0">
+                                                <input type="hidden" name="SelectedItemId" value="@item.Id" />
+                                                @Html.AntiForgeryToken()
+                                                <button type="submit" class="btn btn-sm btn-outline-primary">Add</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card">
+            <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-list-check"></i> Cart (@Model.DisplayCart.Count)</span>
+                <form method="post" asp-page="/opd/PreBilling" asp-page-handler="Clear" class="mb-0">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-sm btn-outline-secondary">Clear</button>
+                </form>
+            </div>
+            <div class="card-body p-0">
+                @if (!Model.DisplayCart.Any())
+                {
+                    <div class="p-4 text-center text-muted">No items added yet. Search and add billed items.</div>
+                }
+                else
+                {
+                    <form method="post" asp-page="/opd/PreBilling" asp-page-handler="UpdateCart">
+                        @Html.AntiForgeryToken()
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Item</th>
+                                        <th style="width:70px">Qty</th>
+                                        <th style="width:110px">Rate</th>
+                                        <th style="width:110px">Disc</th>
+                                        <th class="text-end">Total</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @for (int i = 0; i < Model.DisplayCart.Count; i++)
+                                    {
+                                        var line = Model.DisplayCart[i];
+                                        <tr>
+                                            <td>
+                                                <input type="hidden" asp-for="Cart[i].ItemId" />
+                                                <input type="hidden" asp-for="Cart[i].ItemName" />
+                                                <div class="fw-semibold small">@line.ItemName</div>
+                                                <div class="text-muted" style="font-size:.7rem;">@(line.Code ?? "")</div>
+                                            </td>
+                                            <td><input asp-for="Cart[i].Qty" type="number" min="1" step="1" class="form-control form-control-sm" /></td>
+                                            <td><input asp-for="Cart[i].Rate" type="number" min="0" step="0.01" class="form-control form-control-sm" /></td>
+                                            <td><input asp-for="Cart[i].Discount" type="number" min="0" step="0.01" class="form-control form-control-sm" /></td>
+                                            <td class="text-end align-middle small fw-semibold">@line.NetValue.ToString("N2")</td>
+                                            <td class="text-end">
+                                                <button type="submit" name="ItemToRemove" value="@line.ItemId" class="btn btn-sm btn-outline-danger" title="Remove"><i class="bi bi-x-lg"></i></button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="card-body border-top bg-light">
+                            <div class="d-flex justify-content-between small">
+                                <span class="text-muted">Total</span>
+                                <span class="fw-semibold">@Model.Total.ToString("N2")</span>
+                            </div>
+                            <div class="d-flex justify-content-between small">
+                                <span class="text-muted">Discount</span>
+                                <span class="fw-semibold">- @Model.DiscountTotal.ToString("N2")</span>
+                            </div>
+                            <hr class="my-2" />
+                            <div class="d-flex justify-content-between">
+                                <span class="fw-bold">Net Total</span>
+                                <span class="fw-bold fs-5">@Model.NetTotal.ToString("N2")</span>
+                            </div>
+                            <div class="d-flex gap-2 mt-3">
+                                <button type="submit" class="btn btn-outline-secondary">Update Cart</button>
+                            </div>
+                        </div>
+                    </form>
+                }
+            </div>
+        </div>
+
+        <div class="card mt-3">
+            <div class="card-header bg-white fw-semibold"><i class="bi bi-person-lines-fill"></i> Referral & Payment Scheme</div>
+            <div class="card-body">
+                <form method="post" asp-page="/opd/PreBilling" asp-page-handler="save">
+                    @Html.AntiForgeryToken()
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label asp-for="ReferringDoctorId" class="form-label">Referring Doctor</label>
+                            <select asp-for="ReferringDoctorId" class="form-select">
+                                <option value="">-- Not Referral --</option>
+                                @foreach (var doc in Model.ReferringDoctorList)
+                                {
+                                    <option value="@doc.Value">@doc.Text</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label asp-for="ReferringInstitutionId" class="form-label">Referring Institution</label>
+                            <select asp-for="ReferringInstitutionId" class="form-select">
+                                <option value="">-- None --</option>
+                                @foreach (var inst in Model.ReferringInstitutionList)
+                                {
+                                    <option value="@inst.Value">@inst.Text</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label asp-for="PaymentSchemeId" class="form-label">Payment Scheme</label>
+                            <select asp-for="PaymentSchemeId" class="form-select">
+                                <option value="">-- Standard / Cash --</option>
+                                @foreach (var scheme in Model.PaymentSchemeList)
+                                {
+                                    <option value="@scheme.Value">@scheme.Text</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label asp-for="Comments" class="form-label">Comments / Notes</label>
+                            <textarea asp-for="Comments" class="form-control" rows="2" placeholder="Optional notes (e.g. referral reason, special instructions)"></textarea>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 mt-3" disabled="@(!hasPatient || !Model.DisplayCart.Any())">
+                        <i class="bi bi-save"></i> Save Pre-Bill
+                    </button>
+                    <div class="form-text text-center mt-2">
+                        @if (!hasPatient) { <span>Select a patient first.</span> }
+                        else if (!Model.DisplayCart.Any()) { <span>Add at least one item.</span> }
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

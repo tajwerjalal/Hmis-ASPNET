@@ -1,0 +1,647 @@
+@page
+@model HmisWeb.Pages.Cashier.InpatientModel
+@using HmisWeb.Data.Enums
+@{
+    ViewData["Title"] = "Cashier - Inpatient Payments";
+}
+
+<style>
+    .print-sheet { max-width: 800px; margin: 0 auto; }
+    .receipt-thermal { display: none; }
+    body.print-a4 .no-print-zone { display: none !important; }
+    body.print-a4 .print-sheet { display: block; max-width: none; }
+    .receipt-ticket { border: 1.5px dashed #444; padding: 4mm 6mm; height: 136mm; box-sizing: border-box; page-break-inside: avoid; position: relative; }
+    .copy-badge { position: absolute; top: 4mm; right: 6mm; font-size: 10px; letter-spacing: 2px; font-weight: 700; color: #6c757d; border: 1px solid #989fa5; padding: 1px 7px; border-radius: 3px; }
+    .perforation { border-top: 2px dashed #999; margin: 4mm 0; }
+    .ticket-body { font-size: 13px; }
+    .ticket-head { text-align: center; border-bottom: 1px solid #444; padding-bottom: 3mm; margin-bottom: 3mm; }
+    .ticket-row { display: flex; justify-content: space-between; padding: 1px 0; }
+    .ticket-total { display: flex; justify-content: space-between; border-top: 1px solid #444; padding-top: 2mm; margin-top: 2mm; font-weight: 700; }
+    .ticket-foot { text-align: center; color: #6c757d; font-size: 11px; margin-top: 3mm; }
+    .change-positive { color: #198754; font-weight: 700; }
+    .change-negative { color: #dc3545; font-weight: 700; }
+    .pay-validation-msg { color: #dc3545; font-size: 12px; margin-top: 4px; display: none; }
+    @@media print {
+        .no-print { display: none !important; }
+        .no-print-zone { display: none !important; }
+        .print-sheet { display: block; max-width: none; }
+    }
+</style>
+
+<div class="no-print-zone">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <div>
+            <h4 class="mb-0 fw-bold"><i class="bi bi-hospital me-1 text-success"></i>Cashier - Inpatient Payments</h4>
+            <div class="text-secondary small">Receive payment against an inpatient account (BHT). Mirrors the Cash Receipts transaction on the register account.</div>
+        </div>
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+            <form method="get" class="d-flex gap-2 align-items-center">
+                <input asp-for="Q" class="form-control form-control-sm" placeholder="BHT / PHN / patient name..." style="width:240px" />
+                <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search me-1"></i>Find</button>
+            </form>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger py-2"><i class="bi bi-exclamation-triangle me-1"></i>@Model.ErrorMessage</div>
+    }
+    @if (!string.IsNullOrEmpty(Model.SuccessMessage))
+    {
+        <div class="alert alert-success py-2"><i class="bi bi-check-circle me-1"></i>@Model.SuccessMessage</div>
+    }
+
+    @if (Model.Receipt != null)
+    {
+        <div class="card mb-3 border-success no-print">
+            <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-check-circle me-1 text-success"></i>Payment Received - Receipt @Model.Receipt.ReceiptNo</span>
+                <span class="badge bg-success">@Model.Receipt.Total.ToString("N2")</span>
+            </div>
+            <div class="card-body">
+                <div class="d-flex gap-2 flex-wrap">
+                    <button type="button" onclick="printA4()" class="btn btn-primary"><i class="bi bi-printer me-1"></i> Print A4 (Office + Patient copy)</button>
+                    <button type="button" onclick="printThermal()" class="btn btn-dark"><i class="bi bi-receipt me-1"></i> Print Thermal 80mm</button>
+                    <a asp-page-handler="Pdf" asp-route-id="@Model.Receipt.EncounterId" class="btn btn-outline-danger"><i class="bi bi-file-earmark-pdf me-1"></i> Download PDF</a>
+                </div>
+                @if (@Model.Receipt.BalanceAfter > 0)
+                {
+                    <div class="alert alert-warning py-1 mt-2 mb-0"><i class="bi bi-exclamation-triangle me-1"></i>Balance remaining: Rs @Model.Receipt.BalanceAfter.ToString("N2")</div>
+                }
+            </div>
+        </div>
+    }
+
+    <div class="row g-3 mb-3">
+        <div class="col-md-4">
+            <div class="card text-center py-3">
+                <div class="text-secondary small">Accounts with balance</div>
+                <div class="fs-4 fw-bold text-warning">@Model.PendingAccounts.Count</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center py-3">
+                <div class="text-secondary small">Total outstanding</div>
+                <div class="fs-4 fw-bold text-warning">@Model.PendingAccounts.Sum(a => a.Balance).ToString("N2")</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center py-3">
+                <div class="text-secondary small">Payments today</div>
+                <div class="fs-4 fw-bold text-success">@Model.PaidToday.Count</div>
+            </div>
+        </div>
+    </div>
+
+    @if (Model.Encounter != null)
+    {
+        <div class="card mb-3">
+            <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-person-vcard me-1 text-primary"></i>Account - BHT @(Model.Encounter.BhtNo ?? "-")</span>
+                <span class="badge @(Model.BalanceDue > 0.004 ? "bg-warning text-dark" : "bg-success")">Balance @Model.BalanceDue.ToString("N2")</span>
+            </div>
+            <div class="card-body">
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <div class="text-secondary small fw-bold text-uppercase">Patient</div>
+                        <div class="fw-semibold fs-5">@(Model.Encounter.Patient?.Person?.NameWithInitials ?? "Unnamed")</div>
+                        <small class="text-secondary">PHN: @(Model.Encounter.Patient?.Phn ?? "-") &middot; BHT: @(Model.Encounter.BhtNo ?? "-")</small>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="text-secondary small fw-bold text-uppercase">Admitted</div>
+                        <div class="fw-semibold">@(Model.Encounter.DateOfAdmission?.ToString("dd MMM yyyy") ?? "-")</div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="text-secondary small fw-bold text-uppercase">Department</div>
+                        <div class="fw-semibold">@(Model.Encounter.Department?.Name ?? "-")</div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="text-secondary small fw-bold text-uppercase">Status</div>
+                        <span class="badge @(Model.BalanceDue > 0.004 ? "bg-danger" : "bg-success")">@(Model.BalanceDue > 0.004 ? "Outstanding" : "Settled")</span>
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-3">
+                        <div class="bg-light border rounded p-3">
+                            <div class="text-secondary small fw-bold text-uppercase">Charges</div>
+                            <div class="fw-bold fs-5">@Model.ChargesTotal.ToString("N2")</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="bg-light border rounded p-3">
+                            <div class="text-secondary small fw-bold text-uppercase">Discount</div>
+                            <div class="fw-bold fs-5">@Model.DiscountTotal.ToString("N2")</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="bg-light border rounded p-3">
+                            <div class="text-secondary small fw-bold text-uppercase">Received</div>
+                            <div class="fw-bold fs-5 text-success">@Model.ReceivedTotal.ToString("N2")</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="bg-primary bg-opacity-10 border border-primary rounded p-3">
+                            <div class="text-secondary small fw-bold text-uppercase">Balance Due</div>
+                            <div class="fw-bold fs-5 text-primary">@Model.BalanceDue.ToString("N2")</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Bill #</th>
+                                <th>Type</th>
+                                <th>Description</th>
+                                <th class="text-end">Net</th>
+                                <th class="text-end">Discount</th>
+                                <th class="text-end">Paid</th>
+                                <th class="text-end">Outstanding</th>
+                                <th class="text-center">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var l in Model.AccountLines)
+                            {
+                                <tr>
+                                    <td>@(l.InvoiceNumber ?? ("#" + l.BillId))</td>
+                                    <td class="small text-secondary">@l.BillType</td>
+                                    <td class="small">@l.Description</td>
+                                    <td class="text-end">@l.NetTotal.ToString("N2")</td>
+                                    <td class="text-end">@l.Discount.ToString("N2")</td>
+                                    <td class="text-end">@l.PaidAmount.ToString("N2")</td>
+                                    <td class="text-end fw-semibold">@l.Outstanding.ToString("N2")</td>
+                                    <td class="text-center">
+                                        @if (l.Paid)
+                                        {
+                                            <span class="badge bg-success">Paid</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-danger">Due</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                @if (Model.BalanceDue > 0.004)
+                {
+                    <div class="mt-3 d-flex justify-content-end">
+                        <button type="button" class="btn btn-success"
+                                data-bs-toggle="modal" data-bs-target="#payModalInp"
+                                data-encounter-id="@Model.Encounter.Id"
+                                data-bht="@(Model.Encounter.BhtNo ?? "#" + Model.Encounter.Id)"
+                                data-patient="@(Model.Encounter.Patient?.Person?.NameWithInitials ?? "Unnamed")"
+                                data-phn="@(Model.Encounter.Patient?.Phn ?? "-")"
+                                data-department="@(Model.Encounter.Department?.Name ?? "-")"
+                                data-amount="@Model.BalanceDue.ToString("0.00")">
+                            <i class="bi bi-cash-coin me-1"></i>Receive Payment
+                        </button>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    <div class="card mb-3">
+        <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-inbox me-1 text-primary"></i>Inpatient accounts with outstanding balance</span>
+            <span class="badge bg-danger">@Model.PendingAccounts.Count</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>BHT</th>
+                            <th>Patient</th>
+                            <th>Department</th>
+                            <th>Consultant</th>
+                            <th>Admitted</th>
+                            <th class="text-end">Charges</th>
+                            <th class="text-end">Received</th>
+                            <th class="text-end">Balance</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (!Model.PendingAccounts.Any())
+                        {
+                            <tr><td colspan="9" class="text-center text-muted py-4">No inpatient accounts with outstanding balance.</td></tr>
+                        }
+                        @foreach (var acct in Model.PendingAccounts)
+                        {
+                            <tr>
+                                <td><span class="badge bg-secondary">@acct.BhtNo</span></td>
+                                <td>
+                                    <span class="fw-semibold">@acct.PatientName</span>
+                                    <div class="small text-muted">PHN @(acct.Phn ?? "-")</div>
+                                </td>
+                                <td>@(string.IsNullOrEmpty(acct.DepartmentName) ? "-" : acct.DepartmentName)</td>
+                                <td class="small text-secondary">@(string.IsNullOrEmpty(acct.Consultation) ? "-" : acct.Consultation)</td>
+                                <td class="small text-muted text-nowrap">@acct.AdmittedAt?.ToString("dd/MM/yyyy")</td>
+                                <td class="text-end">@acct.ChargesTotal.ToString("N2")</td>
+                                <td class="text-end">@acct.ReceivedTotal.ToString("N2")</td>
+                                <td class="text-end fw-semibold text-danger">@acct.Balance.ToString("N2")</td>
+                                <td class="text-end">
+                                    <a asp-page="/Cashier/Inpatient" asp-route-EncounterId="@acct.EncounterId" class="btn btn-sm btn-outline-success"><i class="bi bi-cash-coin me-1"></i>Account</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    @if (Model.PaidToday.Any())
+    {
+        <div class="card">
+            <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-clock-history me-1 text-success"></i>Inpatient payments today</span>
+                <span class="badge bg-success">@Model.PaidToday.Count</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>BHT</th>
+                                <th>Patient</th>
+                                <th>Department</th>
+                                <th>Method</th>
+                                <th class="text-end">Received</th>
+                                <th class="text-end">Time</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var acct in Model.PaidToday)
+                            {
+                                <tr>
+                                    <td><span class="badge bg-secondary">@acct.BhtNo</span></td>
+                                    <td>@acct.PatientName</td>
+                                    <td>@(string.IsNullOrEmpty(acct.DepartmentName) ? "-" : acct.DepartmentName)</td>
+                                    <td>@acct.PaymentMethod?.ToString()</td>
+                                    <td class="text-end fw-semibold">@acct.ReceivedTotal.ToString("N2")</td>
+                                    <td class="text-end small text-muted">@acct.PaidAt?.ToString("HH:mm")</td>
+                                    <td class="text-end">
+                                        <a asp-page="/Cashier/Inpatient" asp-route-EncounterId="@acct.EncounterId" class="btn btn-sm btn-outline-secondary"><i class="bi bi-printer me-1"></i>Receipt</a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card">
+            <div class="card-header bg-white fw-semibold">
+                <span><i class="bi bi-clock-history me-1 text-success"></i>Inpatient payments today</span>
+            </div>
+            <div class="card-body text-center text-muted py-4">No inpatient payments received on this date yet.</div>
+        </div>
+    }
+
+    <div class="modal fade" id="payModalInp" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <form method="post" asp-page-handler="Receive" class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-cash-coin me-1 text-success"></i>Receive Inpatient Payment</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" asp-for="SelectedEncounterId" id="paySelectedEncounterId" />
+                    <div class="border rounded p-2 mb-3 bg-light">
+                        <div class="row small">
+                            <div class="col-6"><b>BHT:</b> <span id="payBht"></span></div>
+                            <div class="col-6 text-end"><b>Department:</b> <span id="payDept"></span></div>
+                        </div>
+                        <div class="mt-1"><b>Patient:</b> <span id="payPatient"></span> &middot; PHN <span id="payPhn"></span></div>
+                    </div>
+                    <div class="row align-items-center g-2 mb-3">
+                        <div class="col-7"><div class="text-muted small">Outstanding balance</div><div class="fs-3 fw-bold text-danger">Rs <span id="payAmount">0</span></div></div>
+                        <div class="col-5 text-end">
+                            <div id="payChangeBox" class="fs-5 fw-bold"></div>
+                            <div id="payReturnBox" class="small change-positive"></div>
+                        </div>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <label class="form-label">Amount received</label>
+                            <input asp-for="ReceivedAmount" type="number" step="0.01" min="0" class="form-control" id="payReceived" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Payment method</label>
+                            <select asp-for="PaymentMethod" class="form-select" id="payMethod">
+                                @foreach (var m in Enum.GetNames<PaymentMethod>())
+                                {
+                                    <option value="@m">@m</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-6" id="tenderBox">
+                            <label class="form-label">Tendered</label>
+                            <input asp-for="TenderedAmount" type="number" step="0.01" min="0" class="form-control" id="payTendered" value="0" />
+                        </div>
+                        <div class="col-6" id="refBox" style="display:none;">
+                            <label class="form-label">Reference / Txn ID</label>
+                            <input asp-for="ReferenceNo" class="form-control" id="payReference" placeholder="Bank ref / card / wallet no" />
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check form-switch">
+                                <input asp-for="SettleAccount" class="form-check-input" type="checkbox" role="switch" id="paySettle" />
+                                <label asp-for="SettleAccount" class="form-check-label">Settle account (final balance due, with optional cash discount)</label>
+                            </div>
+                        </div>
+                        <div class="col-6" id="discountBox" style="display:none;">
+                            <label class="form-label">Cash discount (on settlement)</label>
+                            <input asp-for="CashDiscount" type="number" step="0.01" min="0" class="form-control" id="payDiscount" value="0" />
+                            <div class="small text-secondary" id="payRequired">Required on settle: Rs 0</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success" id="paySubmitBtn"><i class="bi bi-check2-circle me-1"></i>Collect &amp; Record Receipt</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@if (Model.Receipt != null)
+{
+    <div class="print-sheet" id="a4Sheet">
+        <div class="receipt-ticket">
+            <div class="copy-badge">OFFICE COPY</div>
+            <div class="ticket-body">
+                <div class="ticket-head">
+                    <div class="fw-bold fs-5">@Model.Receipt.HospitalName</div>
+                    <div class="small text-secondary">@Model.Receipt.HospitalNo</div>
+                    <div class="small">INPATIENT CASH RECEIPT</div>
+                    <div class="text-muted small">Receipt No: @Model.Receipt.ReceiptNo &middot; @Model.Receipt.PaidAt?.ToString("dd MMM yyyy HH:mm")</div>
+                </div>
+                <div class="ticket-row"><span>BHT / Inpatient</span><span>@Model.Receipt.BhtNo</span></div>
+                <div class="ticket-row"><span>Patient</span><span>@Model.Receipt.PatientName &middot; PHN @(Model.Receipt.Phn ?? "-")</span></div>
+                <div class="ticket-row"><span>Department</span><span>@(string.IsNullOrEmpty(Model.Receipt.DepartmentName) ? "-" : Model.Receipt.DepartmentName)</span></div>
+                <table class="table table-sm mb-2 mt-2">
+                    <thead class="table-light">
+                        <tr><th>Description</th><th class="text-end">Amount</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var l in Model.Receipt.Lines)
+                        {
+                            <tr>
+                                <td>@l.Description</td>
+                                <td class="text-end">@l.Amount.ToString("N2")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+                <div class="ticket-total"><span>Total paid</span><span>Rs @Model.Receipt.Total.ToString("N2")</span></div>
+                @if (Model.Receipt.Discount > 0)
+                {
+                    <div class="ticket-row"><span>Cash discount</span><span>@Model.Receipt.Discount.ToString("N2")</span></div>
+                }
+                @if (Model.Receipt.PaymentMethod == PaymentMethod.Cash)
+                {
+                    <div class="ticket-row"><span>Tendered</span><span>@Model.Receipt.Tendered.ToString("N2")</span></div>
+                    <div class="ticket-row"><span>Change</span><span>@Model.Receipt.Change.ToString("N2")</span></div>
+                }
+                else
+                {
+                    <div class="ticket-row"><span>Payment method</span><span>@Model.Receipt.PaymentMethod</span></div>
+                    @if (!string.IsNullOrEmpty(Model.Receipt.ReferenceNo))
+                    {
+                        <div class="ticket-row"><span>Reference / Txn ID</span><span>@Model.Receipt.ReferenceNo</span></div>
+                    }
+                }
+                @if (Model.Receipt.BalanceAfter > 0)
+                {
+                    <div class="ticket-row"><span>Balance remaining</span><span>@Model.Receipt.BalanceAfter.ToString("N2")</span></div>
+                }
+                <div class="ticket-foot">
+                    This receipt confirms the cash received against the inpatient account.<br />
+                    Cashier: @Model.Receipt.Cashier &middot; Thank you
+                </div>
+            </div>
+        </div>
+        <div class="perforation"></div>
+        <div class="receipt-ticket">
+            <div class="copy-badge">PATIENT COPY</div>
+            <div class="ticket-body">
+                <div class="ticket-head">
+                    <div class="fw-bold fs-5">@Model.Receipt.HospitalName</div>
+                    <div class="small text-secondary">@Model.Receipt.HospitalNo</div>
+                    <div class="small">INPATIENT CASH RECEIPT</div>
+                    <div class="text-muted small">Receipt No: @Model.Receipt.ReceiptNo &middot; @Model.Receipt.PaidAt?.ToString("dd MMM yyyy HH:mm")</div>
+                </div>
+                <div class="ticket-row"><span>BHT / Inpatient</span><span>@Model.Receipt.BhtNo</span></div>
+                <div class="ticket-row"><span>Patient</span><span>@Model.Receipt.PatientName &middot; PHN @(Model.Receipt.Phn ?? "-")</span></div>
+                <div class="ticket-row"><span>Department</span><span>@(string.IsNullOrEmpty(Model.Receipt.DepartmentName) ? "-" : Model.Receipt.DepartmentName)</span></div>
+                <table class="table table-sm mb-2 mt-2">
+                    <thead class="table-light">
+                        <tr><th>Description</th><th class="text-end">Amount</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var l in Model.Receipt.Lines)
+                        {
+                            <tr>
+                                <td>@l.Description</td>
+                                <td class="text-end">@l.Amount.ToString("N2")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+                <div class="ticket-total"><span>Total paid</span><span>Rs @Model.Receipt.Total.ToString("N2")</span></div>
+                @if (Model.Receipt.Discount > 0)
+                {
+                    <div class="ticket-row"><span>Cash discount</span><span>@Model.Receipt.Discount.ToString("N2")</span></div>
+                }
+                @if (Model.Receipt.PaymentMethod == PaymentMethod.Cash)
+                {
+                    <div class="ticket-row"><span>Tendered</span><span>@Model.Receipt.Tendered.ToString("N2")</span></div>
+                    <div class="ticket-row"><span>Change</span><span>@Model.Receipt.Change.ToString("N2")</span></div>
+                }
+                else
+                {
+                    <div class="ticket-row"><span>Payment method</span><span>@Model.Receipt.PaymentMethod</span></div>
+                    @if (!string.IsNullOrEmpty(Model.Receipt.ReferenceNo))
+                    {
+                        <div class="ticket-row"><span>Reference / Txn ID</span><span>@Model.Receipt.ReferenceNo</span></div>
+                    }
+                }
+                @if (Model.Receipt.BalanceAfter > 0)
+                {
+                    <div class="ticket-row"><span>Balance remaining</span><span>@Model.Receipt.BalanceAfter.ToString("N2")</span></div>
+                }
+                <div class="ticket-foot">
+                    This receipt confirms the cash received against the inpatient account.<br />
+                    Cashier: @Model.Receipt.Cashier &middot; Thank you
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="receipt-thermal" id="thermalBody">
+        <div style="text-align:center;font-weight:bold;font-size:14px;">@Model.Receipt.HospitalName</div>
+        <div style="text-align:center;">@Model.Receipt.HospitalNo</div>
+        <div style="text-align:center;font-weight:bold;">INPATIENT CASH RECEIPT</div>
+        <div>----------------------------------</div>
+        <div>Receipt # : @Model.Receipt.ReceiptNo</div>
+        <div>Date      : @Model.Receipt.PaidAt?.ToString("dd MMM yyyy HH:mm")</div>
+        <div>BHT       : @Model.Receipt.BhtNo</div>
+        <div>Patient   : @Model.Receipt.PatientName</div>
+        <div>PHN       : @(Model.Receipt.Phn ?? "-")</div>
+        <div>Dept      : @(string.IsNullOrEmpty(Model.Receipt.DepartmentName) ? "-" : Model.Receipt.DepartmentName)</div>
+        <div>----------------------------------</div>
+        @foreach (var l in Model.Receipt.Lines)
+        {
+            <div style="display:flex;justify-content:space-between;"><span>@l.Description</span><span>@l.Amount.ToString("N2")</span></div>
+        }
+        <div>----------------------------------</div>
+        <div style="display:flex;justify-content:space-between;font-weight:bold;"><span>TOTAL</span><span>Rs @Model.Receipt.Total.ToString("N2")</span></div>
+        @if (Model.Receipt.Discount > 0)
+        {
+            <div style="display:flex;justify-content:space-between;"><span>Discount</span><span>@Model.Receipt.Discount.ToString("N2")</span></div>
+        }
+        <div style="display:flex;justify-content:space-between;"><span>Method</span><span>@Model.Receipt.PaymentMethod</span></div>
+        @if (Model.Receipt.PaymentMethod == PaymentMethod.Cash)
+        {
+            <div style="display:flex;justify-content:space-between;"><span>Tendered</span><span>@Model.Receipt.Tendered.ToString("N2")</span></div>
+            <div style="display:flex;justify-content:space-between;"><span>Change</span><span>@Model.Receipt.Change.ToString("N2")</span></div>
+        }
+        else if (!string.IsNullOrEmpty(Model.Receipt.ReferenceNo))
+        {
+            <div>Ref       : @Model.Receipt.ReferenceNo</div>
+        }
+        @if (Model.Receipt.BalanceAfter > 0)
+        {
+            <div style="display:flex;justify-content:space-between;"><span>Balance remaining</span><span>@Model.Receipt.BalanceAfter.ToString("N2")</span></div>
+        }
+        <div>----------------------------------</div>
+        <div style="text-align:center;">This receipt confirms the cash received</div>
+        <div style="text-align:center;">against the inpatient account.</div>
+        <div style="text-align:center;">Cashier: @Model.Receipt.Cashier</div>
+        <div style="text-align:center;">Thank you</div>
+    </div>
+    <iframe id="thermalFrame" title="Thermal printer output" style="display:none"></iframe>
+}
+
+@section Scripts {
+    <script src="~/js/cashier-receipt.js"></script>
+    <script>
+        (function () {
+            'use strict';
+            var payAmount = 0;
+            var payModalEl = document.getElementById('payModalInp');
+
+            if (payModalEl) {
+                payModalEl.addEventListener('show.bs.modal', function (ev) {
+                    var btn = ev.relatedTarget;
+                    payAmount = parseFloat(btn.getAttribute('data-amount')) || 0;
+
+                    document.getElementById('paySelectedEncounterId').value = btn.getAttribute('data-encounter-id');
+                    document.getElementById('payBht').textContent = btn.getAttribute('data-bht');
+                    document.getElementById('payPatient').textContent = btn.getAttribute('data-patient');
+                    document.getElementById('payPhn').textContent = btn.getAttribute('data-phn');
+                    document.getElementById('payDept').textContent = btn.getAttribute('data-department');
+                    document.getElementById('payAmount').textContent = payAmount.toFixed(2);
+                    document.getElementById('payReceived').value = payAmount.toFixed(2);
+                    document.getElementById('payTendered').value = payAmount.toFixed(2);
+                    document.getElementById('payReference').value = '';
+                    document.getElementById('payMethod').value = 'Cash';
+                    document.getElementById('payDiscount').value = '0';
+                    document.getElementById('paySettle').checked = false;
+                    document.getElementById('discountBox').style.display = 'none';
+                    updateMethodFields();
+                    computeChange();
+                    updateSettle();
+                });
+            }
+
+            function updateMethodFields() {
+                var v = document.getElementById('payMethod').value;
+                var isCash = (v === 'Cash');
+                document.getElementById('tenderBox').style.display = isCash ? '' : 'none';
+                document.getElementById('refBox').style.display = isCash ? 'none' : '';
+                computeChange();
+            }
+
+            function computeChange() {
+                var v = document.getElementById('payMethod').value;
+                var received = parseFloat(document.getElementById('payReceived').value) || 0;
+                var t = parseFloat(document.getElementById('payTendered').value) || 0;
+                var box = document.getElementById('payChangeBox');
+                var retBox = document.getElementById('payReturnBox');
+                var submitBtn = document.getElementById('paySubmitBtn');
+
+                if (v !== 'Cash') {
+                    box.textContent = '';
+                    retBox.textContent = '';
+                    submitBtn.disabled = (received <= 0);
+                    return;
+                }
+                if (received <= 0) {
+                    box.textContent = '';
+                    retBox.textContent = '';
+                    submitBtn.disabled = true;
+                    return;
+                }
+                if (t < received) {
+                    box.textContent = '';
+                    retBox.textContent = '';
+                    submitBtn.disabled = true;
+                    return;
+                }
+                submitBtn.disabled = false;
+                var diff = t - received;
+                if (diff > 0) {
+                    box.textContent = 'Return: ' + diff.toFixed(2);
+                    box.className = 'fs-5 fw-bold change-positive';
+                    retBox.textContent = 'Patient gives Rs ' + t.toFixed(2) + ', return Rs ' + diff.toFixed(2);
+                } else {
+                    box.textContent = 'Exact amount';
+                    box.className = 'fs-5 fw-bold';
+                    retBox.textContent = '';
+                }
+            }
+
+            function updateSettle() {
+                var settle = document.getElementById('paySettle').checked;
+                document.getElementById('discountBox').style.display = settle ? '' : 'none';
+                var discount = parseFloat(document.getElementById('payDiscount').value) || 0;
+                var required = Math.max(0, payAmount - discount);
+                document.getElementById('payRequired').textContent = 'Required on settle: Rs ' + required.toFixed(2);
+                if (settle) {
+                    document.getElementById('payReceived').value = required.toFixed(2);
+                    document.getElementById('payTendered').value = required.toFixed(2);
+                } else {
+                    document.getElementById('payReceived').value = payAmount.toFixed(2);
+                    document.getElementById('payTendered').value = payAmount.toFixed(2);
+                }
+                computeChange();
+            }
+
+            var methodSel = document.getElementById('payMethod');
+            var receivedInput = document.getElementById('payReceived');
+            var tenderedInput = document.getElementById('payTendered');
+            var settleInput = document.getElementById('paySettle');
+            var discountInput = document.getElementById('payDiscount');
+            if (methodSel) methodSel.addEventListener('change', updateMethodFields);
+            if (receivedInput) receivedInput.addEventListener('input', computeChange);
+            if (tenderedInput) tenderedInput.addEventListener('input', computeChange);
+            if (settleInput) settleInput.addEventListener('change', updateSettle);
+            if (discountInput) discountInput.addEventListener('input', updateSettle);
+        })();
+    </script>
+}

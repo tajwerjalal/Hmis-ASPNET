@@ -1,0 +1,106 @@
+@page
+@model HmisWeb.Pages.Reports.IndexModel
+@{
+    ViewData["Title"] = "Reports";
+}
+
+<h4 class="mb-3">Reports</h4>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-2">
+        <div class="card stat-card text-center p-3">
+            <div class="icon bg-primary bg-opacity-10 text-primary mx-auto"><i class="bi bi-people"></i></div>
+            <div class="fs-4 fw-semibold mt-2">@Model.TotalPatients</div>
+            <div class="text-muted small">Patients</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-2">
+        <div class="card stat-card text-center p-3">
+            <div class="icon bg-success bg-opacity-10 text-success mx-auto"><i class="bi bi-person-badge"></i></div>
+            <div class="fs-4 fw-semibold mt-2">@Model.TotalStaff</div>
+            <div class="text-muted small">Staff</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-2">
+        <div class="card stat-card text-center p-3">
+            <div class="icon bg-info bg-opacity-10 text-info mx-auto"><i class="bi bi-hospital"></i></div>
+            <div class="fs-4 fw-semibold mt-2">@Model.Inpatients</div>
+            <div class="text-muted small">Inpatients</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-2">
+        <div class="card stat-card text-center p-3">
+            <div class="icon bg-warning bg-opacity-10 text-warning mx-auto"><i class="bi bi-receipt"></i></div>
+            <div class="fs-4 fw-semibold mt-2">@Model.TodayBills</div>
+            <div class="text-muted small">Bills Today</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-2">
+        <div class="card stat-card text-center p-3">
+            <div class="icon bg-danger bg-opacity-10 text-danger mx-auto"><i class="bi bi-cash-stack"></i></div>
+            <div class="fs-4 fw-semibold mt-2">@Model.TodaySales.ToString("N0")</div>
+            <div class="text-muted small">Sales Today</div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-2">
+        <div class="card stat-card text-center p-3">
+            <div class="icon bg-secondary bg-opacity-10 text-secondary mx-auto"><i class="bi bi-currency-dollar"></i></div>
+            <div class="fs-4 fw-semibold mt-2">@Model.TodayCash.ToString("N0")</div>
+            <div class="text-muted small">Cash Today</div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7 col-12">
+        <div class="card">
+            <div class="card-header bg-white fw-semibold"><i class="bi bi-receipt"></i> Recent Bills</div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr><th>Bill No</th><th>Patient</th><th>Type</th><th class="text-end">Total</th><th class="text-end">Net</th></tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.RecentBills.Count == 0)
+                        {
+                            <tr><td colspan="5" class="text-center text-muted py-3">No bills today.</td></tr>
+                        }
+                        @foreach (var b in Model.RecentBills)
+                        {
+                            <tr>
+                                <td>@b.BillNo</td><td>@b.Patient</td><td>@b.BillType</td>
+                                <td class="text-end">@b.Total.ToString("N2")</td><td class="text-end fw-semibold">@b.NetTotal.ToString("N2")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-5 col-12">
+        <div class="card">
+            <div class="card-header bg-white fw-semibold"><i class="bi bi-bar-chart"></i> Top Items Today</div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr><th>Item</th><th class="text-end">Qty</th><th class="text-end">Total</th></tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.TopItems.Count == 0)
+                        {
+                            <tr><td colspan="3" class="text-center text-muted py-3">No sales today.</td></tr>
+                        }
+                        @foreach (var t in Model.TopItems)
+                        {
+                            <tr>
+                                <td>@t.ItemName</td>
+                                <td class="text-end">@t.Qty.ToString("N0")</td>
+                                <td class="text-end fw-semibold">@t.Total.ToString("N2")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

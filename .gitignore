@@ -1,0 +1,36 @@
+## User-specific files (e.g., HmisWeb.csproj.user visible in your folder)
+*.rsuser
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+## Build results (Ignores the bin/ and obj/ folders from Git GUI)
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+x64/
+x86/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Gg]enerated/
+
+## ASP.NET Core / Web configuration local overrides
+# Keeps appsettings.json for structure, but ignores development secrets if needed
+# appsettings.Development.json
+
+## Visual Studio cache, tracking, and diagnostics
+.vs/
+*.sqlite
+*.VC.opendb
+*.VC.db
+
+## Roslyn compiler caches
+.config/dotnet-tools.json
+.vs/
+
+## Operating System files
+Thumbs.db
+ehthumbs.db
+Desktop.ini

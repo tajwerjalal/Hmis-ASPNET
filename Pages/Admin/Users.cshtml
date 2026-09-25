@@ -1,0 +1,54 @@
+@page
+@model HmisWeb.Pages.Admin.UsersModel
+@{
+    ViewData["Title"] = "Users";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4>Users</h4>
+    <a asp-page="/Admin/AddUser" class="btn btn-primary btn-sm">Add User</a>
+</div>
+
+<table class="table table-bordered table-sm table-hover">
+    <thead class="table-light">
+        <tr>
+            <th>Id</th>
+            <th>Username</th>
+            <th>Real Name</th>
+            <th>Role</th>
+            <th>Institution</th>
+            <th>Department</th>
+            <th>Active</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (Model.Users.Any())
+        {
+            @foreach (var u in Model.Users)
+            {
+                <tr>
+                    <td>@u.Id</td>
+                    <td>@u.UserName</td>
+                    <td>@(u.WebUserPerson != null ? (u.WebUserPerson.NameWithInitials ?? u.WebUserPerson.Name ?? "") : u.RealUserName ?? "")</td>
+                    <td>@(u.WebUserRole != null ? u.WebUserRole.Name ?? "" : "")</td>
+                    <td>@(u.Institution != null ? u.Institution.Name ?? "" : "")</td>
+                    <td>@(u.Department != null ? u.Department.Name ?? "" : "")</td>
+                    <td>
+                        @if (u.Activated)
+                        {
+                            <span class="badge bg-success">Active</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">Inactive</span>
+                        }
+                    </td>
+                </tr>
+            }
+        }
+        else
+        {
+            <tr><td colspan="7" class="text-center text-muted">No users found.</td></tr>
+        }
+    </tbody>
+</table>

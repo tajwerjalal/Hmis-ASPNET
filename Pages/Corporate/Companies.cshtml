@@ -1,0 +1,340 @@
+@page "/corporate/companies"
+@model HmisWeb.Pages.Corporate.CompaniesModel
+@{
+    ViewData["Title"] = "Corporate Companies";
+}
+
+<style>
+    .company-name-cell { min-width: 180px; }
+    .company-name-cell .name { font-weight: 600; color: #212529; }
+    .company-name-cell .code { font-size: 0.78rem; color: #6c757d; }
+    .rate-badge { min-width: 32px; display: inline-block; text-align: center; }
+    .toast-msg { position: fixed; top: 16px; right: 16px; z-index: 9999; min-width: 300px; }
+</style>
+
+@if (!string.IsNullOrEmpty(Model.SuccessMessage))
+{
+    <div class="toast-msg alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+        <i class="bi bi-check-circle me-1"></i>@Model.SuccessMessage
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="toast-msg alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+        <i class="bi bi-exclamation-triangle me-1"></i>@Model.ErrorMessage
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div>
+        <h4 class="mb-0 fw-bold"><i class="bi bi-building me-1 text-primary"></i>Corporate Companies</h4>
+        <div class="text-secondary small">Organizations with panel agreements for special patient rates.</div>
+    </div>
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+        <form method="get" class="d-flex gap-2 align-items-center">
+            <input asp-for="Q" class="form-control form-control-sm" placeholder="Search name, code, phone..." style="width:220px" />
+            <div class="form-check form-switch">
+                <input asp-for="ShowRetired" class="form-check-input" />
+                <label class="form-check-label small text-muted" asp-for="ShowRetired">Retired</label>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search me-1"></i>Find</button>
+        </form>
+        <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#createModal">
+            <i class="bi bi-plus-circle me-1"></i>Add Company
+        </button>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-md-3">
+        <div class="card text-center py-3">
+            <div class="text-secondary small">Active Companies</div>
+            <div class="fs-4 fw-bold text-primary">@Model.ActiveCount</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center py-3">
+            <div class="text-secondary small">Retired</div>
+            <div class="fs-4 fw-bold text-secondary">@Model.RetiredCount</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center py-3">
+            <div class="text-secondary small">Showing</div>
+            <div class="fs-4 fw-bold text-dark">@Model.Companies.Count</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center py-3">
+            <div class="text-secondary small">Total Service Rates</div>
+            <div class="fs-4 fw-bold text-info">@Model.Companies.Sum(c => c.ServiceRateCount)</div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-list-ul me-1 text-primary"></i>Companies</span>
+        <span class="badge bg-primary">@Model.Companies.Count</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>#</th>
+                        <th>Company</th>
+                        <th>Code</th>
+                        <th>Reg. No</th>
+                        <th>Phone</th>
+                        <th>Email</th>
+                        <th>Address</th>
+                        <th class="text-center">Rates</th>
+                        <th>Status</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!Model.Companies.Any())
+                    {
+                        <tr>
+                            <td colspan="10" class="text-center text-muted py-4">
+                                <i class="bi bi-building fs-3 d-block mb-2"></i>
+                                No companies found. Click "Add Company" to create one.
+                            </td>
+                        </tr>
+                    }
+                    @{ var rowNum = 0; }
+                    @foreach (var c in Model.Companies)
+                    {
+                        rowNum++;
+                        <tr class="@(c.Retired ? "table-light" : "")">
+                            <td class="text-muted">@rowNum</td>
+                            <td class="company-name-cell">
+                                <div class="name">@c.Name</div>
+                                @if (!string.IsNullOrEmpty(c.RegNo))
+                                {
+                                    <div class="code">Reg: @c.RegNo</div>
+                                }
+                            </td>
+                            <td>@(string.IsNullOrEmpty(c.Code) ? "-" : c.Code)</td>
+                            <td>@(string.IsNullOrEmpty(c.RegNo) ? "-" : c.RegNo)</td>
+                            <td>@(string.IsNullOrEmpty(c.Phone) ? "-" : c.Phone)</td>
+                            <td>
+                                @if (string.IsNullOrEmpty(c.Email))
+                                {
+                                    @:-
+                                }
+                                else
+                                {
+                                    <a href="mailto:@c.Email" class="text-decoration-none">@c.Email</a>
+                                }
+                            </td>
+                            <td class="small text-secondary" style="max-width:180px;">@(string.IsNullOrEmpty(c.Address) ? "-" : c.Address)</td>
+                            <td class="text-center">
+                                <span class="badge bg-info rate-badge">@c.ServiceRateCount</span>
+                            </td>
+                            <td>
+                                @if (c.Retired)
+                                {
+                                    <span class="badge bg-secondary">Retired</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-success">Active</span>
+                                }
+                            </td>
+                            <td class="text-end text-nowrap">
+                                <button type="button" class="btn btn-sm btn-outline-primary"
+                                        data-bs-toggle="modal" data-bs-target="#editModal"
+                                        data-id="@c.Id"
+                                        data-name="@c.Name"
+                                        data-sname=""
+                                        data-code="@c.Code"
+                                        data-regno="@c.RegNo"
+                                        data-phone="@c.Phone"
+                                        data-email="@c.Email"
+                                        data-address="@c.Address"
+                                        data-city="@c.City"
+                                        data-attention="@c.Attention"
+                                        data-attentiondesignation="@c.AttentionDesignation"
+                                        title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                @if (!c.Retired)
+                                {
+                                    <form method="post" asp-page-handler="Retire" class="d-inline">
+                                        <input type="hidden" name="id" value="@c.Id" />
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Retire"
+                                                onclick="return confirm('Retire company @c.Name?')">
+                                            <i class="bi bi-archive"></i>
+                                        </button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <form method="post" asp-page-handler="Unretire" class="d-inline">
+                                        <input type="hidden" name="id" value="@c.Id" />
+                                        <button type="submit" class="btn btn-sm btn-outline-success" title="Restore"
+                                                onclick="return confirm('Restore company @c.Name?')">
+                                            <i class="bi bi-arrow-counterclockwise"></i>
+                                        </button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="createModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form method="post" asp-page-handler="Create" class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-building-add me-1 text-success"></i>Add New Company</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Company Name <span class="text-danger">*</span></label>
+                    <input asp-for="FormCompany.Name" class="form-control" required />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Registration No</label>
+                    <input asp-for="FormCompany.RegNo" class="form-control" />
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Phone</label>
+                        <input asp-for="FormCompany.Phone" class="form-control" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Email</label>
+                        <input asp-for="FormCompany.Email" type="email" class="form-control" />
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Address</label>
+                    <textarea asp-for="FormCompany.Address" class="form-control" rows="2"></textarea>
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">City</label>
+                        <input asp-for="FormCompany.City" class="form-control" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Attention (Contact Person)</label>
+                        <input asp-for="FormCompany.Attention" class="form-control" />
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Attention Designation</label>
+                    <input asp-for="FormCompany.AttentionDesignation" class="form-control" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Website</label>
+                    <input asp-for="FormCompany.Website" class="form-control" />
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-success"><i class="bi bi-check2-circle me-1"></i>Create Company</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form method="post" asp-page-handler="Edit" class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-pencil-square me-1 text-primary"></i>Edit Company</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" asp-for="EditId" id="editId" />
+                <div class="mb-3">
+                    <label class="form-label">Company Name <span class="text-danger">*</span></label>
+                    <input asp-for="FormCompany.Name" class="form-control" id="editName" required />
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Code</label>
+                        <input asp-for="FormCompany.Code" class="form-control" id="editCode" readonly />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Registration No</label>
+                        <input asp-for="FormCompany.RegNo" class="form-control" id="editRegNo" />
+                    </div>
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Phone</label>
+                        <input asp-for="FormCompany.Phone" class="form-control" id="editPhone" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Email</label>
+                        <input asp-for="FormCompany.Email" type="email" class="form-control" id="editEmail" />
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Address</label>
+                    <textarea asp-for="FormCompany.Address" class="form-control" rows="2" id="editAddress"></textarea>
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">City</label>
+                        <input asp-for="FormCompany.City" class="form-control" id="editCity" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Attention (Contact Person)</label>
+                        <input asp-for="FormCompany.Attention" class="form-control" id="editAttention" />
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Attention Designation</label>
+                    <input asp-for="FormCompany.AttentionDesignation" class="form-control" id="editAttentionDesignation" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Website</label>
+                    <input asp-for="FormCompany.Website" class="form-control" id="editWebsite" />
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-primary"><i class="bi bi-check2-circle me-1"></i>Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    var editModal = document.getElementById('editModal');
+    editModal.addEventListener('show.bs.modal', function (event) {
+        var btn = event.relatedTarget;
+        document.getElementById('editId').value = btn.getAttribute('data-id');
+        document.getElementById('editName').value = btn.getAttribute('data-name') || '';
+        document.getElementById('editCode').value = btn.getAttribute('data-code') || '';
+        document.getElementById('editRegNo').value = btn.getAttribute('data-regno') || '';
+        document.getElementById('editPhone').value = btn.getAttribute('data-phone') || '';
+        document.getElementById('editEmail').value = btn.getAttribute('data-email') || '';
+        document.getElementById('editAddress').value = btn.getAttribute('data-address') || '';
+        document.getElementById('editCity').value = btn.getAttribute('data-city') || '';
+        document.getElementById('editAttention').value = btn.getAttribute('data-attention') || '';
+        document.getElementById('editAttentionDesignation').value = btn.getAttribute('data-attentiondesignation') || '';
+    });
+    setTimeout(function () {
+        var alerts = document.querySelectorAll('.toast-msg');
+        alerts.forEach(function (el) {
+            var bsAlert = bootstrap.Alert.getOrCreateInstance(el);
+            bsAlert.close();
+        });
+    }, 4000);
+</script>
+}

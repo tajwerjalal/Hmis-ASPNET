@@ -1,0 +1,114 @@
+@page
+@model HmisWeb.Pages.Inward.DischargeModel
+@{
+    ViewData["Title"] = "Patient Discharge";
+}
+
+<div class="mb-3">
+    <h4 class="mb-0 fw-bold">Patient Discharge</h4>
+    <span class="text-secondary small">Finalize the inpatient stay, close the room and create the final bill</span>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.Message))
+{
+    <div class="alert alert-danger">@Model.Message</div>
+}
+
+@if (Model.Encounter != null)
+{
+    <div class="card">
+        <div class="card-body">
+            <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                    <div class="text-secondary small fw-bold text-uppercase">Patient</div>
+                    <div class="fw-semibold fs-5">@(Model.Encounter.Patient?.Person?.NameWithInitials ?? "Unnamed")</div>
+                    <small class="text-secondary">PHN: @(Model.Encounter.Patient?.Phn ?? "-") &middot; BHT: @(Model.Encounter.BhtNo ?? "-")</small>
+                </div>
+                <div class="col-md-2">
+                    <div class="text-secondary small fw-bold text-uppercase">Admitted</div>
+                    <div class="fw-semibold">@(Model.Encounter.DateOfAdmission?.ToString("dd MMM yyyy") ?? "-")</div>
+                </div>
+                <div class="col-md-2">
+                    <div class="text-secondary small fw-bold text-uppercase">Department</div>
+                    <div class="fw-semibold">@(Model.Encounter.Department?.Name ?? "-")</div>
+                </div>
+                <div class="col-md-2">
+                    <div class="text-secondary small fw-bold text-uppercase">Room</div>
+                    <div class="fw-semibold">@(Model.ActiveRoom?.Room?.Name ?? "-")</div>
+                </div>
+            </div>
+
+            @if (Model.AlreadyDischarged)
+            {
+                <div class="alert alert-warning py-2">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    This patient was already discharged on @(Model.Encounter.DateOfDischarge?.ToString("dd MMM yyyy HH:mm")).
+                </div>
+            }
+            else
+            {
+                <div class="row g-3 mb-3">
+                    <div class="col-md-4">
+                        <div class="bg-light border rounded p-3">
+                            <div class="text-secondary small fw-bold text-uppercase">Pending Inward Bills</div>
+                            <div class="fw-bold fs-5">@Model.PendingBillCount</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="bg-light border rounded p-3">
+                            <div class="text-secondary small fw-bold text-uppercase">Discount</div>
+                            <div class="fw-bold fs-5">@Model.ChargesDiscount.ToString("N2")</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="bg-primary bg-opacity-10 border border-primary rounded p-3">
+                            <div class="text-secondary small fw-bold text-uppercase">Total Charges (Net)</div>
+                            <div class="fw-bold fs-5 text-primary">@Model.ChargesTotal.ToString("N2")</div>
+                        </div>
+                    </div>
+                </div>
+
+                <form method="post">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label asp-for="DateOfDischarge" class="form-label">Date of Discharge</label>
+                            <input asp-for="DateOfDischarge" type="date" class="form-control" />
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="TimeOfDischarge" class="form-label">Time of Discharge</label>
+                            <input asp-for="TimeOfDischarge" type="time" class="form-control" />
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="PaymentMethod" class="form-label">Settlement Method</label>
+                            <select asp-for="PaymentMethod" class="form-select">
+                                @foreach (var m in Model.PaymentMethodList)
+                                {
+                                    <option value="@m.Value">@m.Text</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="TenderedAmount" class="form-label">Tendered Amount</label>
+                            <input asp-for="TenderedAmount" type="number" min="0" step="0.01" class="form-control" placeholder="Leave 0 to exact settlement" />
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Comments" class="form-label">Discharge Comments</label>
+                            <input asp-for="Comments" class="form-control" placeholder="Optional discharge notes..." />
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-danger px-4 mt-4">
+                        <i class="bi bi-check2-circle me-1"></i>Confirm Discharge
+                    </button>
+                    <a asp-page="/Inward/PatientList" class="btn btn-outline-secondary ms-2 mt-1">Cancel</a>
+                </form>
+            }
+        </div>
+    </div>
+}
+else
+{
+    <div class="alert alert-danger">
+        <i class="bi bi-x-circle me-1"></i>Inpatient encounter not found.
+        <a asp-page="/Inward/PatientList" class="alert-link">Back to list</a>
+    </div>
+}

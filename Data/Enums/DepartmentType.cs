@@ -1,0 +1,29 @@
+namespace HmisWeb.Data.Enums
+{
+    public enum DepartmentType
+    {
+        Consultant,
+        Ward,
+        OperationTheater,
+        Clinic,
+        Laboratory,
+        Radiology,
+        Pharmacy,
+        Cashier,
+        Administration,
+        Store,
+        Kitchen,
+        Laundry,
+        Garden,
+        Maintenance,
+        ICU,
+        NICU,
+        CCU,
+        Emergency,
+        OPD,
+        Registration,
+        Dental,
+        Optical,
+        Other
+    }
+}

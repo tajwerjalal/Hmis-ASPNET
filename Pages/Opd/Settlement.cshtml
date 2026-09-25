@@ -1,0 +1,148 @@
+@page
+@model HmisWeb.Pages.Opd.SettlementModel
+@{
+    ViewData["Title"] = "OPD Settlement";
+}
+<h5 class="mb-3">Bill Settlement</h5>
+
+@if (!string.IsNullOrEmpty(Model.Message))
+{
+    <div class="alert alert-danger">@Model.Message</div>
+}
+@if (!string.IsNullOrEmpty(Model.Success))
+{
+    <div class="alert alert-success">@Model.Success</div>
+}
+
+@if (Model.Bill != null)
+{
+    <div class="row">
+        <div class="col-lg-7">
+            <div class="card mb-3">
+                <div class="card-header bg-white fw-semibold">Bill @Model.Bill.Id</div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="text-muted small">Patient</div>
+                            <div class="fw-semibold">@(Model.Bill.Patient?.Person?.NameWithInitials ?? Model.Bill.Patient?.Person?.Name ?? "-")</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="text-muted small">Date</div>
+                            <div class="fw-semibold">@Model.Bill.BillDate?.ToString("dd MMM yyyy")</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="text-muted small">Institution</div>
+                            <div class="fw-semibold">@(Model.Bill.Institution?.Name ?? "-")</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="text-muted small">Department</div>
+                            <div class="fw-semibold">@(Model.Bill.Department?.Name ?? "-")</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-3">
+                <div class="card-header bg-white fw-semibold">Bill Items</div>
+                <div class="card-body p-0">
+                    <table class="table table-striped mb-0">
+                        <thead>
+                            <tr><th>#</th><th>Item</th><th class="text-end">Qty</th><th class="text-end">Rate</th><th class="text-end">Amount</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var bi in Model.BillItems)
+                            {
+                                <tr>
+                                    <td>@bi.SearialNo</td>
+                                    <td>@(bi.Item?.PrintName ?? bi.Item?.Name ?? bi.Descreption ?? "-")</td>
+                                    <td class="text-end">@bi.Qty</td>
+                                    <td class="text-end">@bi.Rate.ToString("N2")</td>
+                                    <td class="text-end">@bi.NetValue.ToString("N2")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="card">
+                <div class="card-header bg-white fw-semibold">Payment</div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Total</span>
+                        <span>@Model.Bill.Total.ToString("N2")</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">Discount</span>
+                        <span>-@Model.Bill.Discount.ToString("N2")</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-3 border-top pt-2">
+                        <span class="fw-semibold">Net Total</span>
+                        <span class="fw-semibold fs-5">@Model.Bill.NetTotal.ToString("N2")</span>
+                    </div>
+
+                    @if (Model.Bill.Paid)
+                    {
+                        <div class="alert alert-success text-center mb-0">
+                            <i class="bi bi-check-circle"></i> This bill is already settled.
+                            @if (Model.Bill.CashBalance > 0)
+                            {
+                                <div class="small mt-1">Change returned: @Model.Bill.CashBalance.Value.ToString("N2")</div>
+                            }
+                        </div>
+                        <a asp-page="/Opd/PreBilling" class="btn btn-primary w-100 mt-3">New Pre-Bill</a>
+                    }
+                    else
+                    {
+                        <form method="post">
+                            @Html.AntiForgeryToken()
+                            <div class="mb-3">
+                                <label class="form-label">Payment Method</label>
+                                <select asp-for="PaymentMethod" class="form-select">
+                                    <option value="Cash">Cash</option>
+                                    <option value="Card">Card</option>
+                                    <option value="Cheque">Cheque</option>
+                                    <option value="Credit">Credit</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Tendered Amount</label>
+                                <input asp-for="TenderedAmount" type="number" step="0.01" class="form-control" value="@Model.Bill.NetTotal" />
+                            </div>
+                            <div class="mb-3" id="chequeBox" style="display:none;">
+                                <label class="form-label">Cheque Ref No</label>
+                                <input asp-for="ChequeRefNo" class="form-control" />
+                            </div>
+                            <div class="mb-3" id="cardBox" style="display:none;">
+                                <label class="form-label">Card Ref No</label>
+                                <input asp-for="CreditCardRefNo" class="form-control" />
+                            </div>
+                            <button type="submit" class="btn btn-success w-100"><i class="bi bi-check2-circle"></i> Settle Bill</button>
+                        </form>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="alert alert-warning">No bill selected. <a asp-page="/Opd/PreBilling">Go to Pre-Billing</a>.</div>
+}
+
+@section Scripts {
+    <script>
+        function toggleMethod() {
+            var m = document.getElementById('PaymentMethod');
+            var v = m ? m.value : 'Cash';
+            document.getElementById('chequeBox').style.display = (v === 'Cheque') ? 'block' : 'none';
+            document.getElementById('cardBox').style.display = (v === 'Card') ? 'block' : 'none';
+        }
+        document.addEventListener('DOMContentLoaded', function () {
+            var m = document.getElementById('PaymentMethod');
+            if (m) { m.addEventListener('change', toggleMethod); toggleMethod(); }
+        });
+    </script>
+}

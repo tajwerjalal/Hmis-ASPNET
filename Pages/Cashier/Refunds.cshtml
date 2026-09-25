@@ -1,0 +1,337 @@
+@page "/cashier/refunds"
+@model HmisWeb.Pages.Cashier.RefundsModel
+@{
+    ViewData["Title"] = "Cashier - Refunds";
+    Layout = "_Layout";
+}
+
+<div class="no-print-zone">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0"><i class="bi bi-arrow-return-left"></i> Cashier - Refunds</h4>
+        <div class="d-flex gap-2">
+            <a asp-page="/cashier/receipt" class="btn btn-outline-secondary btn-sm"><i class="bi bi-receipt"></i> Receipts</a>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.SuccessMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @Model.SuccessMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @Model.ErrorMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <ul class="nav nav-tabs mb-3">
+        <li class="nav-item">
+            <a class="nav-link @(Model.Tab == "pending" ? "active" : "")" asp-page="/cashier/refunds" asp-route-tab="pending">
+                <i class="bi bi-clock-history"></i> Pending Refunds <span class="badge bg-warning text-dark">(@Model.PendingRefunds.Count)</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link @(Model.Tab == "new" ? "active" : "")" asp-page="/cashier/refunds" asp-route-tab="new">
+                <i class="bi bi-plus-circle"></i> New Request
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link @(Model.Tab == "history" ? "active" : "")" asp-page="/cashier/refunds" asp-route-tab="history">
+                <i class="bi bi-clock"></i> Refund History
+            </a>
+        </li>
+    </ul>
+
+    @if (Model.Tab == "pending")
+    {
+        <div class="card mb-3">
+            <div class="card-body p-2">
+                <form method="get" class="row g-2 align-items-end">
+                    <input type="hidden" name="tab" value="pending" />
+                    <div class="col-md-4">
+                        <label class="form-label form-label-sm">Search</label>
+                        <input name="q" value="@Model.Q" class="form-control form-control-sm" placeholder="Patient name, receipt #..." />
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary btn-sm w-100"><i class="bi bi-search"></i> Find</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        @if (Model.PendingRefunds.Count == 0)
+        {
+            <div class="text-center text-muted py-5">
+                <i class="bi bi-check-circle" style="font-size:3rem"></i>
+                <p class="mt-2">No pending refund requests.</p>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Date</th>
+                            <th>Patient</th>
+                            <th>Receipt #</th>
+                            <th>Fee Type</th>
+                            <th class="text-end">Amount</th>
+                            <th>Reason</th>
+                            <th>Approved By</th>
+                            <th class="text-end">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var r in Model.PendingRefunds)
+                        {
+                            <tr>
+                                <td>@r.CreatedAt?.ToString("dd-MMM HH:mm")</td>
+                                <td>@r.PatientName</td>
+                                <td><code>@(r.Bill?.InvoiceNumber ?? "-")</code></td>
+                                <td>@r.FeeType</td>
+                                <td class="text-end fw-bold">Rs @r.FeeAmount.ToString("N2")</td>
+                                <td>@r.Reason</td>
+                                <td>@r.ApprovedBy?.UserName</td>
+                                <td class="text-end">
+                                    <form method="post" asp-page-handler="ProcessRefund" class="d-inline">
+                                        <input type="hidden" name="refundId" value="@r.Id" />
+                                        <button type="submit" class="btn btn-success btn-sm"
+                                                onclick="return confirm('Process refund of Rs @r.FeeAmount.ToString("N2") to @r.PatientName?')">
+                                            <i class="bi bi-check-lg"></i> Refund
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    }
+    else if (Model.Tab == "new")
+    {
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header"><i class="bi bi-search"></i> Find Paid Bill to Refund</div>
+                    <div class="card-body">
+                        <form method="get" class="row g-2 mb-3">
+                            <input type="hidden" name="tab" value="new" />
+                            <div class="col-md-8">
+                                <input name="q" value="@Model.Q" class="form-control" placeholder="Search by invoice #, patient name, PHN..." />
+                            </div>
+                            <div class="col-md-4">
+                                <button type="submit" class="btn btn-primary w-100"><i class="bi bi-search"></i> Search Bills</button>
+                            </div>
+                        </form>
+
+                        @if (Model.SearchResults.Count > 0)
+                        {
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover align-middle">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Invoice #</th>
+                                            <th>Patient</th>
+                                            <th>PHN</th>
+                                            <th>Department</th>
+                                            <th>Date</th>
+                                            <th class="text-end">Amount</th>
+                                            <th class="text-end">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var b in Model.SearchResults)
+                                        {
+                                            <tr>
+                                                <td><code>@b.InvoiceNumber</code></td>
+                                                <td>@b.PatientName</td>
+                                                <td>@b.Phn</td>
+                                                <td>@b.DepartmentName</td>
+                                                <td>@b.PaidAt?.ToString("dd-MMM HH:mm")</td>
+                                                <td class="text-end fw-bold">Rs @b.Amount.ToString("N2")</td>
+                                                <td class="text-end">
+                                                    <button type="button" class="btn btn-outline-warning btn-sm"
+                                                            data-bs-toggle="modal" data-bs-target="#requestModal"
+                                                            data-bill-id="@b.BillId"
+                                                            data-invoice="@b.InvoiceNumber"
+                                                            data-patient="@b.PatientName"
+                                                            data-amount="@b.Amount"
+                                                            data-department="@b.DepartmentName">
+                                                        <i class="bi bi-arrow-return-left"></i> Request Refund
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-info">
+                    <div class="card-header bg-info text-white"><i class="bi bi-info-circle"></i> Refund Process</div>
+                    <div class="card-body small">
+                        <ol class="mb-0">
+                            <li>Search for the paid bill</li>
+                            <li>Click "Request Refund"</li>
+                            <li>Enter reason for refund</li>
+                            <li>Submit the request</li>
+                            <li>Manager approves the request</li>
+                            <li>Cashier processes the refund from "Pending" tab</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else if (Model.Tab == "history")
+    {
+        <div class="card mb-3">
+            <div class="card-body p-2">
+                <form method="get" class="row g-2 align-items-end">
+                    <input type="hidden" name="tab" value="history" />
+                    <div class="col-md-3">
+                        <label class="form-label form-label-sm">From</label>
+                        <input type="date" name="from" value="@Model.FromDate?.ToString("yyyy-MM-dd")" class="form-control form-control-sm" />
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label form-label-sm">To</label>
+                        <input type="date" name="to" value="@Model.ToDate?.ToString("yyyy-MM-dd")" class="form-control form-control-sm" />
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary btn-sm w-100"><i class="bi bi-search"></i> Filter</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        @if (Model.HistoryRefunds.Count == 0)
+        {
+            <div class="text-center text-muted py-5">
+                <i class="bi bi-inbox" style="font-size:3rem"></i>
+                <p class="mt-2">No refund history for the selected period.</p>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Date</th>
+                            <th>Patient</th>
+                            <th>Receipt #</th>
+                            <th>Fee Type</th>
+                            <th class="text-end">Amount</th>
+                            <th>Reason</th>
+                            <th>Status</th>
+                            <th>Processed By</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var r in Model.HistoryRefunds)
+                        {
+                            <tr>
+                                <td>@r.CreatedAt?.ToString("dd-MMM HH:mm")</td>
+                                <td>@r.PatientName</td>
+                                <td><code>@(r.Bill?.InvoiceNumber ?? "-")</code></td>
+                                <td>@r.FeeType</td>
+                                <td class="text-end">Rs @r.FeeAmount.ToString("N2")</td>
+                                <td>@r.Reason</td>
+                                <td>
+                                    @if (r.Refunded)
+                                    {
+                                        <span class="badge bg-success">Refunded</span>
+                                    }
+                                    else if (r.Cancelled)
+                                    {
+                                        <span class="badge bg-secondary">Cancelled</span>
+                                    }
+                                    else if (r.Approved)
+                                    {
+                                        <span class="badge bg-info">Approved</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-warning text-dark">Pending</span>
+                                    }
+                                </td>
+                                <td>@(r.RefundedBy?.UserName ?? "-")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    }
+</div>
+
+<!-- Request Refund Modal -->
+<div class="modal fade" id="requestModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" asp-page-handler="RequestRefund">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-arrow-return-left"></i> Request Refund</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="billId" id="reqBillId" />
+                    <div class="mb-3">
+                        <label class="form-label">Invoice</label>
+                        <input type="text" id="reqInvoice" class="form-control" readonly />
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Patient</label>
+                            <input type="text" id="reqPatient" class="form-control" readonly />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Amount</label>
+                            <input type="text" id="reqAmount" class="form-control" readonly />
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Fee Type <span class="text-danger">*</span></label>
+                        <select name="feeType" class="form-select" required>
+                            <option value="OPD Fee">OPD Fee</option>
+                            <option value="Lab Fee">Lab Fee</option>
+                            <option value="Pharmacy">Pharmacy</option>
+                            <option value="Service">Service</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Reason for Refund <span class="text-danger">*</span></label>
+                        <textarea name="reason" class="form-control" rows="3" required placeholder="Enter reason for refund..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning"><i class="bi bi-send"></i> Submit Request</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.querySelectorAll('[data-bs-target="#requestModal"]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                document.getElementById('reqBillId').value = this.dataset.billId;
+                document.getElementById('reqInvoice').value = this.dataset.invoice;
+                document.getElementById('reqPatient').value = this.dataset.patient;
+                document.getElementById('reqAmount').value = 'Rs ' + parseFloat(this.dataset.amount).toLocaleString('en-PK', { minimumFractionDigits: 2 });
+            });
+        });
+    </script>
+}

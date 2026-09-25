@@ -1,0 +1,55 @@
+@page "/departments/Index"
+@model HmisWeb.Pages.Departments.IndexModel
+@{
+    ViewData["Title"] = "Departments";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h4 class="mb-0">Departments</h4>
+        <div class="text-muted small">Active departments registered in the system.</div>
+    </div>
+    <a asp-page="/departments/Create" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Add New</a>
+</div>
+
+<div class="card">
+    <div class="card-header bg-white fw-semibold">Active Departments (@Model.Departments.Count)</div>
+    <div class="card-body p-0">
+        @if (!Model.Departments.Any())
+        {
+            <div class="p-4 text-center text-muted">No active departments found.</div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-striped mb-0">
+                    <thead>
+                        <tr>
+                            <th>Code</th>
+                            <th>Name</th>
+                            <th>Short Name</th>
+                            <th>Institution</th>
+                            <th>Department Type</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var d in Model.Departments)
+                        {
+                            <tr>
+                                <td class="fw-semibold">@(d.Code ?? "-")</td>
+                                <td>@d.Name</td>
+                                <td>@(d.Sname ?? "-")</td>
+                                <td>@(d.Institution?.Name ?? "-")</td>
+                                <td>@(d.DepartmentType?.ToString() ?? "-")</td>
+                                <td class="text-end">
+                                    <a asp-page="/departments/Edit" asp-route-id="@d.Id" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i> Edit</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>

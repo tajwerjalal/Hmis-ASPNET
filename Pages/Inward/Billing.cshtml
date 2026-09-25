@@ -1,0 +1,393 @@
+@page "/inward/Billing"
+@model HmisWeb.Pages.Inward.BillingModel
+@{
+    ViewData["Title"] = "Inward Billing";
+}
+
+@if (Model.BatchMode)
+{
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h4 class="mb-0 fw-bold">Generate IPD Bill</h4>
+            <div class="text-muted small">Batch-generate Inward Final bills from PreBill / outstanding slips for patients discharged within a period.</div>
+        </div>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success py-2"><i class="bi bi-check-circle me-1"></i>@TempData["Success"]</div>
+    }
+    @if (!string.IsNullOrEmpty(Model.Message))
+    {
+        <div class="alert alert-warning py-2"><i class="bi bi-exclamation-triangle me-1"></i>@Model.Message</div>
+    }
+
+    <form method="post">
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row g-3 align-items-end">
+                    <div class="col-auto">
+                        <label class="form-label mb-1 small fw-bold">Bill Date</label>
+                        <input asp-for="BillDate" type="date" class="form-control form-control-sm" style="width:140px;" />
+                    </div>
+                    <div class="col-auto">
+                        <label class="form-label mb-1 small fw-bold">Discharge Period</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text">From :</span>
+                            <input asp-for="FromDate" type="date" class="form-control" style="width:135px;" />
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <label class="form-label mb-1 small fw-bold" style="visibility:hidden">To</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text">To :</span>
+                            <input asp-for="ToDate" type="date" class="form-control" style="width:135px;" />
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <div class="form-check mb-1">
+                            <input asp-for="FilterByCompany" class="form-check-input" type="checkbox" id="chkcid" />
+                            <label class="form-check-label small" for="chkcid">Company</label>
+                        </div>
+                        <select asp-for="CompanyId" class="form-select form-select-sm" style="width:220px;">
+                            <option value="">-- All Companies --</option>
+                            @foreach (var c in Model.CompanyList)
+                            {
+                                <option value="@c.Value">@c.Text</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-auto ms-auto">
+                        <button type="submit" asp-page-handler="UpdateList" class="btn btn-primary">
+                            <i class="bi bi-arrow-clockwise me-1"></i>Update List
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-lg-11">
+                <div class="card">
+                    <div class="card-body p-0">
+                        @if (Model.Rows.Any())
+                        {
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle mb-0" id="billGrid">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Reg. No.</th>
+                                            <th>Patient Name</th>
+                                            <th>Company</th>
+                                            <th class="text-end">Net Amount</th>
+                                            <th class="text-center">Selected</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @for (int i = 0; i < Model.Rows.Count; i++)
+                                        {
+                                            var r = Model.Rows[i];
+                                            <tr>
+                                                <td class="fw-semibold">@r.RegNo</td>
+                                                <td>@r.PatientName</td>
+                                                <td>@r.CompanyName</td>
+                                                <td class="text-end fw-semibold">@r.NetAmount.ToString("N2")</td>
+                                                <td class="text-center">
+                                                    <input class="form-check-input row-check" type="checkbox"
+                                                           name="SelectedIds" value="@r.EncounterId" checked="checked" />
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="card-footer bg-light d-flex justify-content-between align-items-center">
+                                <span class="text-secondary small">
+                                    @Model.Rows.Count patient(s) listed. Check/uncheck rows or use the buttons on the right.
+                                </span>
+                                <span class="fw-bold">Total: @Model.Rows.Sum(r => r.NetAmount).ToString("N2")</span>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="text-center py-5">
+                                <i class="bi bi-inbox text-secondary" style="font-size:2.2rem;"></i>
+                                <p class="text-secondary mt-2 mb-0">No unbilled slips for discharged inpatients in the selected period. Set dates and click Update List.</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-1">
+                <div class="card">
+                    <div class="card-body p-2 d-flex flex-column gap-2">
+                        <button type="button" class="btn btn-outline-success btn-sm" onclick="selectActive()">Select</button>
+                        <button type="button" class="btn btn-outline-warning btn-sm" onclick="deselectActive()">De-Select</button>
+                        <button type="button" class="btn btn-outline-success btn-sm" onclick="selectAll()">Select All</button>
+                        <button type="button" class="btn btn-outline-warning btn-sm" onclick="deselectAll()">De-Select All</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-center gap-3 mt-3">
+            <button type="submit" asp-page-handler="Generate" class="btn btn-success px-4">
+                <i class="bi bi-cash-coin me-1"></i>Generate
+            </button>
+            <a asp-page="/inward/Billing" class="btn btn-outline-secondary px-4">Cancel</a>
+        </div>
+    </form>
+
+    <div class="mt-3">
+        <a asp-page="/Inward/PatientList" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>Per-Patient Billing
+        </a>
+    </div>
+
+    @section Scripts {
+        <script>
+            var grid = document.getElementById('billGrid');
+            var activeRow = null;
+
+            if (grid) {
+                grid.querySelectorAll('tbody tr').forEach(function (tr) {
+                    tr.addEventListener('click', function () {
+                        if (grid.querySelector('tr.row-active')) {
+                            grid.querySelector('tr.row-active').classList.remove('row-active');
+                        }
+                        tr.classList.add('row-active');
+                        activeRow = tr;
+                    });
+                });
+            }
+
+            function rowCheck(r) {
+                return r ? r.querySelector('.row-check') : null;
+            }
+
+            function selectAll() {
+                if (grid) grid.querySelectorAll('.row-check').forEach(function (c) { c.checked = true; });
+            }
+
+            function deselectAll() {
+                if (grid) grid.querySelectorAll('.row-check').forEach(function (c) { c.checked = false; });
+            }
+
+            function selectActive() {
+                var c = rowCheck(activeRow);
+                if (c) c.checked = true;
+            }
+
+            function deselectActive() {
+                var c = rowCheck(activeRow);
+                if (c) c.checked = false;
+            }
+        </script>
+    }
+    return;
+}
+
+@if (Model.Encounter == null)
+{
+    <div class="alert alert-danger">
+        <i class="bi bi-x-circle me-1"></i>Active inpatient encounter not found.
+        <a asp-page="/Inward/PatientList" class="alert-link">Back to list</a>
+    </div>
+    return;
+}
+
+<div class="mb-3">
+    <h4 class="mb-0 fw-bold">Inward Billing</h4>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body py-3">
+        <div class="row g-3">
+            <div class="col-md-3">
+                <div class="text-secondary small fw-bold text-uppercase">Patient</div>
+                <div class="fw-semibold">@(Model.Encounter.Patient?.Person?.NameWithInitials ?? "Unnamed")</div>
+                <small class="text-secondary">PHN: @(Model.Encounter.Patient?.Phn ?? "-")</small>
+            </div>
+            <div class="col-md-3">
+                <div class="text-secondary small fw-bold text-uppercase">Admission Date</div>
+                <div class="fw-semibold">@(Model.Encounter.DateOfAdmission?.ToString("dd MMM yyyy") ?? "-")</div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-secondary small fw-bold text-uppercase">Department</div>
+                <div class="fw-semibold">@(Model.Encounter.Department?.Name ?? "-")</div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-secondary small fw-bold text-uppercase">Encounter #</div>
+                <div class="fw-semibold">@Model.Encounter.Id</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header bg-white fw-semibold"><i class="bi bi-hourglass-split me-1 text-warning"></i>Pending Bills — Outstanding @Model.PendingTotal.ToString("N2")</div>
+    <div class="card-body p-0">
+        @if (Model.PendingBills.Any())
+        {
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead class="table-light">
+                        <tr><th>Bill #</th><th>Date</th><th>Type</th><th class="text-end">Total</th><th class="text-end">Balance</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var b in Model.PendingBills)
+                        {
+                            <tr>
+                                <td class="fw-semibold">@b.Id</td>
+                                <td><small>@(b.BillDate?.ToString("dd MMM yyyy") ?? b.CreatedAt?.ToString("dd MMM yyyy") ?? "")</small></td>
+                                <td><small>@b.BillType</small></td>
+                                <td class="text-end">@b.NetTotal.ToString("N2")</td>
+                                <td class="text-end fw-semibold text-warning">@b.Balance.ToString("N2")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="text-center text-secondary small py-3"><i class="bi bi-check-circle me-1 text-success"></i>No pending bills. All previous charges are settled or none exist.</div>
+        }
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-5">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title fw-semibold mb-3">Charge Items</h5>
+
+                <form method="post" asp-page="/Inward/Billing" asp-page-handler="Search">
+                    <div class="input-group">
+                        <input asp-for="SearchTerm" class="form-control" placeholder="Search services / investigations / medicines..." />
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-search me-1"></i>Search</button>
+                    </div>
+                </form>
+
+                @if (Model.ItemResults.Any())
+                {
+                    <div class="mt-3">
+                        @foreach (var item in Model.ItemResults)
+                        {
+                            <form method="post" asp-page="/Inward/Billing" asp-page-handler="Add" class="mb-2">
+                                <input type="hidden" asp-for="SearchTerm" />
+                                <input type="hidden" name="AddItemId" value="@item.Id" />
+                                <div class="d-flex justify-content-between align-items-center border rounded p-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="badge bg-@(item.ItemType==ItemType.Investigation?"info":(item.ItemType==ItemType.Medicine?"warning":"success")) text-white" style="font-size:.65rem;">
+                                            @(item.ItemType==ItemType.Investigation?"INV":(item.ItemType==ItemType.Medicine?"MED":"SVC"))
+                                        </span>
+                                        <div>
+                                            <div class="fw-semibold small">@item.Name</div>
+                                            <small class="text-secondary">Rate: @((item.Total ?? 100).ToString("N2"))</small>
+                                        </div>
+                                    </div>
+                                    <button type="submit" class="btn btn-sm btn-outline-success"><i class="bi bi-plus-lg"></i> Add</button>
+                                </div>
+                            </form>
+                        }
+                    </div>
+                }
+                else if (!string.IsNullOrWhiteSpace(Model.SearchTerm))
+                {
+                    <div class="alert alert-secondary mt-3 mb-0 py-2 small">No charge items found.</div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="card-title fw-semibold mb-0">Bill Cart</h5>
+                    @if (Model.Cart.Any())
+                    {
+                        <form method="post" asp-page="/Inward/Billing" asp-page-handler="ClearCart">
+                            <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-trash me-1"></i>Clear</button>
+                        </form>
+                    }
+                </div>
+
+                @if (!ViewData.ModelState.IsValid)
+                {
+                    <div asp-validation-summary="All" class="alert alert-danger py-2 small"></div>
+                }
+
+                @if (Model.Cart.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Item</th>
+                                    <th class="text-end">Rate</th>
+                                    <th class="text-center" style="width:110px;">Qty</th>
+                                    <th class="text-end">Line Total</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var line in Model.Cart)
+                                {
+                                    <tr>
+                                        <td>
+                                            <div class="fw-semibold small">@line.ItemName</div>
+                                            <small class="text-secondary text-muted">#@line.ItemId</small>
+                                        </td>
+                                        <td class="text-end">@line.Rate.ToString("N2")</td>
+                                        <td>
+                                            <form method="post" asp-page="/Inward/Billing" asp-page-handler="UpdateQty" class="d-flex gap-1">
+                                                <input type="hidden" name="itemId" value="@line.ItemId" />
+                                                <input type="number" name="qty" value="@line.Qty" min="1" class="form-control form-control-sm text-center" style="width:56px;" />
+                                                <button type="submit" class="btn btn-sm btn-light"><i class="bi bi-arrow-repeat"></i></button>
+                                            </form>
+                                        </td>
+                                        <td class="text-end fw-semibold">@((line.Rate * line.Qty).ToString("N2"))</td>
+                                        <td>
+                                            <form method="post" asp-page="/Inward/Billing" asp-page-handler="Remove">
+                                                <input type="hidden" name="itemId" value="@line.ItemId" />
+                                                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-x-lg"></i></button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                            <tfoot>
+                                <tr class="table-light">
+                                    <td colspan="3" class="fw-bold">Total</td>
+                                    <td class="text-end fw-bold fs-5">@Model.CartTotal.ToString("N2")</td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+
+                    <form method="post" asp-page="/Inward/Billing" asp-page-handler="SaveBill" class="mt-3">
+                        <div class="mb-2">
+                            <label asp-for="Comments" class="form-label small fw-bold">Comments</label>
+                            <textarea asp-for="Comments" class="form-control" rows="2" placeholder="Optional"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-success px-4">
+                            <i class="bi bi-cash-stack me-1"></i>Save Inward Bill
+                        </button>
+                        <a asp-page="/Inward/PatientList" class="btn btn-outline-secondary ms-2">Cancel</a>
+                    </form>
+                }
+                else
+                {
+                    <div class="text-center py-4">
+                        <i class="bi bi-cart text-secondary" style="font-size:2rem;"></i>
+                        <p class="text-secondary mt-2 mb-0">Cart is empty. Search and add charge items.</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>

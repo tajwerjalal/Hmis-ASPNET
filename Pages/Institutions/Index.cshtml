@@ -1,0 +1,64 @@
+@page "/institutions/Index"
+@model HmisWeb.Pages.Institutions.IndexModel
+@{
+    ViewData["Title"] = "Institutions";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h4 class="mb-0">Institutions</h4>
+        <div class="text-muted small">Active institutions registered in the system.</div>
+    </div>
+    <a asp-page="/institutions/Create" class="btn btn-primary"><i class="bi bi-building-add"></i> Add New</a>
+</div>
+
+<div class="card">
+    <div class="card-header bg-white fw-semibold">Active Institutions (@Model.Institutions.Count)</div>
+    <div class="card-body p-0">
+        @if (!Model.Institutions.Any())
+        {
+            <div class="p-4 text-center text-muted">No active institutions found.</div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-striped mb-0">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Institution Type</th>
+                            <th>Phone</th>
+                            <th>Email</th>
+                            <th>Status</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var i in Model.Institutions)
+                        {
+                            <tr>
+                                <td class="fw-semibold">@i.Name</td>
+                                <td>@(i.InstitutionType?.ToString() ?? "-")</td>
+                                <td>@(i.Phone ?? "-")</td>
+                                <td>@(i.Email ?? "-")</td>
+                                <td>
+                                    @if (i.Retired)
+                                    {
+                                        <span class="badge bg-danger">Retired</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-success">Active</span>
+                                    }
+                                </td>
+                                <td class="text-end">
+                                    <a asp-page="/institutions/Edit" asp-route-id="@i.Id" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i> Edit</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>

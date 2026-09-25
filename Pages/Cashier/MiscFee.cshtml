@@ -1,0 +1,304 @@
+@page "/cashier/miscfee"
+@model HmisWeb.Pages.Cashier.MiscFeeModel
+@{
+    ViewData["Title"] = "Cashier - Miscellaneous Fees";
+    Layout = "_Layout";
+}
+
+<div class="no-print-zone">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4 class="mb-0"><i class="bi bi-cash-stack"></i> Cashier - Miscellaneous Fees</h4>
+        <div class="d-flex gap-2">
+            <a asp-page="/cashier/receipt" class="btn btn-outline-secondary btn-sm"><i class="bi bi-receipt"></i> Receipts</a>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.SuccessMessage))
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @Model.SuccessMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @Model.ErrorMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="row">
+        <div class="col-md-5">
+            <div class="card mb-3">
+                <div class="card-header"><i class="bi bi-plus-circle"></i> New Miscellaneous Fee</div>
+                <div class="card-body">
+                    <form method="post" asp-page-handler="CreateFee">
+                        <div class="mb-3">
+                            <label class="form-label">Buyer Type <span class="text-danger">*</span></label>
+                            <select asp-for="FormBuyerType" class="form-select" id="buyerType" onchange="toggleBuyerFields()">
+                                <option value="Patient">Patient</option>
+                                <option value="Employee">Employee</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div class="mb-3" id="patientSearchGroup">
+                            <label class="form-label">Patient</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="patientSearchInput" placeholder="Search by name, PHN, mobile..."
+                                       autocomplete="off" />
+                                <button type="button" class="btn btn-outline-secondary" onclick="searchPatient()">
+                                    <i class="bi bi-search"></i>
+                                </button>
+                            </div>
+                            <input type="hidden" asp-for="FormPatientId" id="selectedPatientId" />
+                            <div id="patientResults" class="list-group mt-1" style="display:none; max-height:200px; overflow-y:auto;"></div>
+                            <div id="selectedPatientInfo" class="form-text text-success" style="display:none"></div>
+                        </div>
+                        <div class="mb-3" id="employeeGroup" style="display:none">
+                            <label class="form-label">Employee Code</label>
+                            <input asp-for="FormBuyerName" class="form-control" placeholder="Employee code or name" />
+                        </div>
+                        <div class="mb-3" id="otherGroup" style="display:none">
+                            <label class="form-label">Name</label>
+                            <input asp-for="FormBuyerName" class="form-control" placeholder="Enter name" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Fee Head <span class="text-danger">*</span></label>
+                            <select asp-for="FormFeeHead" class="form-select" required>
+                                <option value="">-- Select --</option>
+                                <option value="Consultation">Consultation Fee</option>
+                                <option value="Lab Test">Lab Test Fee</option>
+                                <option value="X-Ray">X-Ray Fee</option>
+                                <option value="Ultrasound">Ultrasound Fee</option>
+                                <option value="ECG">ECG Fee</option>
+                                <option value="Procedure">Procedure Fee</option>
+                                <option value="Dressing">Dressing Fee</option>
+                                <option value="Injection">Injection Fee</option>
+                                <option value="Admission">Admission Fee</option>
+                                <option value="Bed Charge">Bed Charge</option>
+                                <option value="OT Charge">Operation Theatre Charge</option>
+                                <option value="Miscellaneous">Miscellaneous</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <input asp-for="FormDescription" class="form-control" placeholder="Optional description" />
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Amount (Rs) <span class="text-danger">*</span></label>
+                            <input asp-for="FormAmount" type="number" step="0.01" min="0.01" class="form-control" id="feeAmount" required />
+                            <div class="form-text" id="amountInWords"></div>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-check-lg"></i> Create Fee & Receive Payment
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-7">
+            <div class="card mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-list-ul"></i> Today's Miscellaneous Fees</span>
+                    <span class="badge bg-primary">@Model.TodayFees.Count</span>
+                </div>
+                <div class="card-body p-0">
+                    @if (Model.TodayFees.Count == 0)
+                    {
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-inbox" style="font-size:2rem"></i>
+                            <p class="mt-2 mb-0">No miscellaneous fees today.</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Time</th>
+                                        <th>Buyer</th>
+                                        <th>Fee Head</th>
+                                        <th class="text-end">Amount</th>
+                                        <th>Method</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var f in Model.TodayFees)
+                                    {
+                                        <tr>
+                                            <td>@f.CreatedAt?.ToString("HH:mm")</td>
+                                            <td>
+                                                @if (f.BuyerType == "Patient" && f.Patient != null)
+                                                {
+                                                    <span>@(f.Patient.Person?.NameWithInitials ?? f.Patient.Person?.Name ?? "")</span>
+                                                }
+                                                else
+                                                {
+                                                    <span>@f.BuyerName (@f.BuyerType)</span>
+                                                }
+                                            </td>
+                                            <td>@f.FeeHead</td>
+                                            <td class="text-end fw-bold">Rs @f.Amount.ToString("N2")</td>
+                                            <td>
+                                                @if (f.Paid && f.PaymentMethod.HasValue)
+                                                {
+                                                    <span class="badge bg-success">@f.PaymentMethod</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-warning text-dark">Unpaid</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (f.Paid)
+                                                {
+                                                    <i class="bi bi-check-circle text-success"></i>
+                                                }
+                                                else
+                                                {
+                                                    <form method="post" asp-page-handler="ReceivePayment" class="d-inline">
+                                                        <input type="hidden" name="miscFeeId" value="@f.Id" />
+                                                        <button type="submit" class="btn btn-success btn-sm">
+                                                            <i class="bi bi-cash"></i> Receive
+                                                        </button>
+                                                    </form>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                                <tfoot class="table-light">
+                                    <tr class="fw-bold">
+                                        <td colspan="3">Total Collected</td>
+                                        <td class="text-end">Rs @Model.TodayFees.Where(f => f.Paid).Sum(f => f.Amount).ToString("N2")</td>
+                                        <td colspan="2"></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><i class="bi bi-clock-history"></i> Fee History</div>
+                <div class="card-body p-2">
+                    <form method="get" class="row g-2 align-items-end mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label form-label-sm">From</label>
+                            <input type="date" name="from" value="@Model.FromDate?.ToString("yyyy-MM-dd")" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label form-label-sm">To</label>
+                            <input type="date" name="to" value="@Model.ToDate?.ToString("yyyy-MM-dd")" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-md-4">
+                            <button type="submit" class="btn btn-primary btn-sm w-100"><i class="bi bi-search"></i> Filter</button>
+                        </div>
+                    </form>
+
+                    @if (Model.HistoryFees.Count > 0)
+                    {
+                        <div class="table-responsive" style="max-height:300px; overflow-y:auto;">
+                            <table class="table table-sm table-hover align-middle mb-0">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Buyer</th>
+                                        <th>Head</th>
+                                        <th class="text-end">Amount</th>
+                                        <th>Method</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var f in Model.HistoryFees)
+                                    {
+                                        <tr>
+                                            <td>@f.CreatedAt?.ToString("dd-MMM HH:mm")</td>
+                                            <td>
+                                                @if (f.BuyerType == "Patient" && f.Patient != null)
+                                                {
+                                                    <span>@(f.Patient.Person?.NameWithInitials ?? f.Patient.Person?.Name ?? "")</span>
+                                                }
+                                                else
+                                                {
+                                                    <span>@f.BuyerName</span>
+                                                }
+                                            </td>
+                                            <td>@f.FeeHead</td>
+                                            <td class="text-end">Rs @f.Amount.ToString("N2")</td>
+                                            <td>@(f.PaymentMethod?.ToString() ?? "-")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function toggleBuyerFields() {
+            var t = document.getElementById('buyerType').value;
+            document.getElementById('patientSearchGroup').style.display = t === 'Patient' ? '' : 'none';
+            document.getElementById('employeeGroup').style.display = t === 'Employee' ? '' : 'none';
+            document.getElementById('otherGroup').style.display = t === 'Other' ? '' : 'none';
+        }
+
+        function searchPatient() {
+            var q = document.getElementById('patientSearchInput').value;
+            if (q.length < 2) return;
+            fetch('/Cashier/MiscFee?handler=SearchPatient&q=' + encodeURIComponent(q))
+                .then(r => r.json())
+                .then(data => {
+                    var box = document.getElementById('patientResults');
+                    box.innerHTML = '';
+                    box.style.display = data.length ? '' : 'none';
+                    data.forEach(function (p) {
+                        var btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'list-group-item list-group-item-action';
+                        btn.textContent = p.name + ' (PHN: ' + p.phn + ')';
+                        btn.onclick = function () {
+                            document.getElementById('selectedPatientId').value = p.id;
+                            document.getElementById('patientSearchInput').value = p.name;
+                            document.getElementById('selectedPatientInfo').textContent = 'Selected: ' + p.name + ' (PHN: ' + p.phn + ')';
+                            document.getElementById('selectedPatientInfo').style.display = '';
+                            box.style.display = 'none';
+                        };
+                        box.appendChild(btn);
+                    });
+                });
+        }
+
+        document.getElementById('feeAmount').addEventListener('input', function () {
+            var val = parseFloat(this.value) || 0;
+            document.getElementById('amountInWords').textContent = val > 0 ? 'Rupees ' + numberToWords(val) + ' Only' : '';
+        });
+
+        function numberToWords(num) {
+            if (num === 0) return 'Zero';
+            var ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+                'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen',
+                'Seventeen', 'Eighteen', 'Nineteen'];
+            var tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+            var result = '';
+            if (num >= 10000000) { result += numberToWords(Math.floor(num / 10000000)) + ' Crore '; num %= 10000000; }
+            if (num >= 100000) { result += numberToWords(Math.floor(num / 100000)) + ' Lakh '; num %= 100000; }
+            if (num >= 1000) { result += numberToWords(Math.floor(num / 1000)) + ' Thousand '; num %= 1000; }
+            if (num >= 100) { result += ones[Math.floor(num / 100)] + ' Hundred '; num %= 100; }
+            if (num >= 20) { result += tens[Math.floor(num / 10)] + ' '; num %= 10; }
+            if (num > 0) { result += ones[num] + ' '; }
+            return result.trim();
+        }
+
+        toggleBuyerFields();
+    </script>
+}

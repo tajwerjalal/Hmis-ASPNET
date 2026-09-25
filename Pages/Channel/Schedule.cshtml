@@ -1,0 +1,49 @@
+@page
+@model HmisWeb.Pages.Channel.ScheduleModel
+@{
+    ViewData["Title"] = "Channel Schedule";
+}
+
+<h4>Channel Schedule</h4>
+
+<table class="table table-bordered table-sm table-hover mt-3">
+    <thead class="table-light">
+        <tr>
+            <th>Bill Id</th>
+            <th>Patient</th>
+            <th>Doctor</th>
+            <th>Date</th>
+            <th class="text-end">Amount</th>
+            <th>Paid</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (Model.Bills.Any())
+        {
+            @foreach (var b in Model.Bills)
+            {
+                <tr>
+                    <td>@b.BillId</td>
+                    <td>@b.PatientName</td>
+                    <td>@b.DoctorName</td>
+                    <td>@(b.AppointmentDate?.ToString("yyyy-MM-dd") ?? "")</td>
+                    <td class="text-end">@b.Amount.ToString("N2")</td>
+                    <td>
+                        @if (b.Paid)
+                        {
+                            <span class="badge bg-success">Paid</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-warning">Unpaid</span>
+                        }
+                    </td>
+                </tr>
+            }
+        }
+        else
+        {
+            <tr><td colspan="6" class="text-center text-muted">No channel bills found.</td></tr>
+        }
+    </tbody>
+</table>

@@ -1,0 +1,70 @@
+@page "/departments/Create"
+@model HmisWeb.Pages.Departments.CreateModel
+@{
+    ViewData["Title"] = "Add Department";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h4 class="mb-0">Add Department</h4>
+        <div class="text-muted small">Register a new department.</div>
+    </div>
+    <a asp-page="/departments/Index" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back</a>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger">@Model.ErrorMessage</div>
+}
+
+<form method="post">
+    <div class="card mb-3">
+        <div class="card-header bg-white fw-semibold">Department Details</div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Code</label>
+                    <input class="form-control" value="@Model.AutoCode" disabled />
+                    <div class="form-text">Auto-generated on save — cannot be changed.</div>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="Name" class="form-label">Name *</label>
+                    <input asp-for="Name" class="form-control" required />
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="Sname" class="form-label">Short Name</label>
+                    <input asp-for="Sname" class="form-control" />
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="DepartmentType" class="form-label">Department Type</label>
+                    <select asp-for="DepartmentType" class="form-select">
+                        <option value="">-- Select Type --</option>
+                        @foreach (var t in Enum.GetNames<HmisWeb.Data.Enums.DepartmentType>())
+                        {
+                            <option value="@t">@t</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="InstitutionId" class="form-label">Institution</label>
+                    <select asp-for="InstitutionId" class="form-select">
+                        <option value="">-- Select Institution --</option>
+                        @foreach (var inst in Model.Institutions)
+                        {
+                            <option value="@inst.Id">@inst.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="PrintingName" class="form-label">Printing Name</label>
+                    <input asp-for="PrintingName" class="form-control" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle"></i> Save Department</button>
+        <a asp-page="/departments/Index" class="btn btn-outline-secondary">Cancel</a>
+    </div>
+</form>

@@ -1,0 +1,72 @@
+@page "/institutions/Edit"
+@model HmisWeb.Pages.Institutions.EditModel
+@{
+    ViewData["Title"] = "Edit Institution";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h4 class="mb-0">Edit Institution</h4>
+        <div class="text-muted small">Update the institution's details.</div>
+    </div>
+    <a asp-page="/institutions/Index" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back</a>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger">@Model.ErrorMessage</div>
+}
+
+<form method="post">
+    <input type="hidden" asp-for="Id" />
+    <div class="card mb-3">
+        <div class="card-header bg-white fw-semibold">Institution Details</div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label asp-for="Name" class="form-label">Name *</label>
+                    <input asp-for="Name" class="form-control" required />
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="InstitutionType" class="form-label">Institution Type</label>
+                    <select asp-for="InstitutionType" class="form-select">
+                        <option value="">-- Select Type --</option>
+                        @foreach (var t in Enum.GetNames<HmisWeb.Data.Enums.InstitutionType>())
+                        {
+                            <option value="@t">@t</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="Address" class="form-label">Address</label>
+                    <input asp-for="Address" class="form-control" />
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="RegNo" class="form-label">Registration No</label>
+                    <input asp-for="RegNo" class="form-control" />
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="Phone" class="form-label">Phone</label>
+                    <input asp-for="Phone" class="form-control" />
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="Fax" class="form-label">Fax</label>
+                    <input asp-for="Fax" class="form-control" />
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="Email" class="form-label">Email</label>
+                    <input asp-for="Email" class="form-control" />
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="Website" class="form-label">Website</label>
+                    <input asp-for="Website" class="form-control" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle"></i> Save Changes</button>
+        <a asp-page="/institutions/Index" class="btn btn-outline-secondary">Cancel</a>
+    </div>
+</form>

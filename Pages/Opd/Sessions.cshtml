@@ -1,0 +1,223 @@
+@page "/opd/sessions"
+@model HmisWeb.Pages.Opd.SessionsModel
+@{
+    ViewData["Title"] = "OPD Sessions";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div>
+        <h4 class="mb-0 fw-bold">OPD Consultant Sessions</h4>
+        <div class="text-secondary small">Allocate consultants, rooms, token ranges and fees for the day.</div>
+    </div>
+    <div class="d-flex gap-2 align-items-center">
+        <a asp-page="/Hr/Consultants" class="btn btn-sm btn-outline-primary"><i class="bi bi-person-badge me-1"></i>Consultants</a>
+        <form method="get" class="d-flex gap-2 align-items-center">
+            <input asp-for="SessionDate" type="date" class="form-control form-control-sm" />
+            <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-calendar2-check me-1"></i> Load Day</button>
+        </form>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.Message))
+{
+    <div class="alert alert-warning py-2"><i class="bi bi-exclamation-triangle me-1"></i>@Model.Message</div>
+}
+
+<div class="card mb-4">
+    <div class="card-header bg-white fw-semibold"><i class="bi bi-plus-circle me-1 text-primary"></i>New OPD Session</div>
+    <div class="card-body">
+        <form method="post" asp-page-handler="Create">
+            <input type="hidden" asp-for="SessionDate" />
+            <div class="row g-3">
+                <div class="col-md-4 col-xl-3">
+                    <label asp-for="ConsultantId" class="form-label">Consultant *</label>
+                    <select asp-for="ConsultantId" id="consultantSelect" class="form-select">
+                        <option value="">-- Select Consultant --</option>
+                        @foreach (var c in Model.ConsultantOptions)
+                        {
+                            <option value="@c.Id"
+                                    data-first="@c.FirstVisitFee.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                    data-sub="@c.SubsequentVisitFee.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                    data-start="@c.SessionStartTime"
+                                    data-end="@c.SessionEndTime"
+                                    data-room="@c.DefaultRoomNo"
+                                    data-hospfee="@c.DefaultHospitalFee.ToString(System.Globalization.CultureInfo.InvariantCulture)"
+                                    data-days="@c.WorkDays"
+                                    data-spec="@(c.SpecialityId?.ToString() ?? "")">@c.Text</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-4 col-xl-3">
+                    <label asp-for="SpecialityId" class="form-label">Speciality</label>
+                    <select asp-for="SpecialityId" asp-items="Model.SpecialityList" class="form-select">
+                        <option value="">-- None --</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label asp-for="FromTime" class="form-label">Start *</label>
+                    <input asp-for="FromTime" type="time" class="form-control" />
+                </div>
+                <div class="col-md-2">
+                    <label asp-for="ToTime" class="form-label">End (optional)</label>
+                    <input asp-for="ToTime" type="time" class="form-control" />
+                </div>
+                <div class="col-md-2">
+                    <label asp-for="RoomNo" class="form-label">Room</label>
+                    <input asp-for="RoomNo" class="form-control" placeholder="OPD-1" />
+                </div>
+                <div class="col-md-4 col-xl-2">
+                    <label asp-for="Fee" class="form-label">Consultant Fee (LKR)</label>
+                    <input asp-for="Fee" type="number" step="0.01" min="0" class="form-control" />
+                </div>
+                <div class="col-md-4 col-xl-2">
+                    <label asp-for="HospitalFee" class="form-label">Hospital Charge (LKR)</label>
+                    <input asp-for="HospitalFee" type="number" step="0.01" min="0" class="form-control" />
+                </div>
+                <div class="col-md-2 col-xl-2">
+                    <label asp-for="TokenStartingNo" class="form-label">Starts At</label>
+                    <input asp-for="TokenStartingNo" type="number" min="1" class="form-control" />
+                </div>
+                <div class="col-md-2 col-xl-2">
+                    <label asp-for="TokenMax" class="form-label">Max Tokens</label>
+                    <input asp-for="TokenMax" type="number" min="1" class="form-control" />
+                </div>
+                <div class="col-md-4 col-xl-4">
+                    <label asp-for="Note" class="form-label">Note</label>
+                    <input asp-for="Note" class="form-control" />
+                </div>
+                <div class="col-md-12 d-flex gap-2 align-items-center">
+                    <button type="submit" class="btn btn-primary px-4"><i class="bi bi-plus-lg me-1"></i> Create Session</button>
+                    <button type="submit" formaction="@Url.Page("/Opd/Sessions", "CreateAndStart")" class="btn btn-success px-4">
+                        <i class="bi bi-play-fill me-1"></i> Create &amp; Start Now
+                    </button>
+                    <span class="small text-secondary">Create &amp; Start immediately opens the session for registration.</span>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-calendar3 me-1 text-primary"></i>Sessions on @Model.SessionDate?.ToString("dd MMMM yyyy")</span>
+        <span class="badge bg-primary">@Model.Sessions.Count</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Consultant</th>
+                    <th>Speciality</th>
+                    <th>Room</th>
+                    <th>Time</th>
+                    <th class="text-end">Consultant Fee</th>
+                    <th class="text-end">Hospital Charge</th>
+                    <th class="text-center">Tokens</th>
+                    <th>Status</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.Sessions.Any())
+                {
+                    <tr><td colspan="9" class="text-center text-muted py-3">No sessions for this day. Create one above.</td></tr>
+                }
+                @foreach (var s in Model.Sessions)
+                {
+                    <tr>
+                        <td class="fw-semibold">@s.ConsultantName</td>
+                        <td>@(s.SpecialityName ?? "-")</td>
+                        <td><span class="badge bg-secondary">@s.RoomNo</span></td>
+                        <td>@s.FromTime@(string.IsNullOrEmpty(s.ToTime) ? " – open" : " – " + s.ToTime)</td>
+                        <td class="text-end">@s.Fee.ToString("N2")</td>
+                        <td class="text-end">@s.HospitalFee.ToString("N2")</td>
+                        <td class="text-center">
+                            <span class="fw-semibold">@(s.TokenStartingNo + s.IssuedTokens - 1)</span>
+                            <span class="text-muted">/ @s.TokenMax</span>
+                            <div class="small text-muted">@s.IssuedTokens issued</div>
+                        </td>
+                        <td>
+                            @switch (s.Status)
+                            {
+                                case HmisWeb.Data.Enums.OpdSessionStatus.Scheduled:
+                                    <span class="badge bg-warning text-dark">Scheduled</span>
+                                    break;
+                                case HmisWeb.Data.Enums.OpdSessionStatus.Active:
+                                    <span class="badge bg-success">Active</span>
+                                    break;
+                                case HmisWeb.Data.Enums.OpdSessionStatus.Completed:
+                                    <span class="badge bg-secondary">Completed</span>
+                                    break;
+                                default:
+                                    <span class="badge bg-danger">Cancelled</span>
+                                    break;
+                            }
+                        </td>
+                        <td class="text-end text-nowrap">
+                            @if (s.Status == HmisWeb.Data.Enums.OpdSessionStatus.Scheduled)
+                            {
+                                <form method="post" asp-page-handler="Start" asp-route-id="@s.Id" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-outline-success" title="Start OPD"><i class="bi bi-play-fill"></i></button>
+                                </form>
+                                <form method="post" asp-page-handler="Cancel" asp-route-id="@s.Id" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Cancel"><i class="bi bi-x-lg"></i></button>
+                                </form>
+                            }
+                            @if (s.Status == HmisWeb.Data.Enums.OpdSessionStatus.Active)
+                            {
+                                <form method="post" asp-page-handler="Complete" asp-route-id="@s.Id" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-outline-primary" title="End / complete session"><i class="bi bi-stop-fill"></i></button>
+                                </form>
+                            }
+                            <a asp-page="/Opd/TokenBoard" asp-route-sessionId="@s.Id" class="btn btn-sm btn-outline-primary" title="Token board">
+                                <i class="bi bi-card-list"></i>
+                            </a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        var dayNames = { 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6, 'Sun': 0 };
+
+        function todayDayName() {
+            var d = new Date();
+            return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()];
+        }
+
+        document.getElementById('consultantSelect').addEventListener('change', function () {
+            var opt = this.options[this.selectedIndex];
+            var $ = function (id) { return document.getElementById(id); };
+            var fee = $('Fee'), hosp = $('HospitalFee'), start = $('FromTime'), end = $('ToTime'), room = $('RoomNo'), spec = $('SpecialityId');
+            var msg = $('dayWarning');
+            if (msg) msg.remove();
+
+            if (!opt || !opt.value) return;
+
+            if (fee && opt.dataset.first && opt.dataset.first !== '0') fee.value = opt.dataset.first;
+            if (opt.dataset.hospfee && start) {
+                var hf = parseFloat(opt.dataset.hospfee);
+                if (!isNaN(hf) && hosp && (hosp.value === '' || parseFloat(hosp.value) === 0)) hosp.value = hf.toFixed(2);
+            }
+            if (start) start.value = opt.dataset.start || '';
+            if (end) end.value = opt.dataset.end || '';
+            if (room) room.value = opt.dataset.room || '';
+            if (spec && !spec.value && opt.dataset.spec) spec.value = opt.dataset.spec;
+
+            if (opt.dataset.days && opt.dataset.days !== '') {
+                var days = opt.dataset.days.split(',');
+                if (days.indexOf(todayDayName()) === -1) {
+                    var div = document.createElement('div');
+                    div.id = 'dayWarning';
+                    div.className = 'alert alert-warning py-1 px-3 mt-2 mb-0';
+                    div.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i>This consultant does not list <b>' + todayDayName() + '</b> as a working day. Verify before creating the session.';
+                    document.querySelector('.row.g-3').appendChild(div);
+                }
+            }
+        });
+    </script>
+}

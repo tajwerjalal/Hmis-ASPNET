@@ -1,0 +1,116 @@
+@page
+@model HmisWeb.Pages.Cash.CashBookModel
+@{
+    ViewData["Title"] = "Cash Book";
+}
+
+<div class="mb-3">
+    <h4 class="mb-0 fw-bold">Cash Book</h4>
+    <span class="text-secondary small">@(Model.CashBook?.Name ?? "Cash management for department")</span>
+</div>
+
+@if (Model.CashBook == null)
+{
+    <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle me-1"></i>No department is assigned to your session.
+    </div>
+    return;
+}
+
+<div class="row g-4">
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="text-secondary small fw-bold text-uppercase">Current Balance</div>
+                <div class="fs-3 fw-bold @(Model.CashBook.CashBalance >= 0 ? "text-success" : "text-danger")">
+                    @Model.CashBook.CashBalance.ToString("N2")
+                </div>
+                <hr />
+                <div class="d-flex justify-content-between small">
+                    <span class="text-secondary">Total Cash In</span>
+                    <span class="fw-semibold text-success">@Model.CashBook.TotalCashAdded.ToString("N2")</span>
+                </div>
+                <div class="d-flex justify-content-between small mt-1">
+                    <span class="text-secondary">Total Cash Out</span>
+                    <span class="fw-semibold text-danger">@Model.CashBook.TotalCashRemoved.ToString("N2")</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title fw-semibold mb-3">Add Entry</h5>
+
+                @if (!ViewData.ModelState.IsValid)
+                {
+                    <div asp-validation-summary="All" class="alert alert-danger py-2 small"></div>
+                }
+
+                <form method="post">
+                    <div class="mb-3">
+                        <label asp-for="Description" class="form-label">Description</label>
+                        <input asp-for="Description" class="form-control" placeholder="e.g. Cash deposit, utility payment..." />
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="Amount" class="form-label">Amount</label>
+                        <input asp-for="Amount" type="number" step="0.01" min="0" class="form-control" />
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button asp-page-handler="deposit" type="submit" class="btn btn-success">
+                            <i class="bi bi-arrow-down-circle me-1"></i>Deposit (Cash In)
+                        </button>
+                        <button asp-page-handler="withdraw" type="submit" class="btn btn-danger">
+                            <i class="bi bi-arrow-up-circle me-1"></i>Withdraw (Cash Out)
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-body p-0">
+                @if (Model.Entries.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Date / Time</th>
+                                    <th>Description</th>
+                                    <th class="text-end">Cash In</th>
+                                    <th class="text-end">Cash Out</th>
+                                    <th class="text-end">Balance</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var entry in Model.Entries)
+                                {
+                                    <tr>
+                                        <td class="small">@(entry.CreatedAt?.ToString("dd MMM yyyy HH:mm") ?? "-")</td>
+                                        <td>@(entry.Description ?? "-")</td>
+                                        <td class="text-end text-success">
+                                            @(entry.CashIn > 0 ? entry.CashIn.ToString("N2") : "-")
+                                        </td>
+                                        <td class="text-end text-danger">
+                                            @(entry.CashOut > 0 ? entry.CashOut.ToString("N2") : "-")
+                                        </td>
+                                        <td class="text-end fw-semibold">@entry.CashBalance.ToString("N2")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center py-5">
+                        <i class="bi bi-journal-text text-secondary" style="font-size:2.5rem;"></i>
+                        <p class="text-secondary mt-2 mb-0">No cash book entries yet.</p>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>

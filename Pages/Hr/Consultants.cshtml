@@ -1,0 +1,89 @@
+@page "/hr/consultants"
+@model HmisWeb.Pages.Hr.ConsultantsModel
+@{
+    ViewData["Title"] = "Consultants";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div>
+        <h4 class="mb-0 fw-bold"><i class="bi bi-person-badge me-1 text-primary"></i>Consultants</h4>
+        <div class="text-secondary small">Master list of consultants with speciality, contact and consultation fees.</div>
+    </div>
+    <div class="d-flex gap-2">
+        <form method="get" class="d-flex gap-2">
+            <input asp-for="Q" class="form-control form-control-sm" placeholder="Search name / mobile / speciality..." />
+            <button type="submit" class="btn btn-outline-primary btn-sm"><i class="bi bi-search me-1"></i>Search</button>
+        </form>
+        <a asp-page="/Hr/ConsultantCreate" class="btn btn-primary btn-sm text-nowrap"><i class="bi bi-plus-lg me-1"></i>New Consultant</a>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.Message))
+{
+    <div class="alert alert-info py-2">@Model.Message</div>
+}
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Consultant</th>
+                    <th>Speciality</th>
+                    <th>Contact</th>
+                    <th class="text-end">First Visit Fee</th>
+                    <th class="text-end">Subsequent Fee</th>
+                    <th>Schedule</th>
+                    <th class="text-center">Sessions</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.Consultants.Any())
+                {
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-4">
+                            No consultants found.
+                            <a asp-page="/Hr/ConsultantCreate">Add your first consultant</a>.
+                        </td>
+                    </tr>
+                }
+                @foreach (var c in Model.Consultants)
+                {
+                    <tr>
+                        <td>
+                            <div class="fw-semibold">@c.Name</div>
+                            <div class="small text-secondary">@(c.Code ?? "-")</div>
+                        </td>
+                        <td>@(c.SpecialityName ?? "-")</td>
+                        <td>@(c.Mobile ?? "-")</td>
+                        <td class="text-end">Rs. @c.FirstVisitFee.ToString("N0")</td>
+                        <td class="text-end">Rs. @c.SubsequentVisitFee.ToString("N0")</td>
+                        <td class="small">
+                            @if (!string.IsNullOrEmpty(c.WorkDays))
+                            {
+                                <span class="badge bg-soft-info text-dark border">@c.WorkDays</span>
+                            }
+                            @if (!string.IsNullOrEmpty(c.SessionStartTime))
+                            {
+                                <div class="small text-secondary">@c.SessionStartTime – @(string.IsNullOrEmpty(c.SessionEndTime) ? "open" : c.SessionEndTime)</div>
+                            }
+                            else
+                            {
+                                <span class="text-secondary">Not set</span>
+                            }
+                        </td>
+                        <td class="text-center">@c.SessionCount</td>
+                        <td class="text-end">
+                            <a asp-page="/Hr/ConsultantEdit" asp-route-id="@c.Id" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil me-1"></i>Edit</a>
+                            <form method="post" asp-page-handler="Retire" asp-route-id="@c.Id" class="d-inline"
+                                  onsubmit="return confirm('Retire this consultant? They will be hidden from new selections but historical data stays.');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-person-x me-1"></i>Retire</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

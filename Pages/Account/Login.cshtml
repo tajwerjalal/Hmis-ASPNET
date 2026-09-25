@@ -1,0 +1,60 @@
+@page
+@model HmisWeb.Pages.Account.LoginModel
+@{
+    ViewData["Title"] = "Login";
+}
+<div class="row justify-content-center mt-4">
+    <div class="col-md-5 col-lg-4">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h4 class="card-title mb-1">Hospital Management System</h4>
+                <p class="text-muted small mb-4">Sign in to continue</p>
+
+                @if (Model.NeedSetup)
+                {
+                    <div class="alert alert-info">
+                        No users configured yet. Please <a asp-page="/Account/Setup">create the first administrator account</a>.
+                    </div>
+                }
+
+                @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+                {
+                    <div class="alert alert-danger py-2 small">@Model.ErrorMessage</div>
+                }
+
+                <div class="alert alert-info py-2 small">
+                    <strong>Demo credentials</strong><br />
+                    User Name: <code>admin</code><br />
+                    Password: <code>Admin@123</code>
+                </div>
+
+                <form method="post" id="loginform">
+                    <div class="mb-3">
+                        <label class="form-label">User Name</label>
+                        <input asp-for="UserName" class="form-control" autocomplete="username" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Password</label>
+                        <input asp-for="Password" type="password" class="form-control" autocomplete="current-password" required />
+                    </div>
+
+                    @if (Model.Departments != null && Model.Departments.Any())
+                    {
+                        <div class="mb-3">
+                            <label class="form-label">Logging Department</label>
+                            <select name="departmentId" class="form-select">
+                                <option value="">-- Select Department --</option>
+                                @foreach (var d in Model.Departments)
+                                {
+                                    <option value="@d.Id" selected="@(Model.DepartmentId == d.Id)">@d.Name</option>
+                                }
+                            </select>
+                        </div>
+                    }
+
+                    <button type="submit" class="btn btn-primary w-100">Sign In</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

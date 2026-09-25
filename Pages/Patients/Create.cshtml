@@ -1,0 +1,198 @@
+@page "/patients/Create"
+@model HmisWeb.Pages.Patients.CreateModel
+@{
+    ViewData["Title"] = Model.IsEdit ? "Edit Patient" : "New Patient";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h4 class="mb-0">@(Model.IsEdit ? "Edit Patient" : "Register New Patient")</h4>
+        <div class="text-muted small">@(Model.IsEdit ? "Update the selected patient's details." : "Capture the patient's personal information and generate a PHN.")</div>
+    </div>
+    <a asp-page="/patients/Index" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Back</a>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger">@Model.ErrorMessage</div>
+}
+
+<form method="post">
+    <input type="hidden" asp-for="Id" />
+    <div class="card mb-3">
+        <div class="card-header bg-white fw-semibold">Personal Details</div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-2">
+                    <label asp-for="Title" class="form-label">Title</label>
+                    <select asp-for="Title" class="form-select">
+                        <option value="">-- Select --</option>
+                        @foreach (var t in Model.TitleList)
+                        {
+                            <option value="@t.Value">@t.Text</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-5">
+                    <label asp-for="PersonName" class="form-label">Full Name *</label>
+                    <input asp-for="PersonName" class="form-control" required />
+                </div>
+                <div class="col-md-5">
+                    <label asp-for="NameWithInitials" class="form-label">Name With Initials</label>
+                    <input asp-for="NameWithInitials" class="form-control" placeholder="e.g. J K Perera" />
+                </div>
+                <div class="col-md-4">
+                    <label asp-for="Surname" class="form-label">Surname</label>
+                    <input asp-for="Surname" class="form-control" />
+                </div>
+                <div class="col-md-4">
+                    <label asp-for="Dob" class="form-label">Date of Birth</label>
+                    <input asp-for="Dob" type="date" class="form-control" />
+                </div>
+                <div class="col-md-4">
+                    <label asp-for="Sex" class="form-label">Sex</label>
+                    <select asp-for="Sex" class="form-select">
+                        <option value="">-- Select Sex --</option>
+                        @foreach (var s in Model.SexList)
+                        {
+                            <option value="@s.Value">@s.Text</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label asp-for="Nic" class="form-label">NIC</label>
+                    <input asp-for="Nic" class="form-control" />
+                </div>
+                <div class="col-md-4">
+                    <label asp-for="BloodGroupId" class="form-label">Blood Group</label>
+                    <select asp-for="BloodGroupId" class="form-select">
+                        <option value="">-- Select Blood Group --</option>
+                        @foreach (var b in Model.BloodGroupList)
+                        {
+                            <option value="@b.Value">@b.Text</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label asp-for="Foreigner" class="form-label d-block">&nbsp;</label>
+                    <div class="form-check form-switch mt-2">
+                        <input asp-for="Foreigner" class="form-check-input" type="checkbox" />
+                        <label asp-for="Foreigner" class="form-check-label">Foreigner</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header bg-white fw-semibold">Contact Details</div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label asp-for="Mobile" class="form-label">Mobile</label>
+                    <input asp-for="Mobile" class="form-control" />
+                </div>
+                <div class="col-md-4">
+                    <label asp-for="Phone" class="form-label">Phone</label>
+                    <input asp-for="Phone" class="form-control" />
+                </div>
+                <div class="col-md-4">
+                    <label asp-for="Email" class="form-label">Email</label>
+                    <input asp-for="Email" type="email" class="form-control" />
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="Address" class="form-label">Address</label>
+                    <textarea asp-for="Address" class="form-control" rows="2"></textarea>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="AreaId" class="form-label">Area</label>
+                    <select asp-for="AreaId" class="form-select">
+                        <option value="">-- Select Area --</option>
+                        @foreach (var a in Model.AreaList)
+                        {
+                            <option value="@a.Value">@a.Text</option>
+                        }
+                    </select>
+                    <label asp-for="MembershipSchemeId" class="form-label mt-3">Membership Scheme</label>
+                    <select asp-for="MembershipSchemeId" class="form-select">
+                        <option value="">-- Select Scheme --</option>
+                        @foreach (var m in Model.MembershipSchemeList)
+                        {
+                            <option value="@m.Value">@m.Text</option>
+                        }
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header bg-white fw-semibold">Demographics</div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label asp-for="CivilStatusId" class="form-label">Civil Status</label>
+                    <select asp-for="CivilStatusId" class="form-select">
+                        <option value="">-- Select --</option>
+                        @foreach (var c in Model.CivilStatusList)
+                        {
+                            <option value="@c.Value">@c.Text</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label asp-for="RaceId" class="form-label">Race</label>
+                    <select asp-for="RaceId" class="form-select">
+                        <option value="">-- Select Race --</option>
+                        @foreach (var r in Model.RaceList)
+                        {
+                            <option value="@r.Value">@r.Text</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label asp-for="ReligionId" class="form-label">Religion</label>
+                    <select asp-for="ReligionId" class="form-select">
+                        <option value="">-- Select Religion --</option>
+                        @foreach (var r in Model.ReligionList)
+                        {
+                            <option value="@r.Value">@r.Text</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label asp-for="OccupationId" class="form-label">Occupation</label>
+                    <select asp-for="OccupationId" class="form-select">
+                        <option value="">-- Select Occupation --</option>
+                        @foreach (var o in Model.OccupationList)
+                        {
+                            <option value="@o.Value">@o.Text</option>
+                        }
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header bg-white fw-semibold">Patient / PHN Details</div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label asp-for="Phn" class="form-label">PHN (text)</label>
+                    <input asp-for="Phn" class="form-control" maxlength="15" placeholder="Optional alphanumeric PHN" />
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="PatientId" class="form-label">Patient Id / PHN Number</label>
+                    <input asp-for="PatientId" type="number" class="form-control" placeholder="Auto generated if blank" />
+                    <div class="form-text">Leave blank to auto-generate the next available number.</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle"></i> @(Model.IsEdit ? "Save Changes" : "Register Patient")</button>
+        <a asp-page="/patients/Index" class="btn btn-outline-secondary">Cancel</a>
+    </div>
+</form>

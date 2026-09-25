@@ -1,0 +1,48 @@
+@page
+@model HmisWeb.Pages.Admin.RolesModel
+@{
+    ViewData["Title"] = "Roles";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4>Roles</h4>
+    <a asp-page="/Admin/RoleCreate" class="btn btn-primary btn-sm">Add Role</a>
+</div>
+
+<table class="table table-bordered table-sm table-hover">
+    <thead class="table-light">
+        <tr>
+            <th>Id</th>
+            <th>Name</th>
+            <th>Privileges</th>
+            <th>Retired</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (Model.Roles.Any())
+        {
+            @foreach (var r in Model.Roles)
+            {
+                <tr>
+                    <td>@r.Id</td>
+                    <td>@r.Name</td>
+                    <td class="text-truncate" style="max-width:400px" title="@r.Privileges">@(r.Privileges ?? "")</td>
+                    <td>
+                        @if (r.Retired)
+                        {
+                            <span class="badge bg-danger">Retired</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-success">Active</span>
+                        }
+                    </td>
+                </tr>
+            }
+        }
+        else
+        {
+            <tr><td colspan="4" class="text-center text-muted">No roles found.</td></tr>
+        }
+    </tbody>
+</table>

@@ -1,0 +1,421 @@
+@page "/opd/registration"
+@model HmisWeb.Pages.Opd.RegistrationModel
+@using HmisWeb.Data.Enums
+@{
+    ViewData["Title"] = "OPD Registration";
+}
+<style>
+    .receipt-thermal { display: none; }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div>
+        <h4 class="mb-0 fw-bold">OPD Reception &amp; Registration</h4>
+        <div class="text-secondary small">Register the patient under the consultant, allocate a token and collect the consultation payment.</div>
+    </div>
+    <form method="get" class="d-flex gap-2 align-items-center">
+        <label class="form-label text-muted mb-0">Date</label>
+        <input asp-for="SessionDate" type="date" class="form-control form-control-sm" />
+        <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-calendar2-check me-1"></i> Load</button>
+    </form>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger py-2"><i class="bi bi-exclamation-triangle me-1"></i>@Model.ErrorMessage</div>
+}
+
+<div class="row g-3">
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-person-badge me-1 text-primary"></i>Consultants today</span>
+                <span class="badge bg-primary">@Model.Sessions.Count</span>
+            </div>
+            <div class="card-body p-2" style="max-height:70vh; overflow-y:auto;">
+                @if (!Model.Sessions.Any())
+                {
+                    <div class="text-muted small p-2 text-center">No sessions today.<br />Create one in <a asp-page="/Opd/Sessions">OPD Sessions</a>.</div>
+                }
+                @foreach (var s in Model.Sessions)
+                {
+                    var isSelected = Model.SelectedSession != null && Model.SelectedSession.Id == s.Id;
+                    <div class="card mb-2 @(isSelected ? "border-primary" : "")">
+                        <div class="card-body py-2 px-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="fw-semibold">@s.ConsultantName</div>
+                                @if (s.Status == OpdSessionStatus.Active)
+                                {
+                                    <span class="badge bg-success">Active</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">Scheduled</span>
+                                }
+                            </div>
+                            <div class="small text-secondary">
+                                <i class="bi bi-stethoscope me-1"></i>@(s.SpecialityName ?? "General")
+                                &middot; <i class="bi bi-door-open me-1"></i>Room @s.RoomNo
+                                &middot; @s.FromTime – @s.ToTime
+                                @if (!string.IsNullOrEmpty(s.Mobile))
+                                {
+                                    <span class="ms-2"><i class="bi bi-telephone-outbound me-1"></i>@s.Mobile</span>
+                                }
+                            </div>
+                            <div class="small d-flex justify-content-between align-items-center mt-1">
+                                <span>
+                                    Fee <span class="fw-semibold">@s.Fee.ToString("N0")</span> +
+                                    Hosp <span class="fw-semibold">@s.HospitalFee.ToString("N0")</span>
+                                </span>
+                                <span class="text-muted">@s.IssuedTokens/@s.TokenMax tokens</span>
+                            </div>
+                            @if (isSelected)
+                            {
+                                <div class="mt-2">
+                                    <span class="badge bg-primary"><i class="bi bi-check-lg me-1"></i>Selected</span>
+                                </div>
+                            }
+                            else
+                            {
+                                <form method="post" asp-page-handler="SelectSession" asp-route-sessionId="@s.Id" class="mt-2">
+                                    <button type="submit" class="btn btn-sm btn-outline-primary w-100">Register patient</button>
+                                </form>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        @if (Model.SelectedSession == null)
+        {
+            <div class="card">
+                <div class="card-body text-center text-muted py-5">
+                    <i class="bi bi-person-plus fs-1 d-block mb-2"></i>
+                    Select a consultant session on the left to start registering a patient.
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="card mb-3">
+                <div class="card-body">
+                    <div class="row align-items-center g-2">
+                        <div class="col-md-8">
+                            <div class="text-secondary small fw-bold text-uppercase">Selected Consultant</div>
+                            <div class="fw-semibold fs-5">@(Model.SelectedSession.Consultant?.Person?.NameWithInitials ?? Model.SelectedSession.Consultant?.Person?.Name ?? "Consultant")</div>
+                            <div class="small text-secondary">
+                                @(Model.SelectedSession.Speciality?.Name ?? "General") &middot; Room @Model.SelectedSession.RoomNo
+                                &middot; @Model.SelectedSession.FromTime – @Model.SelectedSession.ToTime
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <span class="badge bg-primary fs-6">Fee @Model.SelectedSession.Fee.ToString("N0")</span>
+                            <form method="post" asp-page-handler="Reset" class="d-inline ms-2">
+                                <button type="submit" class="btn btn-sm btn-outline-secondary">Change consultant</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-3">
+                <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-search me-1 text-primary"></i>Step 1 - Find Patient</span>
+                    <a href="javascript:void(0)" onclick="toggleNewPatient(true)" class="btn btn-sm btn-outline-success"><i class="bi bi-person-plus me-1"></i>Add New Patient</a>
+                </div>
+                <div class="card-body">
+                    <form method="post" asp-page-handler="SearchPatient" class="d-flex gap-2">
+                        <input asp-for="PatientSearch" class="form-control" placeholder="Search by PHN, mobile or patient name..." autofocus />
+                        <button type="submit" class="btn btn-primary text-nowrap"><i class="bi bi-search me-1"></i>Search</button>
+                    </form>
+
+                    @if (Model.PatientResults.Any())
+                    {
+                        <div class="table-responsive mt-3">
+                            <table class="table table-sm table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>PHN</th>
+                                        <th>Name</th>
+                                        <th>Mobile</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var p in Model.PatientResults)
+                                    {
+                                        <tr>
+                                            <td>@(p.PatientId?.ToString() ?? "-")</td>
+                                            <td>@(p.Person?.NameWithInitials ?? p.Person?.Name ?? "")</td>
+                                            <td>@(p.Person?.Mobile ?? "-")</td>
+                                            <td class="text-end">
+                                                @if (Model.SelectedPatient != null && Model.SelectedPatient.Id == p.Id)
+                                                {
+                                                    <span class="badge bg-success">Selected</span>
+                                                }
+                                                else
+                                                {
+                                                    <form method="post" asp-page-handler="SelectPatient" asp-route-patientId="@p.Id">
+                                                        <button type="submit" class="btn btn-sm btn-outline-primary">Select</button>
+                                                    </form>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+
+                    @if (!Model.PatientResults.Any() && !string.IsNullOrEmpty(Model.PatientSearch))
+                    {
+                        <div class="alert alert-info py-2 mt-3 mb-0">
+                            <i class="bi bi-info-circle me-1"></i>No patient found for "<b>@Model.PatientSearch</b>".
+                            <a href="javascript:void(0)" onclick="toggleNewPatient(true)" class="fw-semibold text-decoration-underline">Add a new patient?</a>
+                        </div>
+                    }
+
+                    <div id="newPatientSection" style="@(string.IsNullOrEmpty(Model.PatientSearch) ? "display:none" : "")">
+                        <hr />
+                        <h6 class="text-secondary"><i class="bi bi-person-plus me-1"></i>Register a new patient</h6>
+                        <form method="post" asp-page-handler="CreatePatient" class="row g-2 mt-2">
+                            <div class="col-md-4">
+                                <input asp-for="NewName" class="form-control form-control-sm" placeholder="Full name *" />
+                            </div>
+                            <div class="col-md-4">
+                                <input asp-for="NewNameWithInitials" class="form-control form-control-sm" placeholder="Name with initials" />
+                            </div>
+                            <div class="col-md-4">
+                                <input asp-for="NewNic" class="form-control form-control-sm" placeholder="NIC" />
+                            </div>
+                            <div class="col-md-4">
+                                <input asp-for="NewMobile" class="form-control form-control-sm" placeholder="Mobile" />
+                            </div>
+                            <div class="col-md-4">
+                                <input asp-for="NewPhone" class="form-control form-control-sm" placeholder="Phone" />
+                            </div>
+                            <div class="col-md-4">
+                                <select asp-for="NewSex" asp-items="Html.GetEnumSelectList<Sex>()" class="form-select form-select-sm">
+                                    <option value="">-- Sex --</option>
+                                </select>
+                            </div>
+                            <div class="col-12 d-flex gap-2 align-items-center">
+                                <button type="submit" class="btn btn-sm btn-outline-success"><i class="bi bi-plus-lg me-1"></i> Add &amp; select</button>
+                                <a asp-page="/Patients/Create" class="small text-secondary">Open full registration form &rarr;</a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            @if (Model.Receipt != null)
+            {
+                <div class="card">
+                    <div class="card-header bg-white fw-semibold"><i class="bi bi-check-circle me-1 text-success"></i>Patient Registered</div>
+                    <div class="card-body">
+                        <div class="print-area">
+                            <div class="text-center border-bottom pb-3 mb-3">
+                                <div class="fw-bold fs-5">@Model.Receipt.HospitalName</div>
+                                <div class="small text-secondary">@Model.Receipt.HospitalNo</div>
+                                <div class="small">OPD Consultation - Payment &amp; Token Receipt</div>
+                                <div class="text-muted small">Receipt No: @Model.Receipt.BillId &middot; @Model.Receipt.ReceiptAt.ToString("dd MMM yyyy HH:mm")</div>
+                            </div>
+                            <div class="row small mb-2">
+                                <div class="col-6"><b>Patient:</b> @Model.Receipt.PatientName</div>
+                                <div class="col-6 text-end"><b>PHN:</b> @Model.Receipt.PatientPhn</div>
+                            </div>
+                            <div class="row small mb-3">
+                                <div class="col-4">
+                                    <div class="border rounded p-2 text-center bg-light">
+                                        <div class="text-muted">TOKEN</div>
+                                        <div class="fs-4 fw-bold text-primary">@Model.Receipt.TokenNumber</div>
+                                    </div>
+                                </div>
+                                <div class="col-8">
+                                    <div><b>Consultant:</b> @Model.Receipt.ConsultantName</div>
+                                    <div><b>Room:</b> @Model.Receipt.RoomNo</div>
+                                    <div><b>Payment:</b> @Model.Receipt.PaymentMethod</div>
+                                </div>
+                            </div>
+                            <table class="table table-sm mb-2">
+                                <tr>
+                                    <td>Consultant consultation fee</td>
+                                    <td class="text-end">@Model.Receipt.Fee.ToString("N2")</td>
+                                </tr>
+                                <tr>
+                                    <td>Hospital charges</td>
+                                    <td class="text-end">@Model.Receipt.HospitalFee.ToString("N2")</td>
+                                </tr>
+                                <tr class="fw-bold">
+                                    <td>Total paid</td>
+                                    <td class="text-end">@Model.Receipt.Total.ToString("N2")</td>
+                                </tr>
+                                @if (Model.Receipt.PaymentMethod == "Cash" && Model.Receipt.Balance >= 0)
+                                {
+                                    <tr>
+                                        <td>Tendered</td>
+                                        <td class="text-end">@Model.Receipt.Tendered.ToString("N2")</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Balance</td>
+                                        <td class="text-end">@Model.Receipt.Balance.ToString("N2")</td>
+                                    </tr>
+                                }
+                            </table>
+                            <div class="text-center text-muted small mt-3">Cashier: @Model.Receipt.Cashier &middot; Thank you</div>
+                        </div>
+                        <div class="d-flex gap-2 mt-3 no-print">
+                            <a asp-page-handler="Pdf" asp-route-id="@Model.Receipt.BillId" class="btn btn-outline-danger">
+                                <i class="bi bi-file-earmark-pdf me-1"></i> Download PDF (2 copies)
+                            </a>
+                            <button type="button" onclick="printThermal()" class="btn btn-outline-success">
+                                <i class="bi bi-receipt me-1"></i> Print Thermal Receipt
+                            </button>
+                            <a asp-page="/Opd/Registration" asp-route-SessionDate="@Model.SessionDate.Value.ToString("yyyy-MM-dd")" class="btn btn-outline-secondary">
+                                Register next patient
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            }
+            else if (Model.SelectedPatient != null)
+            {
+                <div class="card">
+                    <div class="card-header bg-white fw-semibold"><i class="bi bi-cash-coin me-1 text-primary"></i>Step 2 - Collect Payment</div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="border rounded p-3">
+                                    <div class="text-secondary small">Patient</div>
+                                    <div class="fw-semibold">@(Model.SelectedPatient.Person?.NameWithInitials ?? Model.SelectedPatient.Person?.Name ?? "")</div>
+                                    <div class="small text-secondary">PHN: @(Model.SelectedPatient.PatientId?.ToString() ?? "-") @(Model.SelectedPatient.Person?.Mobile != null ? "&middot; " + Model.SelectedPatient.Person.Mobile : "")</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="border rounded p-3">
+                                    <table class="table table-sm mb-0">
+                                        <tr>
+                                            <td>Consultant fee @(Model.IsFirstVisit ? "(First visit)" : "(Subsequent visit)")</td>
+                                            <td class="text-end">@Model.AppliedFee.ToString("N2")</td>
+                                        </tr>
+                                        <tr><td>Hospital charges</td><td class="text-end">@Model.SelectedSession.HospitalFee.ToString("N2")</td></tr>
+                                        <tr class="fw-bold"><td>Total</td><td class="text-end">@((Model.AppliedFee + Model.SelectedSession.HospitalFee).ToString("N2"))</td></tr>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <form method="post" asp-page-handler="Register" class="row g-2 mt-3 align-items-end">
+                            <div class="col-md-3">
+                                <label asp-for="PatientType" class="form-label">Patient Type</label>
+                                <select asp-for="PatientType" class="form-select" onchange="togglePanel(this)">
+                                    <option value="Self">Self Paying</option>
+                                    <option value="Employee">Employee</option>
+                                    <option value="Panel">Panel / Insurance</option>
+                                    <option value="Gratis">Gratis (Free)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3" id="panelBox" style="display:none">
+                                <label asp-for="PanelCompanyId" class="form-label">Panel Company</label>
+                                <select asp-for="PanelCompanyId" asp-items="Model.CompanyList" class="form-select">
+                                    <option value="">-- Select Company --</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label asp-for="PaymentMethod" class="form-label">Payment Method</label>
+                                <select asp-for="PaymentMethod" class="form-select" onchange="toggleTender(this)">
+                                    @foreach (var m in Enum.GetNames<PaymentMethod>())
+                                    {
+                                        <option value="@m">@m</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-md-3" id="tenderBox">
+                                <label asp-for="TenderedAmount" class="form-label">Tendered Amount</label>
+                                <input asp-for="TenderedAmount" type="number" step="0.01" min="0" class="form-control"
+                                       value="@(Model.AppliedFee + Model.SelectedSession.HospitalFee)" />
+                            </div>
+                            <div class="col-md-3">
+                                <button type="submit" class="btn btn-success w-100">
+                                    <i class="bi bi-check2-circle me-1"></i>Register &amp; Issue Token
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@if (Model.Receipt != null)
+{
+    <div class="receipt-thermal" id="thermalBody">
+        <div style="text-align:center;font-weight:bold;font-size:14px;">@Model.Receipt.HospitalName</div>
+        <div style="text-align:center;">@Model.Receipt.HospitalNo</div>
+        <div style="text-align:center;font-weight:bold;">OPD TOKEN RECEIPT</div>
+        <div>----------------------------------</div>
+        <div>Receipt # : @Model.Receipt.BillId</div>
+        <div>Date      : @Model.Receipt.ReceiptAt.ToString("dd MMM yyyy HH:mm")</div>
+        <div>Patient   : @Model.Receipt.PatientName</div>
+        <div>PHN       : @(Model.Receipt.PatientPhn?.ToString() ?? "-")</div>
+        <div>Type      : @(Model.Receipt.PatientType ?? "Self")</div>
+        <div>Token     : @Model.Receipt.TokenNumber</div>
+        <div>Consultant: @Model.Receipt.ConsultantName</div>
+        <div>Room      : @Model.Receipt.RoomNo</div>
+        <div>----------------------------------</div>
+        <div style="display:flex;justify-content:space-between;"><span>Consultation fee</span><span>@Model.Receipt.Fee.ToString("N2")</span></div>
+        <div style="display:flex;justify-content:space-between;"><span>Hospital charges</span><span>@Model.Receipt.HospitalFee.ToString("N2")</span></div>
+        <div>----------------------------------</div>
+        <div style="display:flex;justify-content:space-between;font-weight:bold;"><span>TOTAL</span><span>Rs @Model.Receipt.Total.ToString("N2")</span></div>
+        <div style="display:flex;justify-content:space-between;"><span>Method</span><span>@Model.Receipt.PaymentMethod</span></div>
+        @if (Model.Receipt.PaymentMethod == "Cash")
+        {
+            <div style="display:flex;justify-content:space-between;"><span>Tendered</span><span>@Model.Receipt.Tendered.ToString("N2")</span></div>
+            <div style="display:flex;justify-content:space-between;"><span>Balance</span><span>@Model.Receipt.Balance.ToString("N2")</span></div>
+        }
+        <div>----------------------------------</div>
+        <div style="text-align:center;">Cashier: @Model.Receipt.Cashier</div>
+        <div style="text-align:center;">Thank you</div>
+    </div>
+    <iframe id="thermalFrame" title="Thermal printer output" style="display:none"></iframe>
+}
+
+@section Scripts {
+    <script>
+        function toggleTender(sel) {
+            document.getElementById('tenderBox').style.display = sel.value === 'Cash' ? '' : 'none';
+        }
+        function togglePanel(sel) {
+            document.getElementById('panelBox').style.display = sel.value === 'Panel' ? '' : 'none';
+        }
+        function toggleNewPatient(open) {
+            const el = document.getElementById('newPatientSection');
+            if (el == null) return;
+            if (typeof open === 'boolean') {
+                el.style.display = open ? 'block' : 'none';
+            } else {
+                el.style.display = el.style.display === 'none' ? 'block' : 'none';
+            }
+        }
+        function printThermal() {
+            var body = document.getElementById('thermalBody');
+            if (!body) return;
+            var frame = document.getElementById('thermalFrame');
+            var doc = frame.contentDocument || frame.contentWindow.document;
+            doc.open();
+            doc.write('<html><head><title>Print</title><style>');
+            doc.write('body { font-family: monospace; font-size: 13px; margin: 0; padding: 8px; width: 80mm; }');
+            doc.write('div { white-space: pre; }');
+            doc.write('</style></head><body>');
+            doc.write(body.innerHTML);
+            doc.write('</body></html>');
+            doc.close();
+            frame.contentWindow.focus();
+            frame.contentWindow.print();
+        }
+    </script>
+}

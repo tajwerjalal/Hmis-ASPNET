@@ -1,0 +1,89 @@
+@page
+@model HmisWeb.Pages.Cash.TransactionsModel
+@{
+    ViewData["Title"] = "Cash Transactions";
+}
+
+<div class="mb-3 d-flex justify-content-between align-items-center">
+    <div>
+        <h4 class="mb-0 fw-bold">Cash Transactions</h4>
+        <span class="text-secondary small">Recent payments received</span>
+    </div>
+    <div class="alert alert-success py-2 px-3 mb-0">
+        <span class="small text-success fw-bold text-uppercase me-2">Total Paid</span>
+        <span class="fw-bold fs-6">@Model.TotalPaidValue.ToString("N2")</span>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-auto">
+                <label class="form-label mb-0">From</label>
+                <input type="date" asp-for="FromDate" class="form-control form-control-sm" />
+            </div>
+            <div class="col-auto">
+                <label class="form-label mb-0">To</label>
+                <input type="date" asp-for="ToDate" class="form-control form-control-sm" />
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-funnel me-1"></i>Filter</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        @if (Model.Payments.Any())
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Payment ID</th>
+                            <th>Bill ID</th>
+                            <th>Method</th>
+                            <th class="text-end">Paid Value</th>
+                            <th>Realized</th>
+                            <th>Date</th>
+                            <th>Institution</th>
+                            <th>Department</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var p in Model.Payments)
+                        {
+                            <tr>
+                                <td>#@p.Id</td>
+                                <td>@(p.BillId?.ToString() ?? "-")</td>
+                                <td><span class="badge bg-secondary-subtle text-secondary-emphasis">@p.PaymentMethod</span></td>
+                                <td class="text-end fw-semibold">@p.PaidValue.ToString("N2")</td>
+                                <td>
+                                    @if (p.Realized)
+                                    {
+                                        <span class="badge bg-success-subtle text-success-emphasis">Yes</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-warning-subtle text-warning-emphasis">No</span>
+                                    }
+                                </td>
+                                <td>@(p.WrittenAt?.ToString("dd MMM yyyy HH:mm") ?? "-")</td>
+                                <td>@(p.Institution?.Name ?? "-")</td>
+                                <td>@(p.Department?.Name ?? "-")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="text-center py-5">
+                <i class="bi bi-arrow-left-right text-secondary" style="font-size:2.5rem;"></i>
+                <p class="text-secondary mt-2 mb-0">No payments found for the selected range.</p>
+            </div>
+        }
+    </div>
+</div>

@@ -1,0 +1,43 @@
+@page
+@model HmisWeb.Pages.Admin.ConfigModel
+@{
+    ViewData["Title"] = "Configuration";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4>Configuration</h4>
+    <a asp-page="/Admin/AddConfig" class="btn btn-primary btn-sm">Add Config</a>
+</div>
+
+<table class="table table-bordered table-sm table-hover">
+    <thead class="table-light">
+        <tr>
+            <th>Id</th>
+            <th>Name</th>
+            <th>Value</th>
+            <th>Scope</th>
+            <th>Institution</th>
+            <th>Department</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (Model.Configs.Any())
+        {
+            @foreach (var c in Model.Configs)
+            {
+                <tr>
+                    <td>@c.Id</td>
+                    <td>@c.Name</td>
+                    <td>@c.OptionValue</td>
+                    <td>@(c.OptionScope?.ToString() ?? "")</td>
+                    <td>@(c.Institution != null ? c.Institution.Name ?? "" : "")</td>
+                    <td>@(c.Department != null ? c.Department.Name ?? "" : "")</td>
+                </tr>
+            }
+        }
+        else
+        {
+            <tr><td colspan="6" class="text-center text-muted">No config options found.</td></tr>
+        }
+    </tbody>
+</table>

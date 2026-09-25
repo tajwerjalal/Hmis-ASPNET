@@ -1,0 +1,49 @@
+@page
+@model HmisWeb.Pages.Account.SetupModel
+@{
+    ViewData["Title"] = "System Setup";
+}
+<div class="row justify-content-center mt-4">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h4 class="card-title">Initial System Setup</h4>
+                <p class="text-muted small">Create the first institution, department, and administrator account.</p>
+
+                @if (Model.AlreadySetup)
+                {
+                    <div class="alert alert-warning">The system is already configured.</div>
+                }
+                @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+                {
+                    <div class="alert alert-danger py-2 small">@Model.ErrorMessage</div>
+                }
+
+                <form method="post">
+                    <div class="mb-3">
+                        <label class="form-label">Institution (Hospital) Name</label>
+                        <input asp-for="InstitutionName" class="form-control" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Department Name</label>
+                        <input asp-for="DepartmentName" class="form-control" placeholder="e.g. Main Pharmacy" />
+                    </div>
+                    <hr />
+                    <div class="mb-3">
+                        <label class="form-label">Administrator User Name</label>
+                        <input asp-for="UserName" class="form-control" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Password</label>
+                        <input asp-for="Password" type="password" class="form-control" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Confirm Password</label>
+                        <input asp-for="ConfirmPassword" type="password" class="form-control" required />
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Create System</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

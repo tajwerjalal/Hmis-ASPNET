@@ -1,0 +1,62 @@
+@page
+@model HmisWeb.Pages.Pharmacy.StockModel
+@{
+    ViewData["Title"] = "Pharmacy Stock";
+}
+
+<h4 class="mb-3">Pharmacy Stock</h4>
+
+<form method="post" class="row g-2 mb-3">
+    <div class="col-md-4">
+        <select asp-for="SelectedDepartmentId" class="form-select" asp-items="@(new SelectList(Model.Departments, "Id", "Name"))">
+            <option value="">-- All Departments --</option>
+        </select>
+    </div>
+    <div class="col-md-5">
+        <input type="text" asp-for="SearchTerm" class="form-control" placeholder="Search items..." />
+    </div>
+    <div class="col-md-3">
+        <button type="submit" class="btn btn-primary w-100">Filter</button>
+    </div>
+</form>
+
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-sm table-striped table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th>Batch No</th>
+                    <th>Qty</th>
+                    <th>Free Qty</th>
+                    <th>Purchase Price</th>
+                    <th>Expiry Date</th>
+                    <th>Department</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.StockRecords.Any())
+                {
+                    @foreach (var s in Model.StockRecords)
+                    {
+                        <tr>
+                            <td>@s.ItemName</td>
+                            <td>@s.BatchNo</td>
+                            <td>@s.Qty.ToString("N0")</td>
+                            <td>@s.FreeQty.ToString("N0")</td>
+                            <td>@s.PurchasePrice.ToString("N2")</td>
+                            <td>@(s.ExpiryDate?.ToString("yyyy-MM-dd") ?? "-")</td>
+                            <td>@s.DepartmentName</td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-3">No stock records found.</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

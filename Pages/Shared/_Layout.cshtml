@@ -1,0 +1,392 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - HMIS</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
+    <style>
+        body { background-color: #f5f6fa; font-family: 'Segoe UI', Tahoma, Arial, sans-serif; }
+        .sidebar {
+            background: linear-gradient(180deg, #0d2137 0%, #123355 100%);
+            height: 100vh;
+            color: #fff;
+            position: fixed;
+            top: 0; left: 0; width: 250px;
+            overflow-y: auto;
+            padding-bottom: 2rem;
+        }
+        .sidebar .brand { padding: 1.2rem 1.2rem; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 1.15rem; font-weight: 600; }
+        .sidebar .brand small { display: block; font-size: .7rem; font-weight: 300; color: #9fb3c8; }
+        .sidebar a.nav-link { color: #c7d6e5; padding: .65rem 1.2rem; font-size: .9rem; }
+        .sidebar a.nav-link:hover { background: rgba(255,255,255,0.06); color: #fff; }
+        .sidebar a.nav-link.active { background: #1d6fb8; color: #fff; }
+        .sidebar .nav-head { color: #6f8aa3; font-size: .7rem; text-transform: uppercase; letter-spacing: .5px; padding: 1rem 1.2rem .25rem; font-weight: 600; }
+        .sidebar a.nav-link i { width: 22px; text-align: center; margin-right: 6px; }
+        .menu-group > .menu-parent { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+        .menu-group > .menu-parent > .bi-chevron-down { width: auto; margin-right: 0; font-size: .75rem; color: #8fa8bf; transition: transform .2s ease; }
+        .menu-group.open > .menu-parent { background: rgba(255,255,255,0.08); color: #fff; }
+        .menu-group.open > .menu-parent > .bi-chevron-down { transform: rotate(180deg); }
+        .submenu { display: none; }
+        .menu-group.open > .submenu { display: block; }
+        .submenu .nav-link { padding-left: 2.6rem; font-size: .86rem; }
+        .submenu .nav-link::before { content: "\2022"; margin-right: 7px; color: #7e97ae; }
+        .submenu .menu-group .submenu .nav-link { padding-left: 3.7rem; font-size: .84rem; }
+        .submenu .menu-group .submenu .submenu .nav-link { padding-left: 4.8rem; }
+        .submenu .menu-group > .menu-parent { padding-left: 1.8rem; font-size: .84rem; color: #cfe0f0; font-weight: 600; }
+        .submenu .menu-group > .menu-parent i { width: 18px; margin-right: 4px; }
+        .submenu .menu-group > .menu-parent > .bi-chevron-down { color: #8fa8bf; margin-right: 0; }
+        .menu-group.opd-flow .submenu .nav-link::before { content: none; }
+        .submenu .nav-link .step { display: inline-block; width: 20px; font-size: .68rem; font-weight: 600; color: #9fb3c8; }
+        .submenu .nav-link.active .step { color: #bcd6ee; }
+        .submenu .nav-link.active { background: #1d6fb8; color: #fff; }
+        .main-content { margin-left: 250px; padding: 1rem 1.5rem; }
+        .topbar { background: #fff; padding: .65rem 1.2rem; border-radius: .5rem; display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+        .card { border: none; box-shadow: 0 1px 3px rgba(0,0,0,.08); border-radius: .5rem; }
+        .stat-card .icon { width: 48px; height: 48px; border-radius: .5rem; display:flex; align-items:center; justify-content:center; font-size:1.4rem; }
+        .table th { font-size: .78rem; text-transform: uppercase; letter-spacing: .3px; color: #6c757d; }
+        .form-label { font-size: .82rem; font-weight: 600; color: #495057; }
+        @@media print { .sidebar, .topbar, .no-print { display: none !important; } .main-content { margin-left: 0 !important; padding: 0 !important; } }
+        @@media (max-width: 992px) { .sidebar { position: static; min-height: auto; width: 100%; } .main-content { margin-left: 0; } }
+    </style>
+</head>
+<body>
+    <div class="d-flex">
+        <nav class="sidebar">
+            <div class="brand" style="display:flex; flex-direction:column; align-items:flex-start; gap:.45rem;">
+                <img src="~/images/logo.jpg" alt="Hospital Logo" style="max-height:56px; max-width:100%; width:auto; height:auto; border-radius:4px; display:block;" />
+                <span>HMIS<small style="display:block; margin-top:2px; font-size:.66rem; font-weight:400; color:#9fb3c8;">Hospital Management System</small></span>
+            </div>
+            <div class="nav-head">Navigation</div>
+
+            <div class="menu-group">
+                <a href="javascript:void(0)" class="nav-link menu-parent">
+                    <span><i class="bi bi-list-ul"></i> Master Data</span>
+                    <i class="bi bi-chevron-down"></i>
+                </a>
+                <div class="submenu">
+                    <a asp-page="/Index" class="nav-link sub-link"><i class="bi bi-speedometer2"></i> Dashboard</a>
+                    <a asp-page="/institutions/Index" class="nav-link sub-link"><i class="bi bi-building"></i> Institutions</a>
+                    <a asp-page="/departments/Index" class="nav-link sub-link"><i class="bi bi-diagram-3"></i> Departments</a>
+                    <a asp-page="/categories/Index" class="nav-link sub-link"><i class="bi bi-tag"></i> Item Categories</a>
+                    <a asp-page="/items/Index" class="nav-link sub-link"><i class="bi bi-box2"></i> Items</a>
+                    <a asp-page="/fees/Index" class="nav-link sub-link"><i class="bi bi-currency-exchange"></i> Fees</a>
+                    <a asp-page="/pricematrices/Index" class="nav-link sub-link"><i class="bi bi-table"></i> Price Matrix</a>
+                    <a asp-page="/rooms/Index" class="nav-link sub-link"><i class="bi bi-door-closed"></i> Rooms &amp; Beds</a>
+                    <a asp-page="/roomcategories/Index" class="nav-link sub-link"><i class="bi bi-door-open"></i> Room Categories</a>
+                    <a asp-page="/measurementunits/Index" class="nav-link sub-link"><i class="bi bi-rulers"></i> Measurement Units</a>
+                    <a asp-page="/Corporate/Companies" class="nav-link sub-link"><i class="bi bi-people"></i> Panel Companies</a>
+                    <a asp-page="/Corporate/Services" class="nav-link sub-link"><i class="bi bi-list-check"></i> Panel Services</a>
+                    <a asp-page="/Corporate/Rates" class="nav-link sub-link"><i class="bi bi-currency-dollar"></i> Company Rates</a>
+                    <a asp-page="/Corporate/Resources" class="nav-link sub-link"><i class="bi bi-files"></i> Resources</a>
+                    <a asp-page="/Corporate/ResourceRates" class="nav-link sub-link"><i class="bi bi-gear-wide-connected"></i> Resource Rates</a>
+                    <a asp-page="/Corporate/ConsultantRates" class="nav-link sub-link"><i class="bi bi-person-vcard"></i> Consultant Rates</a>
+                    <a asp-page="/Corporate/CompanyEmployees" class="nav-link sub-link"><i class="bi bi-person-check"></i> Company Employees</a>
+                </div>
+            </div>
+
+            <div class="menu-group opd-flow">
+                <a href="javascript:void(0)" class="nav-link menu-parent">
+                    <span><i class="bi bi-clipboard2-pulse"></i> OPD Module</span>
+                    <i class="bi bi-chevron-down"></i>
+                </a>
+                <div class="submenu">
+                    <a asp-page="/patients/Create" class="nav-link sub-link"><span class="step">1</span><i class="bi bi-person-plus"></i> New Patient</a>
+                    <a asp-page="/patients/Index" class="nav-link sub-link"><span class="step">2</span><i class="bi bi-search"></i> Patient Search</a>
+                    <a asp-page="/patients/Visits" class="nav-link sub-link"><span class="step">3</span><i class="bi bi-journal-medical"></i> Patient Visits</a>
+                    <a asp-page="/opd/Sessions" class="nav-link sub-link"><span class="step">4</span><i class="bi bi-calendar3"></i> Consultant Sessions</a>
+                    <a asp-page="/opd/Registration" class="nav-link sub-link"><span class="step">5</span><i class="bi bi-clipboard-check"></i> Reception &amp; Registration</a>
+                    <a asp-page="/opd/TokenBoard" class="nav-link sub-link"><span class="step">6</span><i class="bi bi-display"></i> Token Board</a>
+                    <a asp-page="/opd/Emr" class="nav-link sub-link"><span class="step">7</span><i class="bi bi-stethoscope"></i> OPD EMR (Examine)</a>
+                    <a asp-page="/opd/Doctor" class="nav-link sub-link"><span class="step">7a</span><i class="bi bi-clipboard2-pulse"></i> Doctor Workbench</a>
+                    <a asp-page="/opd/PreBilling" class="nav-link sub-link"><span class="step">8</span><i class="bi bi-receipt"></i> Pre-Billing</a>
+                    <a asp-page="/opd/Billing" class="nav-link sub-link"><span class="step">9</span><i class="bi bi-cash-coin"></i> Billing &amp; Payment</a>
+                    <a asp-page="/opd/Settlement" class="nav-link sub-link"><span class="step">10</span><i class="bi bi-check2-square"></i> Settlement</a>
+                    <a asp-page="/opd/EodReport" class="nav-link sub-link"><span class="step">11</span><i class="bi bi-clipboard-data"></i> EOD Collection Report</a>
+                    <a asp-page="/opd/Handover" class="nav-link sub-link"><span class="step">12</span><i class="bi bi-wallet2"></i> Consultant Handover</a>
+                </div>
+            </div>
+
+            <div class="menu-group">
+                <a href="javascript:void(0)" class="nav-link menu-parent">
+                    <span><i class="bi bi-cash-stack"></i> Cashier</span>
+                    <i class="bi bi-chevron-down"></i>
+                </a>
+                <div class="submenu">
+                    <a asp-page="/cashier/receipt" class="nav-link sub-link"><i class="bi bi-receipt"></i> Cash Receipts</a>
+                    <a asp-page="/cashier/inpatient" class="nav-link sub-link"><i class="bi bi-hospital"></i> Inpatient Payments</a>
+                    <a asp-page="/cashier/indent" class="nav-link sub-link"><i class="bi bi-file-earmark-plus"></i> New Indent</a>
+                    <a asp-page="/cashier/miscfee" class="nav-link sub-link"><i class="bi bi-cash-stack"></i> Misc Fees</a>
+                    <a asp-page="/cashier/refunds" class="nav-link sub-link"><i class="bi bi-arrow-return-left"></i> Refunds</a>
+                </div>
+            </div>
+
+            <div class="menu-group">
+                <a href="javascript:void(0)" class="nav-link menu-parent">
+                    <span><i class="bi bi-calendar-check"></i> Channeling</span>
+                    <i class="bi bi-chevron-down"></i>
+                </a>
+                <div class="submenu">
+                    <a asp-page="/channel/Booking" class="nav-link sub-link"><i class="bi bi-calendar-check"></i> Appointments</a>
+                    <a asp-page="/channel/Schedule" class="nav-link sub-link"><i class="bi bi-calendar2-week"></i> Schedules</a>
+                </div>
+            </div>
+
+            <div class="menu-group">
+                <a href="javascript:void(0)" class="nav-link menu-parent">
+                    <span><i class="bi bi-hospital"></i> Inpatient</span>
+                    <i class="bi bi-chevron-down"></i>
+                </a>
+                <div class="submenu">
+                    <a asp-page="/inward/Admission" class="nav-link sub-link"><i class="bi bi-hospital"></i> Admission</a>
+                    <a asp-page="/inward/PatientList" class="nav-link sub-link"><i class="bi bi-person-lines-fill"></i> Inpatients</a>
+                    <a asp-page="/inward/Discharge" class="nav-link sub-link"><i class="bi bi-box-arrow-right"></i> Discharge</a>
+                    <a asp-page="/inward/Billing" class="nav-link sub-link"><i class="bi bi-cash-stack"></i> Inward Billing</a>
+                </div>
+            </div>
+
+            <div class="menu-group">
+                <a href="javascript:void(0)" class="nav-link menu-parent">
+                    <span><i class="bi bi-capsule"></i> Pharmacy</span>
+                    <i class="bi bi-chevron-down"></i>
+                </a>
+                <div class="submenu">
+                    <a asp-page="/pharmacy/Sale" class="nav-link sub-link"><i class="bi bi-bag-plus"></i> POS Sale</a>
+                    <a asp-page="/pharmacy/Purchase" class="nav-link sub-link"><i class="bi bi-cart4"></i> Purchase</a>
+                    <a asp-page="/pharmacy/Grn" class="nav-link sub-link"><i class="bi bi-box-seam"></i> GRN</a>
+                    <a asp-page="/pharmacy/Stock" class="nav-link sub-link"><i class="bi bi-boxes"></i> Stock</a>
+                </div>
+            </div>
+
+            <div class="menu-group">
+                <a href="javascript:void(0)" class="nav-link menu-parent">
+                    <span><i class="bi bi-droplet"></i> Laboratory</span>
+                    <i class="bi bi-chevron-down"></i>
+                </a>
+                <div class="submenu">
+
+                    <div class="menu-group">
+                        <a href="javascript:void(0)" class="nav-link menu-parent">
+                            <span><i class="bi bi-bounding-box"></i> Transactions</span>
+                            <i class="bi bi-chevron-down"></i>
+                        </a>
+                        <div class="submenu">
+                            <a asp-page="/lab/Indent" class="nav-link sub-link"><i class="bi bi-receipt"></i> Lab Service Indent</a>
+                            <a asp-page="/lab/SampleCollection" class="nav-link sub-link"><i class="bi bi-eyedropper"></i> Sample Collection Entry</a>
+                            <a asp-page="/lab/TestResultEntry" class="nav-link sub-link"><i class="bi bi-clipboard2-check"></i> Test Result Entry</a>
+                            <a asp-page="/lab/PatientInquiry" class="nav-link sub-link"><i class="bi bi-person-search"></i> Patient Inquiry</a>
+                        </div>
+                    </div>
+
+                    <div class="menu-group">
+                        <a href="javascript:void(0)" class="nav-link menu-parent">
+                            <span><i class="bi bi-graph-up"></i> Reports</span>
+                            <i class="bi bi-chevron-down"></i>
+                        </a>
+                        <div class="submenu">
+                            <a asp-page="/lab/TestScheduleReport" class="nav-link sub-link"><i class="bi bi-calendar2-week"></i> Test Schedule Report</a>
+                            <a asp-page="/lab/TestReport" class="nav-link sub-link"><i class="bi bi-file-text"></i> Test Report</a>
+                            <a asp-page="/lab/TestReportII" class="nav-link sub-link"><i class="bi bi-file-earmark-text"></i> Test Report II</a>
+                            <a asp-page="/lab/TestDataReport" class="nav-link sub-link"><i class="bi bi-table"></i> Test Data Report</a>
+                            <a asp-page="/lab/MedicineList" class="nav-link sub-link"><i class="bi bi-capsule"></i> Medicine List</a>
+                            <a asp-page="/lab/TestRemarksReport" class="nav-link sub-link"><i class="bi bi-chat-quote"></i> Test Remarks Report</a>
+                            <a asp-page="/lab/GrowthRemarksList" class="nav-link sub-link"><i class="bi bi-bacteria"></i> Growth Remarks List</a>
+                            <a asp-page="/lab/OrganismsList" class="nav-link sub-link"><i class="bi bi-bug"></i> Organisms List</a>
+                            <a asp-page="/lab/TestInformationReport" class="nav-link sub-link"><i class="bi bi-info-circle"></i> Test Information Report</a>
+
+                            <div class="menu-group">
+                                <a href="javascript:void(0)" class="nav-link menu-parent">
+                                    <span><i class="bi bi-cash-stack"></i> Collection Statements</span>
+                                    <i class="bi bi-chevron-down"></i>
+                                </a>
+                                <div class="submenu">
+                                    <a asp-page="/lab/PeriodicCollectionReport" class="nav-link sub-link"><i class="bi bi-calendar3"></i> Periodic Collection Report</a>
+                                    <a asp-page="/lab/CompanyCollectionReport" class="nav-link sub-link"><i class="bi bi-building"></i> Company wise Collection Report</a>
+                                    <a asp-page="/lab/PatientCollectionReport" class="nav-link sub-link"><i class="bi bi-person"></i> Patient wise Collection Report</a>
+                                    <a asp-page="/lab/GroupCollectionReport" class="nav-link sub-link"><i class="bi bi-collection"></i> Group wise Collection Report</a>
+                                    <a asp-page="/lab/TestCollectionReport" class="nav-link sub-link"><i class="bi bi-flask"></i> Test wise Collection Report</a>
+                                </div>
+                            </div>
+
+                            <a asp-page="/lab/CompanyTestChargesReport" class="nav-link sub-link"><i class="bi bi-currency-exchange"></i> Company wise Test Charges Report</a>
+                            <a asp-page="/lab/ResourceTestChargesReport" class="nav-link sub-link"><i class="bi bi-files"></i> Resource wise Test Charges Report</a>
+                            <a asp-page="/lab/IndentReport" class="nav-link sub-link"><i class="bi bi-receipt-cutoff"></i> Indent No. wise Report</a>
+                        </div>
+                    </div>
+
+                    <div class="menu-group">
+                        <a href="javascript:void(0)" class="nav-link menu-parent">
+                            <span><i class="bi bi-gear"></i> Setup</span>
+                            <i class="bi bi-chevron-down"></i>
+                        </a>
+                        <div class="submenu">
+                            <a asp-page="/lab/TestSetup" class="nav-link sub-link"><i class="bi bi-flask"></i> Test Setup</a>
+                            <a asp-page="/lab/TestDataSetup" class="nav-link sub-link"><i class="bi bi-table"></i> Test Data Setup</a>
+                            <a asp-page="/lab/TestClassificationSetup" class="nav-link sub-link"><i class="bi bi-diagram-3"></i> Test Classification Setup</a>
+                            <a asp-page="/lab/MedicineClassificationSetup" class="nav-link sub-link"><i class="bi bi-collection"></i> Medicine Classification Setup</a>
+                            <a asp-page="/lab/MedicineSetup" class="nav-link sub-link"><i class="bi bi-capsule"></i> Medicine Setup</a>
+                            <a asp-page="/lab/TestRemarksSetup" class="nav-link sub-link"><i class="bi bi-chat-quote"></i> Test Remarks Setup</a>
+                            <a asp-page="/lab/GrowthDescriptionSetup" class="nav-link sub-link"><i class="bi bi-bacteria"></i> Growth Description Setup</a>
+                            <a asp-page="/lab/OrganismsSetup" class="nav-link sub-link"><i class="bi bi-bug"></i> Organisms Setup</a>
+                            <a asp-page="/lab/CompanyTestChargesSetup" class="nav-link sub-link"><i class="bi bi-building"></i> Company Test Charges Setup</a>
+                            <a asp-page="/lab/ResourceTestChargesSetup" class="nav-link sub-link"><i class="bi bi-files"></i> Resource Test Charges Setup</a>
+                        </div>
+                    </div>
+
+                    <div class="menu-group">
+                        <a href="javascript:void(0)" class="nav-link menu-parent">
+                            <span><i class="bi bi-database"></i> Administration</span>
+                            <i class="bi bi-chevron-down"></i>
+                        </a>
+                        <div class="submenu">
+                            <a asp-page="/lab/IndentPosting" class="nav-link sub-link"><i class="bi bi-send"></i> Indent Posting</a>
+                            <a asp-page="/lab/UnPostIndent" class="nav-link sub-link"><i class="bi bi-arrow-counterclockwise"></i> Un-Post Indent</a>
+                            <a asp-page="/lab/Backup" class="nav-link sub-link"><i class="bi bi-hdd"></i> Backup</a>
+                            <a asp-page="/lab/Restore" class="nav-link sub-link"><i class="bi bi-cloud-arrow-up"></i> Restore</a>
+                            <a asp-page="/lab/Rebuild" class="nav-link sub-link"><i class="bi bi-tools"></i> Rebuild DBC / Reindex</a>
+                            <a asp-page="/lab/ChangePassword" class="nav-link sub-link"><i class="bi bi-key"></i> Change Login Password</a>
+                            <a asp-page="/lab/Login" class="nav-link sub-link"><i class="bi bi-box-arrow-in-right"></i> Login</a>
+                            <a asp-page="/lab/UserManagement" class="nav-link sub-link"><i class="bi bi-people"></i> User Management</a>
+                        </div>
+                    </div>
+
+                    <div class="menu-group">
+                        <a href="javascript:void(0)" class="nav-link menu-parent">
+                            <span><i class="bi bi-question-circle"></i> Help</span>
+                            <i class="bi bi-chevron-down"></i>
+                        </a>
+                        <div class="submenu">
+                            <a asp-page="/lab/About" class="nav-link sub-link"><i class="bi bi-info-square"></i> About Lab System</a>
+                        </div>
+                    </div>
+
+                    <div class="menu-group">
+                        <a href="javascript:void(0)" class="nav-link menu-parent">
+                            <span><i class="bi bi-tools"></i> Current Screens</span>
+                            <i class="bi bi-chevron-down"></i>
+                        </a>
+                        <div class="submenu">
+                            <a asp-page="/lab/Investigation" class="nav-link sub-link"><i class="bi bi-droplet"></i> Investigations</a>
+                            <a asp-page="/lab/NewItem" class="nav-link sub-link"><i class="bi bi-plus-square"></i> New Lab Item</a>
+                            <a asp-page="/lab/Results" class="nav-link sub-link"><i class="bi bi-clipboard2-check"></i> Results</a>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="menu-group">
+                <a href="javascript:void(0)" class="nav-link menu-parent">
+                    <span><i class="bi bi-person-badge"></i> HR &amp; Payroll</span>
+                    <i class="bi bi-chevron-down"></i>
+                </a>
+                <div class="submenu">
+                    <a asp-page="/hr/Staff" class="nav-link sub-link"><i class="bi bi-person-badge"></i> Staff List</a>
+                    <a asp-page="/hr/Consultants" class="nav-link sub-link"><i class="bi bi-person-vcard"></i> Consultants</a>
+                    <a asp-page="/hr/NewStaff" class="nav-link sub-link"><i class="bi bi-person-plus"></i> New Staff</a>
+                    <a asp-page="/hr/Designations" class="nav-link sub-link"><i class="bi bi-briefcase"></i> Designations</a>
+                    <a asp-page="/hr/StaffCategories" class="nav-link sub-link"><i class="bi bi-collection"></i> Staff Categories</a>
+                    <a asp-page="/hr/Specialities" class="nav-link sub-link"><i class="bi bi-star"></i> Specialities</a>
+                    <a asp-page="/hr/Grades" class="nav-link sub-link"><i class="bi bi-bar-chart"></i> Grades</a>
+                    <a asp-page="/hr/Salary" class="nav-link sub-link"><i class="bi bi-currency-dollar"></i> Payroll</a>
+                    <a asp-page="/hr/NewSalary" class="nav-link sub-link"><i class="bi bi-plus-circle"></i> New Salary</a>
+                </div>
+            </div>
+
+            <div class="menu-group">
+                <a href="javascript:void(0)" class="nav-link menu-parent">
+                    <span><i class="bi bi-cash-coin"></i> Finance</span>
+                    <i class="bi bi-chevron-down"></i>
+                </a>
+                <div class="submenu">
+                    <a asp-page="/cash/CashBook" class="nav-link sub-link"><i class="bi bi-wallet2"></i> Cash Book</a>
+                    <a asp-page="/cash/Transactions" class="nav-link sub-link"><i class="bi bi-arrow-left-right"></i> Transactions</a>
+                </div>
+            </div>
+
+            <div class="menu-group">
+                <a href="javascript:void(0)" class="nav-link menu-parent">
+                    <span><i class="bi bi-graph-up"></i> Reports</span>
+                    <i class="bi bi-chevron-down"></i>
+                </a>
+                <div class="submenu">
+                    <a asp-page="/reports/Index" class="nav-link sub-link"><i class="bi bi-graph-up"></i> Reports &amp; Summary</a>
+                </div>
+            </div>
+
+            <div class="menu-group">
+                <a href="javascript:void(0)" class="nav-link menu-parent">
+                    <span><i class="bi bi-gear"></i> Admin</span>
+                    <i class="bi bi-chevron-down"></i>
+                </a>
+                <div class="submenu">
+                    <a asp-page="/admin/Users" class="nav-link sub-link"><i class="bi bi-shield-lock"></i> Users</a>
+                    <a asp-page="/admin/AddUser" class="nav-link sub-link"><i class="bi bi-person-plus"></i> Add User</a>
+                    <a asp-page="/admin/Roles" class="nav-link sub-link"><i class="bi bi-toggles"></i> Roles</a>
+                    <a asp-page="/admin/RoleCreate" class="nav-link sub-link"><i class="bi bi-plus-circle"></i> New Role</a>
+                    <a asp-page="/admin/Config" class="nav-link sub-link"><i class="bi bi-gear"></i> Config</a>
+                    <a asp-page="/admin/AddConfig" class="nav-link sub-link"><i class="bi bi-plus-circle"></i> Add Config</a>
+                </div>
+            </div>
+        </nav>
+
+        <div class="main-content w-100">
+            <div class="topbar">
+                <div class="fw-semibold text-secondary">@(ViewData["Title"]?.ToString() ?? "HMIS")</div>
+                <div class="d-flex align-items-center gap-3">
+                    <span class="text-secondary small" style="font-weight:500;">@DateTime.Now.ToString("dd MMM yyyy")</span>
+                    <partial name="_LoginPartial" />
+                </div>
+            </div>
+            @RenderBody()
+        </div>
+    </div>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        $(function () {
+            function toggleGroup($trigger, force) {
+                var $group = $trigger.closest('.menu-group');
+                var wasOpen = $group.hasClass('open');
+                if (force && force !== 'open') return;
+                if (force || (!wasOpen)) {
+                    $group.addClass('open');
+                    $group.find('.menu-parent').addClass('active');
+                } else {
+                    $group.removeClass('open');
+                    $group.find('.menu-parent').removeClass('active');
+                }
+            }
+
+            $('.menu-parent').on('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleGroup($(this));
+            });
+
+            var path = (window.location.pathname || '/').toLowerCase();
+            $('.sidebar .submenu a.nav-link').each(function () {
+                var href = (this.getAttribute('href') || '').toLowerCase();
+                var match;
+                if (href === '/' || href === '') {
+                    match = (path === '/' || path === '');
+                } else {
+                    match = (path === href || path.indexOf(href + '/') === 0);
+                }
+                if (match) {
+                    $(this).addClass('active');
+                    $(this).closest('.menu-group').addClass('open');
+                    $(this).closest('.menu-group').find('.menu-parent').addClass('active');
+                    $(this).parents('.menu-group').each(function () {
+                        $(this).addClass('open');
+                        $(this).children('.menu-parent').addClass('active');
+                    });
+                }
+            });
+        });
+    </script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

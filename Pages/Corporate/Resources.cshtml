@@ -1,0 +1,205 @@
+@page "/corporate/resources"
+@model HmisWeb.Pages.Corporate.ResourcesModel
+@{
+    ViewData["Title"] = "Resources";
+}
+
+<style>
+    .toast-msg { position: fixed; top: 16px; right: 16px; z-index: 9999; min-width: 300px; }
+</style>
+
+@if (!string.IsNullOrEmpty(Model.SuccessMessage))
+{
+    <div class="toast-msg alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+        <i class="bi bi-check-circle me-1"></i>@Model.SuccessMessage
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="toast-msg alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+        <i class="bi bi-exclamation-triangle me-1"></i>@Model.ErrorMessage
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <div>
+        <h4 class="mb-0 fw-bold"><i class="bi bi-files me-1 text-primary"></i>Resources</h4>
+        <div class="text-secondary small">Machines, rooms, or facilities used to deliver services (scans, procedures, etc.).</div>
+    </div>
+    <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#createModal">
+        <i class="bi bi-plus-circle me-1"></i>Add Resource
+    </button>
+</div>
+
+<div class="card">
+    <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-list-ul me-1 text-primary"></i>Resources</span>
+        <span class="badge bg-primary">@Model.Resources.Count</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>#</th>
+                        <th>Code</th>
+                        <th>Resource</th>
+                        <th>Status</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!Model.Resources.Any())
+                    {
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">
+                                <i class="bi bi-files fs-3 d-block mb-2"></i>
+                                No resources found. Click "Add Resource" to create one.
+                            </td>
+                        </tr>
+                    }
+                    @{ var rowNum = 0; }
+                    @foreach (var r in Model.Resources)
+                    {
+                        rowNum++;
+                        <tr class="@(r.Retired ? "table-light" : "")">
+                            <td class="text-muted">@rowNum</td>
+                            <td class="small text-muted">@(string.IsNullOrEmpty(r.Code) ? "-" : r.Code)</td>
+                            <td class="fw-semibold">@r.Name</td>
+                            <td>
+                                @if (r.Retired)
+                                {
+                                    <span class="badge bg-secondary">Retired</span>
+                                }
+                                else if (r.IsActive)
+                                {
+                                    <span class="badge bg-success">Active</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-warning text-dark">Inactive</span>
+                                }
+                            </td>
+                            <td class="text-end text-nowrap">
+                                <button type="button" class="btn btn-sm btn-outline-primary"
+                                        data-bs-toggle="modal" data-bs-target="#editModal"
+                                        data-id="@r.Id"
+                                        data-name="@r.Name"
+                                        data-code="@r.Code"
+                                        data-isactive="@r.IsActive"
+                                        title="Edit">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                @if (!r.Retired)
+                                {
+                                    <form method="post" asp-page-handler="Retire" class="d-inline">
+                                        <input type="hidden" name="id" value="@r.Id" />
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Retire"
+                                                onclick="return confirm('Retire resource @r.Name?')">
+                                            <i class="bi bi-archive"></i>
+                                        </button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <form method="post" asp-page-handler="Restore" class="d-inline">
+                                        <input type="hidden" name="id" value="@r.Id" />
+                                        <button type="submit" class="btn btn-sm btn-outline-success" title="Restore"
+                                                onclick="return confirm('Restore resource @r.Name?')">
+                                            <i class="bi bi-arrow-counterclockwise"></i>
+                                        </button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="createModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form method="post" asp-page-handler="Create" class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-plus-circle me-1 text-success"></i>Add New Resource</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Resource Name <span class="text-danger">*</span></label>
+                    <input asp-for="Name" class="form-control" required />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Code (optional, auto-generated if empty)</label>
+                    <input asp-for="Code" class="form-control" />
+                </div>
+                <div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input asp-for="IsActive" class="form-check-input" />
+                        <label asp-for="IsActive" class="form-check-label">Active</label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-success"><i class="bi bi-check2-circle me-1"></i>Create Resource</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form method="post" asp-page-handler="Edit" class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-pencil-square me-1 text-primary"></i>Edit Resource</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" asp-for="EditId" id="editId" />
+                <div class="mb-3">
+                    <label class="form-label">Resource Name <span class="text-danger">*</span></label>
+                    <input asp-for="Name" class="form-control" id="editName" required />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Code</label>
+                    <input asp-for="Code" class="form-control" id="editCode" />
+                </div>
+                <div class="mb-3">
+                    <div class="form-check form-switch">
+                        <input asp-for="IsActive" class="form-check-input" id="editIsActive" />
+                        <label asp-for="IsActive" class="form-check-label">Active</label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-primary"><i class="bi bi-check2-circle me-1"></i>Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    var editModal = document.getElementById('editModal');
+    editModal.addEventListener('show.bs.modal', function (event) {
+        var btn = event.relatedTarget;
+        document.getElementById('editId').value = btn.getAttribute('data-id');
+        document.getElementById('editName').value = btn.getAttribute('data-name') || '';
+        document.getElementById('editCode').value = btn.getAttribute('data-code') || '';
+        document.getElementById('editIsActive').checked = btn.getAttribute('data-isactive') === 'True';
+    });
+    setTimeout(function () {
+        var alerts = document.querySelectorAll('.toast-msg');
+        alerts.forEach(function (el) {
+            var bsAlert = bootstrap.Alert.getOrCreateInstance(el);
+            bsAlert.close();
+        });
+    }, 4000);
+</script>
+}
