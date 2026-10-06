@@ -12,6 +12,8 @@ namespace HmisWeb.Services
         Task<Patient> GetOrCreatePatientAsync(Patient patient, Person person);
         List<WebUser> GetActiveWebUsers();
         Task<double> GetAppliedRateAsync(Item item, long? companyId = null, long? consultantId = null, long? resourceId = null);
+        Task<double> GetAppliedRateAsync(UsService service, long? companyId = null);
+        Task<double> GetAppliedRateAsync(XrService service, long? companyId = null);
         Task<long?> GetPatientCompanyIdAsync(long personId);
     }
 
@@ -138,6 +140,59 @@ namespace HmisWeb.Services
             }
 
             return item.Total ?? 0;
+        }
+
+        public async Task<double> GetAppliedRateAsync(UsService service, long? companyId = null)
+        {
+            if (service == null) return 0;
+
+            if (companyId.HasValue)
+            {
+                var companyRate = await _db.CompanyServiceRates
+                    .Where(c => c.CompanyId == companyId.Value && c.ItemId == service.Id && !c.Retired && c.Rate > 0)
+                    .OrderByDescending(c => c.EditedAt)
+                    .ThenByDescending(c => c.CreatedAt)
+                    .FirstOrDefaultAsync();
+                if (companyRate != null && companyRate.Rate > 0)
+                    return companyRate.Rate;
+            }
+
+            return service.Rate ?? 0;
+        }
+
+        /// <summary>
+        /// X-ray twin of the ultrasound overload. Company rates are stored against the
+        /// billing ITEM, so the service is resolved to its INV-XR mirror first; comparing a
+        /// XRSERVICE id straight to CompanyServiceRates.ItemId would read another item's rate.
+        /// </summary>
+        public async Task<double> GetAppliedRateAsync(XrService service, long? companyId = null)
+        {
+            if (service == null) return 0;
+
+            if (companyId.HasValue && !string.IsNullOrWhiteSpace(service.Code))
+            {
+                var mirrorCode = "INV-XR-" + service.Code.Trim();
+
+                var itemId = await _db.Items
+                    .Where(i => i.Code == mirrorCode && !i.Retired)
+                    .Select(i => (long?)i.Id)
+                    .FirstOrDefaultAsync();
+
+                if (itemId.HasValue)
+                {
+                    var companyRate = await _db.CompanyServiceRates
+                        .Where(c => c.CompanyId == companyId.Value && c.ItemId == itemId.Value
+                                    && !c.Retired && c.Rate > 0)
+                        .OrderByDescending(c => c.EditedAt)
+                        .ThenByDescending(c => c.CreatedAt)
+                        .FirstOrDefaultAsync();
+
+                    if (companyRate != null && companyRate.Rate > 0)
+                        return companyRate.Rate;
+                }
+            }
+
+            return service.Rate ?? 0;
         }
     }
 }

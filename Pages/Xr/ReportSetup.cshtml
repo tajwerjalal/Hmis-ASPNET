@@ -1,0 +1,242 @@
+@page "/xr/ReportSetup"
+@model HmisWeb.Pages.Xr.ReportSetupModel
+@{
+    ViewData["Title"] = "Test Report Setup";
+}
+
+<link href="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.snow.css" rel="stylesheet" />
+<style>
+    .rs-shell { display: grid; grid-template-columns: 340px 1fr; gap: 12px; align-items: start; }
+    .rs-panel { border: 1px solid #dee2e6; border-radius: 6px; background: #fff; box-shadow: 0 1px 2px rgba(16,24,40,.05); margin-bottom: 10px; }
+    .rs-panel > .rs-head { padding: 6px 10px; border-bottom: 1px solid #e9ecef; background: #f8f9fb; font-weight: 600; font-size: .78rem; text-transform: uppercase; letter-spacing: .03em; color: #495057; display: flex; align-items: center; justify-content: space-between; }
+    .rs-panel > .rs-body { padding: 8px 10px; }
+    .rs-list { max-height: 300px; overflow-y: auto; }
+    .rs-item { padding: 6px 10px; border-bottom: 1px solid #f1f3f5; font-size: .8rem; }
+    .rs-item:hover { background: #f8f9fb; }
+    .rs-token { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .72rem; background: #eef2f7; border: 1px solid #dee2e6; border-radius: 3px; padding: 1px 5px; cursor: pointer; }
+    .rs-token:hover { background: #e2ebf5; }
+    .rs-editor { min-height: 340px; font-size: .88rem; }
+    @@media (max-width: 1200px) { .rs-shell { grid-template-columns: 1fr; } }
+</style>
+
+<div class="mb-3">
+    <h4 class="mb-0 fw-bold"><i class="bi bi-sliders me-2 text-primary"></i>Test Report Setup</h4>
+    <span class="text-secondary small">Predefined report layouts for each X-ray investigation</span>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.Success))
+{
+    <div class="alert alert-success py-2"><i class="bi bi-check-circle me-1"></i>@Model.Success</div>
+}
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger py-2"><i class="bi bi-exclamation-circle me-1"></i>@Model.ErrorMessage</div>
+}
+
+<div class="rs-shell">
+    @* ---------- Left: template list + placeholder reference ---------- *@
+    <div>
+        <div class="rs-panel">
+            <div class="rs-head"><span><i class="bi bi-files me-1"></i>Report Templates</span><span class="fw-normal text-secondary">@Model.Templates.Count</span></div>
+            <div class="rs-list">
+                @foreach (var t in Model.Templates)
+                {
+                    <div class="rs-item d-flex justify-content-between align-items-start gap-2 @(Model.EditingId == t.Id ? "bg-light" : "")">
+                        <div class="min-w-0">
+                            <div class="fw-semibold text-truncate">
+                                @t.Name
+                                @if (t.IsDefault)
+                                {
+                                    <span class="badge bg-primary text-white ms-1">Default</span>
+                                }
+                            </div>
+                            <small class="text-secondary">@(t.XrService?.Name ?? "All investigations")</small>
+                        </div>
+                        <div class="text-nowrap">
+                            <a asp-page="/Xr/ReportSetup" asp-route-edit="@t.Id" class="btn btn-sm btn-outline-secondary py-0 px-1" title="Edit"><i class="bi bi-pencil"></i></a>
+                            <form method="post" asp-page-handler="DeleteTemplate" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@t.Id" />
+                                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1" title="Remove"><i class="bi bi-trash"></i></button>
+                            </form>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="rs-panel">
+            <div class="rs-head"><span><i class="bi bi-braces me-1"></i>Available Placeholders</span></div>
+            <div class="rs-body">
+                <p class="small text-secondary mb-2">Click a token to insert it at the cursor in the editor.</p>
+                @foreach (var p in Model.Placeholders)
+                {
+                    <div class="d-flex justify-content-between align-items-start gap-2 mb-1">
+                        <span class="rs-token" onclick="rsInsertToken('@p.Token')">@p.Token</span>
+                        <small class="text-secondary text-end">@p.Description</small>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="rs-panel">
+            <div class="rs-head"><span><i class="bi bi-clipboard2-pulse me-1"></i>Medical Dictionary Terms</span><span class="fw-normal text-secondary">@Model.XrMedicalTerms.Count</span></div>
+            <div class="rs-body">
+                <form method="post" asp-page-handler="AddXrMedicalTerm" class="row g-1 mb-2">
+                    @Html.AntiForgeryToken()
+                    <div class="col-12"><input asp-for="NewXrMedicalTerm" class="form-control form-control-sm" placeholder="Term *" /></div>
+                    <div class="col-12"><input asp-for="NewMedicalCategory" class="form-control form-control-sm" placeholder="Category (e.g. Kidney)" /></div>
+                    <div class="col-12"><input asp-for="NewMedicalSynonyms" class="form-control form-control-sm" placeholder="Synonyms (comma separated)" /></div>
+                    <div class="col-12"><textarea asp-for="NewMedicalDefinition" rows="2" class="form-control form-control-sm" placeholder="Definition *"></textarea></div>
+                    <div class="col-12"><button type="submit" class="btn btn-sm btn-success w-100"><i class="bi bi-plus-lg me-1"></i>Add term</button></div>
+                </form>
+
+                <form method="get" class="input-group input-group-sm mb-2">
+                    <input name="Filter" value="@Model.Filter" class="form-control" placeholder="Search terms" />
+                    <button type="submit" class="btn btn-outline-secondary"><i class="bi bi-search"></i></button>
+                </form>
+
+                <div class="rs-list">
+                    @foreach (var m in Model.XrMedicalTerms)
+                    {
+                        <div class="rs-item d-flex justify-content-between align-items-start gap-2">
+                            <div>
+                                <b>@m.Term</b>
+                                @if (!string.IsNullOrEmpty(m.Category))
+                                {
+                                    <span class="badge bg-light text-dark border ms-1">@m.Category</span>
+                                }
+                                <div class="text-secondary">@m.Definition</div>
+                            </div>
+                            <form method="post" asp-page-handler="DeleteXrMedicalTerm" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@m.Id" />
+                                <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1" title="Remove"><i class="bi bi-x-lg"></i></button>
+                            </form>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* ---------- Right: template editor ---------- *@
+    <div>
+        <form method="post" asp-page-handler="SaveTemplate" id="rsForm">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="EditingId" />
+
+            <div class="rs-panel">
+                <div class="rs-head">
+                    <span><i class="bi bi-pencil-square me-1"></i>@(Model.EditingId.HasValue ? "Edit Template" : "New Template")</span>
+                    @if (Model.EditingId.HasValue)
+                    {
+                        <a asp-page="/Xr/ReportSetup" class="small fw-normal">Clear</a>
+                    }
+                </div>
+                <div class="rs-body">
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold mb-1" for="rsName">Template name *</label>
+                            <input asp-for="TemplateName" id="rsName" class="form-control form-control-sm" placeholder="e.g. Chest X-Ray Report" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold mb-1" for="rsService">Apply to investigation</label>
+                            <select asp-for="TemplateXrServiceId" id="rsService" asp-items="Model.ServiceOptions" class="form-select form-select-sm"></select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-semibold mb-1" for="rsDesc">Description</label>
+                            <input asp-for="TemplateDescription" id="rsDesc" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input asp-for="TemplateIsDefault" class="form-check-input" id="rsDefault" />
+                                <label class="form-check-label small" for="rsDefault">Use as the default template for investigations without their own layout</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2 mb-1 flex-wrap">
+                        <select id="rsSectionPick" class="form-select form-select-sm" style="max-width:220px;">
+                            <option value="">-- Insert section header --</option>
+                            @foreach (var s in Model.Sections)
+                            {
+                                <option value="@s">@s</option>
+                            }
+                        </select>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="rsInsertSection()"><i class="bi bi-plus-lg me-1"></i>Insert</button>
+                        <span class="small text-secondary align-self-center">Placeholders fill themselves in when the report is opened.</span>
+                    </div>
+
+                    <div id="rsEditor" class="rs-editor">@Html.Raw(Model.TemplateHtml)</div>
+
+                    <input type="hidden" asp-for="TemplateHtml" id="rsHtml" />
+
+                    <div class="d-flex gap-2 mt-2">
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-save me-1"></i>Save Template</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="rsPreview()"><i class="bi bi-eye me-1"></i>Preview with sample data</button>
+                        <a href="/xr/ResultEntry" class="btn btn-sm btn-outline-secondary ms-auto"><i class="bi bi-journal-medical me-1"></i>Back to Report Entry</a>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.min.js"></script>
+<script>
+    // Template editor. The stored template keeps its {{Placeholder}} tokens; they are only
+    // substituted at report-open time so one template serves every patient.
+    (function () {
+        var quill = new Quill('#rsEditor', {
+            theme: 'snow',
+            modules: { toolbar: [['bold', 'italic', 'underline'], [{ list: 'ordered' }, { list: 'bullet' }], ['clean']] }
+        });
+
+        function sync() { document.getElementById('rsHtml').value = quill.root.innerHTML; }
+        quill.on('text-change', sync);
+
+        window.rsInsertToken = function (token) {
+            var pos = quill.getLength() - 1;
+            quill.focus();
+            quill.insertText(pos, token, 'user');
+            sync();
+        };
+
+        window.rsInsertSection = function () {
+            var pick = document.getElementById('rsSectionPick');
+            if (!pick.value) { alert('Choose a section first.'); return; }
+            var pos = quill.getLength() - 1;
+            quill.focus();
+            quill.insertText(pos, '\n\n' + pick.value + '\n', 'user');
+            quill.formatLine(pos + 2, 3, false, 'user');
+            pick.value = '';
+            sync();
+        };
+
+        window.rsPreview = function () {
+            sync();
+            var html = document.getElementById('rsHtml').value;
+            var sample = {
+                PatientName: 'SAMPLE PATIENT', PatientAge: '34 years 2 months', Gender: 'Female',
+                PatientId: '00042', MrNo: '00042', Phn: 'PHN-00042', XrIndentNo: '10099', BillNo: '10099',
+                Barcode: 'XRC20260101000001', TestName: 'CHEST X-RAY', TestCode: 'XR-001',
+                ReferringDoctor: 'DR. A. SILVA', InvestigatedBy: 'DR. R. FERNANDO',
+                InvestigationDate: '05 OCT 2026', ReportDate: '05 OCT 2026', ReportTime: '10:30 AM',
+                CurrentDate: '05 OCT 2026', CurrentDateTime: '05 OCT 2026 10:30 AM', SampleType: '---'
+            };
+            Object.keys(sample).forEach(function (k) {
+                html = html.split(new RegExp('\\{\\{\\s*' + k + '\\s*\\}\\}', 'g')).join(sample[k]);
+            });
+            var w = window.open('', '_blank', 'width=880,height=1000');
+            if (!w) { alert('Allow pop-ups to preview.'); return; }
+            w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Template Preview</title>' +
+                '<style>body{font-family:Segoe UI,Arial,sans-serif;font-size:12pt;padding:26px}' +
+                'h1{font-size:15pt;text-align:center}h3{font-size:11pt;margin:12px 0 4px}</style></head><body>' +
+                '<div style="background:#fff3cd;border:1px solid #ffe08a;padding:5px 8px;font-size:9pt;margin-bottom:12px">' +
+                'Sample data shown - placeholders will be filled with the real patient in Report Entry.</div>' +
+                html + '</body></html>');
+            w.document.close();
+        };
+    })();
+</script>

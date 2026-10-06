@@ -1,15 +1,387 @@
 @page "/lab/SampleCollection"
 @model HmisWeb.Pages.Lab.SampleCollectionModel
+@using HmisWeb.Data.Enums
 @{
     ViewData["Title"] = "Sample Collection Entry";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="mb-3">
     <h4 class="mb-0 fw-bold">Sample Collection Entry</h4>
+    <span class="text-secondary small">Record sample collection for pending lab investigations</span>
 </div>
 
-<div class="card">
-    <div class="card-body text-secondary">
-        <i class="bi bi-eyedropper me-1"></i> To be implemented — mirrors the VFP Labsys form <code>frmsampcol</code>.
+@if (!string.IsNullOrEmpty(Model.Success))
+{
+    <div class="alert alert-success py-2"><i class="bi bi-check-circle me-1"></i>@Model.Success</div>
+}
+@if (!string.IsNullOrEmpty(Model.Message))
+{
+    <div class="alert alert-warning py-2"><i class="bi bi-exclamation-triangle me-1"></i>@Model.Message</div>
+}
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger py-2"><i class="bi bi-exclamation-circle me-1"></i>@Model.ErrorMessage</div>
+}
+
+@if (Model.SelectedPatient == null)
+{
+    <div class="d-flex justify-content-between align-items-center mb-2 gap-2">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-search me-1"></i>Find Patient</h6>
+        <div class="d-flex gap-2">
+            <a href="javascript:void(0)" onclick="toggleNewPatient(true)" class="btn btn-sm btn-outline-success"><i class="bi bi-person-plus me-1"></i>Add New Patient</a>
+            <form method="post" asp-page-handler="StartNew">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-sm btn-outline-secondary" title="Start a fresh collection"><i class="bi bi-file-earmark-plus me-1"></i>New Entry</button>
+            </form>
+        </div>
     </div>
-</div>
+
+    <form method="post" asp-page-handler="SearchPatients" class="card mb-3">
+        @Html.AntiForgeryToken()
+        <div class="card-body">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-8">
+                    <input asp-for="PatientSearch" class="form-control" placeholder="PHN, Patient/Mobile/NIC, Name (complete search)..." autofocus />
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-primary w-100"><i class="bi bi-search me-1"></i>Search</button>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger py-2"><i class="bi bi-exclamation-circle me-1"></i>@Model.ErrorMessage</div>
+    }
+
+    <div id="newPatientSection" style="display:none">
+        <div class="card mb-3">
+            <div class="card-header bg-white fw-semibold"><i class="bi bi-person-plus me-1 text-success"></i>Register a new (walk-in) patient</div>
+            <div class="card-body">
+                <form method="post" asp-page-handler="CreatePatient" class="row g-2">
+                    @Html.AntiForgeryToken()
+                    <div class="col-md-4"><input asp-for="NewName" class="form-control form-control-sm" placeholder="Full name *" /></div>
+                    <div class="col-md-4"><input asp-for="NewNameWithInitials" class="form-control form-control-sm" placeholder="Name with initials" /></div>
+                    <div class="col-md-4"><input asp-for="NewNic" class="form-control form-control-sm" placeholder="NIC" /></div>
+                    <div class="col-md-4"><input asp-for="NewMobile" class="form-control form-control-sm" placeholder="Mobile" /></div>
+                    <div class="col-md-4"><input asp-for="NewPhone" class="form-control form-control-sm" placeholder="Phone" /></div>
+                    <div class="col-md-4">
+                        <select asp-for="NewSex" asp-items="Html.GetEnumSelectList<Sex>()" class="form-select form-select-sm">
+                            <option value="">-- Sex --</option>
+                        </select>
+                    </div>
+                    <div class="col-12 d-flex gap-2 align-items-center">
+                        <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-plus-lg me-1"></i>Add & start collection</button>
+                        <a href="javascript:void(0)" onclick="toggleNewPatient(false)" class="small text-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    @if (Model.PatientResults.Any())
+    {
+        <div class="card mb-3"><div class="card-body p-0">
+            <table class="table table-hover mb-0 align-middle"><thead class="table-light"><tr>
+                <th>Patient ID</th><th>PHN</th><th>Name</th><th>Sex</th><th>Mobile</th><th>NIC</th><th></th>
+            </tr></thead><tbody>
+            @foreach (var p in Model.PatientResults)
+            {
+                <tr>
+                    <td>@p.Id</td>
+                    <td>@(p.PatientId?.ToString() ?? "-")</td>
+                    <td>@(p.Person?.NameWithInitials ?? p.Person?.Name ?? "Unnamed")</td>
+                    <td>@(p.Person?.Sex?.ToString() ?? "-")</td>
+                    <td>@(p.Person?.Mobile ?? "-")</td>
+                    <td>@(p.Person?.Nic ?? "-")</td>
+                    <td class="text-end">
+                        <form method="post" asp-page-handler="SelectPatient">
+                            <input type="hidden" name="SelectedPatientId" value="@p.Id" />
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-sm btn-outline-primary">Select</button>
+                        </form>
+                    </td>
+                </tr>
+            }</tbody></table>
+        </div></div>
+    }
+
+    @if (!Model.PatientResults.Any() && !string.IsNullOrEmpty(Model.PatientSearch))
+    {
+        <div class="alert alert-info py-2">
+            <i class="bi bi-info-circle me-1"></i>No patient found for "<b>@Model.PatientSearch</b>".
+            <a href="javascript:void(0)" onclick="toggleNewPatient(true)" class="fw-semibold text-decoration-underline">Add a new walk-in patient?</a>
+        </div>
+    }
+}
+else
+{
+    <div class="row g-3">
+        <div class="col-lg-7">
+            <div class="card mb-3">
+                <div class="card-body py-3">
+                    <div class="row g-3 align-items-center">
+                        <div class="col-md-5">
+                            <div class="text-secondary small fw-bold text-uppercase">Patient</div>
+                            <div class="fw-semibold fs-5">@(Model.SelectedPatient.Person?.NameWithInitials ?? "Unnamed")</div>
+                            <small class="text-secondary">PHN: @(Model.SelectedPatient.PatientId?.ToString() ?? "-")</small>
+                        </div>
+                        <div class="col-md-7 text-end">
+                            <form method="post" asp-page-handler="StartNew">
+                                <input type="hidden" name="SelectedPatientId" value="@Model.SelectedPatient.Id" />
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Switch patient</button>
+                            </form>
+                        </div>
+                    </div>
+                    @if (Model.ActiveEncounters.Any())
+                    {
+                        <hr class="my-2" />
+                        <form method="post" asp-page-handler="StartNew" class="d-inline">
+                            <div class="row g-2 align-items-end">
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold mb-1">Active IPD Encounter</label>
+                                    <select name="SelectedEncounterId" class="form-select form-select-sm">
+                                        <option value="">-- All Encounters --</option>
+                                        @foreach (var e in Model.ActiveEncounters)
+                                        {
+                                            var isSelected = Model.SelectedEncounter?.Id == e.Id;
+                                            if (isSelected)
+                                            {
+                                                <option value="@e.Id" selected>@(e.BhtNo ?? ("BHT #" + e.Id)) — @(e.DateOfAdmission?.ToString("dd MMM") ?? "-")</option>
+                                            }
+                                            else
+                                            {
+                                                <option value="@e.Id">@(e.BhtNo ?? ("BHT #" + e.Id)) — @(e.DateOfAdmission?.ToString("dd MMM") ?? "-")</option>
+                                            }
+                                        }
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <button type="submit" class="btn btn-sm btn-outline-primary w-100 mt-1">Filter Orders</button>
+                                </div>
+                            </div>
+                        </form>
+                    }
+                    else
+                    {
+                        <span class="badge bg-soft-success text-dark border p-2 mt-2">
+                            <i class="bi bi-person me-1"></i>OPD / Walk-in patient
+                        </span>
+                    }
+                </div>
+            </div>
+
+            @if (Model.PendingCollections.Any())
+            {
+                <form method="post" asp-page-handler="SaveCollections">
+                    @Html.AntiForgeryToken()
+                    <div class="card mb-3">
+                        <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
+                            <span><i class="bi bi-eyedropper me-1 text-primary"></i>Pending Sample Collections (@Model.PendingCollections.Count)</span>
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-success btn-sm"><i class="bi bi-save me-1"></i>Save Collections</button>
+                                <button type="submit" formaction="?handler=GenerateBarcodes" class="btn btn-outline-info btn-sm"><i class="bi bi-barcode me-1"></i>Generate Barcodes</button>
+                                <a asp-page-handler="PrintLabels" asp-route-patientId="@Model.SelectedPatient.Id" class="btn btn-outline-secondary btn-sm" target="_blank"><i class="bi bi-printer me-1"></i>Print Labels</a>
+                            </div>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th style="width:40px">#</th>
+                                            <th style="width:40px"><input type="checkbox" id="checkAll" /></th>
+                                            <th>Investigation</th>
+                                            <th style="width:120px">Sample Type</th>
+                                            <th style="width:120px">Container</th>
+                                            <th style="width:100px">Volume</th>
+                                            <th style="width:100px">Condition</th>
+                                            <th style="width:140px">Barcode</th>
+                                            <th style="width:130px">Collection Time</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @for (int i = 0; i < Model.SampleCollections.Count; i++)
+                                        {
+                                            var sample = Model.SampleCollections[i];
+                                            <tr>
+                                                <td class="align-middle text-center">@(i + 1)</td>
+                                                <td class="align-middle text-center">
+                                                    <input type="checkbox" asp-for="SampleCollections[i].Collect" class="form-check-input row-check" />
+                                                </td>
+                                                <td class="align-middle">
+                                                    <div class="fw-semibold small">@sample.InvestigationName</div>
+                                                    @if (!string.IsNullOrEmpty(sample.ItemName) && sample.ItemName != sample.InvestigationName)
+                                                    {
+                                                        <small class="text-secondary">@sample.ItemName</small>
+                                                    }
+                                                </td>
+                                                <td>
+                                                    <select asp-for="SampleCollections[i].SampleType" class="form-select form-select-sm">
+                                                        <option value="Blood">Blood</option>
+                                                        <option value="Urine">Urine</option>
+                                                        <option value="Stool">Stool</option>
+                                                        <option value="Sputum">Sputum</option>
+                                                        <option value="Swab">Swab</option>
+                                                        <option value="CSF">CSF</option>
+                                                        <option value="Body Fluid">Body Fluid</option>
+                                                        <option value="Tissue">Tissue</option>
+                                                        <option value="Other">Other</option>
+                                                    </select>
+                                                </td>
+                                                <td>
+                                                    <input asp-for="SampleCollections[i].SampleContainer" class="form-control form-control-sm" placeholder="Container" />
+                                                </td>
+                                                <td>
+                                                    <input asp-for="SampleCollections[i].SampleVolume" class="form-control form-control-sm" placeholder="e.g. 3ml" />
+                                                </td>
+                                                <td>
+                                                    <select asp-for="SampleCollections[i].SampleCondition" class="form-select form-select-sm">
+                                                        <option value="">--</option>
+                                                        <option value="Normal">Normal</option>
+                                                        <option value="Hemolyzed">Hemolyzed</option>
+                                                        <option value="Lipemic">Lipemic</option>
+                                                        <option value="Icteric">Icteric</option>
+                                                        <option value="Clotted">Clotted</option>
+                                                        <option value="Insufficient">Insufficient</option>
+                                                    </select>
+                                                </td>
+                                                <td>
+                                                    <input asp-for="SampleCollections[i].Barcode" class="form-control form-control-sm font-monospace" readonly />
+                                                </td>
+                                                <td>
+                                                    <input asp-for="SampleCollections[i].CollectionDateTime" type="datetime-local" class="form-control form-control-sm" />
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="card-footer bg-white">
+                            <div class="row g-2">
+                                <div class="col-md-8">
+                                    <label asp-for="CollectionNotes" class="form-label small fw-bold">Collection Notes (applies to all selected)</label>
+                                    <textarea asp-for="CollectionNotes" class="form-control form-control-sm" rows="2" placeholder="Common notes for this collection..."></textarea>
+                                </div>
+                                <div class="col-md-4 d-flex align-items-end">
+                                    <button type="submit" class="btn btn-success w-100"><i class="bi bi-save me-1"></i>Save Collections</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            }
+            else
+            {
+                <div class="card">
+                    <div class="card-body text-center text-muted py-5">
+                        <i class="bi bi-eyedropper fs-1 d-block mb-2"></i>
+                        No pending sample collections for this patient.
+                        @if (Model.SelectedEncounter != null)
+                        {
+                            <div class="mt-2">Showing orders for encounter: <strong>@(Model.SelectedEncounter.BhtNo ?? "#" + Model.SelectedEncounter.Id)</strong></div>
+                            <form method="post" asp-page-handler="StartNew" class="mt-2">
+                                <input type="hidden" name="SelectedEncounterId" value="" />
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-sm btn-outline-secondary">Show all encounters</button>
+                            </form>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="col-lg-5">
+            <div class="card mb-3">
+                <div class="card-header bg-white fw-semibold"><i class="bi bi-info-circle me-1 text-primary"></i>Instructions</div>
+                <div class="card-body">
+                    <ul class="small mb-0">
+                        <li>Select a patient to view their ordered investigations pending sample collection</li>
+                        <li>For IPD patients, filter by active encounter using the dropdown</li>
+                        <li>Check <strong>Collect</strong> for each sample to be collected</li>
+                        <li>Verify/enter <strong>Sample Type</strong>, <strong>Container</strong>, <strong>Volume</strong>, <strong>Condition</strong></li>
+                        <li>Auto-generated <strong>Barcode</strong> can be overridden if needed</li>
+                        <li>Set <strong>Collection Time</strong> (defaults to now)</li>
+                        <li>Click <strong>Save Collections</strong> to record</li>
+                        <li>Use <strong>Generate Barcodes</strong> to create barcodes for all pending orders</li>
+                        <li>Use <strong>Print Labels</strong> to print barcode stickers for collected samples</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header bg-white fw-semibold"><i class="bi bi-lightning-charge me-1 text-warning"></i>Quick Actions</div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="toggleAllCollections(true)">
+                            <i class="bi bi-check-all me-1"></i>Select All for Collection
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="toggleAllCollections(false)">
+                            <i class="bi bi-x-circle me-1"></i>Deselect All
+                        </button>
+                        <button type="button" class="btn btn-outline-info btn-sm" onclick="setAllCollectionTime()">
+                            <i class="bi bi-clock me-1"></i>Set All Collection Time to Now
+                        </button>
+                        <button type="button" class="btn btn-outline-success btn-sm" onclick="setAllSampleType('Blood')">
+                            <i class="bi bi-droplet me-1"></i>Set All Sample Type: Blood
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <script>
+        function toggleNewPatient(open) {
+            var el = document.getElementById('newPatientSection');
+            if (el) { el.style.display = open ? '' : 'none'; }
+        }
+
+        function toggleAllCollections(checked) {
+            document.querySelectorAll('.row-check').forEach(cb => {
+                cb.checked = checked;
+            });
+        }
+
+        function setAllCollectionTime() {
+            var now = new Date();
+            var local = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+            document.querySelectorAll('input[name$=".CollectionDateTime"]').forEach(input => {
+                input.value = local;
+            });
+        }
+
+        function setAllSampleType(type) {
+            document.querySelectorAll('select[name$=".SampleType"]').forEach(sel => {
+                sel.value = type;
+            });
+        }
+
+        // Check all checkbox
+        document.addEventListener('DOMContentLoaded', function() {
+            var checkAll = document.getElementById('checkAll');
+            if (checkAll) {
+                checkAll.addEventListener('change', function() {
+                    document.querySelectorAll('.row-check').forEach(cb => {
+                        cb.checked = this.checked;
+                    });
+                });
+            }
+        });
+
+        // Auto-submit on encounter change
+        document.addEventListener('DOMContentLoaded', function() {
+            var encounterSelect = document.querySelector('select[name="SelectedEncounterId"]');
+            if (encounterSelect) {
+                encounterSelect.addEventListener('change', function() {
+                    this.closest('form').submit();
+                });
+            }
+        });
+    </script>
+}

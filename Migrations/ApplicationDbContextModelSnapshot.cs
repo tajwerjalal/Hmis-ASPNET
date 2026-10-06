@@ -1827,6 +1827,134 @@ namespace HmisWeb.Migrations
                     b.ToTable("CATEGORYITEM");
                 });
 
+            modelBuilder.Entity("HmisWeb.Models.CompanyEmployee", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Address")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long>("CompanyId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("CreaterId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Designation")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("EditedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("EditerId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Email")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("EmployeeCode")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Mobile")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Nic")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long?>("PersonId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("RetireComments")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Retired")
+                        .HasColumnType("bit");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyId");
+
+                    b.HasIndex("CreaterId");
+
+                    b.HasIndex("EditerId");
+
+                    b.HasIndex("PersonId");
+
+                    b.ToTable("COMPANYEMPLOYEE");
+                });
+
+            modelBuilder.Entity("HmisWeb.Models.CompanyServiceRate", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("CompanyId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("CreaterId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("DepartmentId")
+                        .HasColumnType("bigint");
+
+                    b.Property<double?>("DiscountPercent")
+                        .HasColumnType("float");
+
+                    b.Property<DateTime?>("EditedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("EditerId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("EffectiveFrom")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("EffectiveTo")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("ItemId")
+                        .HasColumnType("bigint");
+
+                    b.Property<double>("Rate")
+                        .HasColumnType("float");
+
+                    b.Property<string>("RetireComments")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Retired")
+                        .HasColumnType("bit");
+
+                    b.Property<double?>("StaffRate")
+                        .HasColumnType("float");
+
+                    b.Property<double?>("UnitRate")
+                        .HasColumnType("float");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompanyId");
+
+                    b.HasIndex("ItemId");
+
+                    b.ToTable("COMPANYSERVICERATE");
+                });
+
             modelBuilder.Entity("HmisWeb.Models.ConfigOption", b =>
                 {
                     b.Property<long>("Id")
@@ -1871,6 +1999,62 @@ namespace HmisWeb.Migrations
                     b.HasIndex("InstitutionId");
 
                     b.ToTable("CONFIGOPTION", (string)null);
+                });
+
+            modelBuilder.Entity("HmisWeb.Models.ConsultantServiceRate", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("ConsultantId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("CreaterId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("DepartmentId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("EditedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("EditerId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ItemId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("RetireComments")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Retired")
+                        .HasColumnType("bit");
+
+                    b.Property<double>("StaffRate")
+                        .HasColumnType("float");
+
+                    b.Property<double>("UnitRate")
+                        .HasColumnType("float");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConsultantId");
+
+                    b.HasIndex("CreaterId");
+
+                    b.HasIndex("DepartmentId");
+
+                    b.HasIndex("EditerId");
+
+                    b.HasIndex("ItemId");
+
+                    b.ToTable("CONSULTANTSERVICERATE");
                 });
 
             modelBuilder.Entity("HmisWeb.Models.ConsultantSettlement", b =>
@@ -2521,6 +2705,84 @@ namespace HmisWeb.Migrations
                     b.ToTable("FEEVALUE");
                 });
 
+            modelBuilder.Entity("HmisWeb.Models.FollowUp", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("Completed")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("CreaterId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("DepartmentId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("DoctorId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("InstitutionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Instructions")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("NextVisitDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("PatientEncounterId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("PatientId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("RecommendedDoctorId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("RetireComments")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Retired")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("RetiredAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("TreatmentPlan")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long?>("VisitId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreaterId");
+
+                    b.HasIndex("DepartmentId");
+
+                    b.HasIndex("DoctorId");
+
+                    b.HasIndex("InstitutionId");
+
+                    b.HasIndex("PatientEncounterId");
+
+                    b.HasIndex("PatientId");
+
+                    b.HasIndex("RecommendedDoctorId");
+
+                    b.ToTable("FOLLOWUP");
+                });
+
             modelBuilder.Entity("HmisWeb.Models.Form", b =>
                 {
                     b.Property<long>("Id")
@@ -2608,8 +2870,17 @@ namespace HmisWeb.Migrations
                     b.Property<string>("Address")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("Attention")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("AttentionDesignation")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<long?>("BankBranchId")
                         .HasColumnType("bigint");
+
+                    b.Property<string>("City")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Code")
                         .HasColumnType("nvarchar(max)");
@@ -2717,6 +2988,134 @@ namespace HmisWeb.Migrations
                     b.HasIndex("RouteId");
 
                     b.ToTable("INSTITUTION", (string)null);
+                });
+
+            modelBuilder.Entity("HmisWeb.Models.InvestigationOrder", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Barcode")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("BarcodeLabel")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("CollectionDateTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CollectionNotes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long?>("CollectorId")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("Completed")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("CreaterId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("DepartmentId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long?>("DoctorId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("DueDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("InstitutionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("InvestigationName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long?>("ItemId")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("Ordered")
+                        .HasColumnType("bit");
+
+                    b.Property<long?>("PatientEncounterId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("PatientId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Precautions")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Result")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ResultNotes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RetireComments")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Retired")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("RetiredAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("SampleCollected")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("SampleCollectedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("SampleCollectedById")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("SampleCondition")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SampleContainer")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SampleType")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SampleVolume")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long?>("VisitId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CollectorId");
+
+                    b.HasIndex("CreaterId");
+
+                    b.HasIndex("DepartmentId");
+
+                    b.HasIndex("DoctorId");
+
+                    b.HasIndex("InstitutionId");
+
+                    b.HasIndex("ItemId");
+
+                    b.HasIndex("PatientEncounterId");
+
+                    b.HasIndex("PatientId");
+
+                    b.ToTable("INVESTIGATIONORDER");
                 });
 
             modelBuilder.Entity("HmisWeb.Models.IssueRateMargins", b =>
@@ -2839,6 +3238,12 @@ namespace HmisWeb.Migrations
                     b.Property<string>("Comments")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<bool?>("ConsultantRequired")
+                        .HasColumnType("bit");
+
+                    b.Property<bool?>("CorporateActive")
+                        .HasColumnType("bit");
+
                     b.Property<DateTime?>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -2959,11 +3364,17 @@ namespace HmisWeb.Migrations
                     b.Property<long?>("MasterItemReferenceId")
                         .HasColumnType("bigint");
 
+                    b.Property<string>("MaxDuration")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int>("MaxTableRows")
                         .HasColumnType("int");
 
                     b.Property<long?>("MeasurementUnitId")
                         .HasColumnType("bigint");
+
+                    b.Property<string>("MinDuration")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Name")
                         .HasColumnType("nvarchar(max)");
@@ -3007,6 +3418,9 @@ namespace HmisWeb.Migrations
                     b.Property<bool>("RequestForQuentity")
                         .HasColumnType("bit");
 
+                    b.Property<string>("Requirements")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("ReserveName")
                         .HasColumnType("nvarchar(max)");
 
@@ -3037,11 +3451,17 @@ namespace HmisWeb.Migrations
                     b.Property<string>("Sname")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("Source")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<long?>("SpecialityId")
                         .HasColumnType("bigint");
 
                     b.Property<long?>("StaffId")
                         .HasColumnType("bigint");
+
+                    b.Property<double?>("StaffRate")
+                        .HasColumnType("float");
 
                     b.Property<long?>("StrengthUnitId")
                         .HasColumnType("bigint");
@@ -3056,6 +3476,9 @@ namespace HmisWeb.Migrations
                         .HasColumnType("float");
 
                     b.Property<double?>("TotalForForeigner")
+                        .HasColumnType("float");
+
+                    b.Property<double?>("UnitRate")
                         .HasColumnType("float");
 
                     b.Property<bool>("UserChangable")
@@ -3512,6 +3935,37 @@ namespace HmisWeb.Migrations
                     b.ToTable("MEDICALPACKAGEITEM");
                 });
 
+            modelBuilder.Entity("HmisWeb.Models.MedicalTerm", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Category")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Definition")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Retired")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Synonyms")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Term")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("MEDICALTERM", (string)null);
+                });
+
             modelBuilder.Entity("HmisWeb.Models.MembershipScheme", b =>
                 {
                     b.Property<long>("Id")
@@ -3556,6 +4010,97 @@ namespace HmisWeb.Migrations
                     b.HasIndex("RetirerId");
 
                     b.ToTable("MEMBERSHIPSCHEME", (string)null);
+                });
+
+            modelBuilder.Entity("HmisWeb.Models.MiscFee", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<double>("Amount")
+                        .HasColumnType("float");
+
+                    b.Property<string>("AmountInWords")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("BuyerName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("BuyerType")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<double?>("CashReceived")
+                        .HasColumnType("float");
+
+                    b.Property<double?>("CashReturn")
+                        .HasColumnType("float");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("CreaterId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("DepartmentId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FeeHead")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long?>("InstitutionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("Paid")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("PaidAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("PatientId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int?>("PaymentMethod")
+                        .HasColumnType("int");
+
+                    b.Property<long?>("ReceivedById")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ReferenceNo")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RetireComments")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Retired")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("RetiredAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("VisitId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreaterId");
+
+                    b.HasIndex("DepartmentId");
+
+                    b.HasIndex("InstitutionId");
+
+                    b.HasIndex("PatientId");
+
+                    b.HasIndex("ReceivedById");
+
+                    b.HasIndex("VisitId");
+
+                    b.ToTable("MISCFEE");
                 });
 
             modelBuilder.Entity("HmisWeb.Models.Notification", b =>
@@ -3733,6 +4278,114 @@ namespace HmisWeb.Migrations
                     b.HasIndex("RetirerId");
 
                     b.ToTable("PACKAGEITEM");
+                });
+
+            modelBuilder.Entity("HmisWeb.Models.PanelDepartment", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("BillOrder")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Code")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Retired")
+                        .HasColumnType("bit");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique()
+                        .HasFilter("[Code] IS NOT NULL");
+
+                    b.ToTable("PANELDEPARTMENT", (string)null);
+                });
+
+            modelBuilder.Entity("HmisWeb.Models.PanelServiceCharge", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("CompanyId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("CreaterId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("DepartmentCode")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("DepartmentName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("EditedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("EditerId")
+                        .HasColumnType("bigint");
+
+                    b.Property<double?>("ForeignerRate")
+                        .HasColumnType("float");
+
+                    b.Property<long?>("ItemId")
+                        .HasColumnType("bigint");
+
+                    b.Property<double>("Rate")
+                        .HasColumnType("float");
+
+                    b.Property<string>("RetireComments")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Retired")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("RetiredAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("RetirerId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ServiceCode")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("ServiceGroup")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ServiceName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<double?>("StandardForeignerRate")
+                        .HasColumnType("float");
+
+                    b.Property<double?>("StandardRate")
+                        .HasColumnType("float");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ItemId");
+
+                    b.HasIndex("CompanyId", "DepartmentCode", "ServiceCode")
+                        .IsUnique()
+                        .HasFilter("[DepartmentCode] IS NOT NULL AND [ServiceCode] IS NOT NULL");
+
+                    b.ToTable("PANELSERVICECHARGE", (string)null);
                 });
 
             modelBuilder.Entity("HmisWeb.Models.Patient", b =>
@@ -4910,6 +5563,102 @@ namespace HmisWeb.Migrations
                     b.ToTable("PHARMACEUTICALBILLITEM", (string)null);
                 });
 
+            modelBuilder.Entity("HmisWeb.Models.Prescription", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Comments")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("CreaterId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("DepartmentId")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("Dispensed")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("DispensedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("DoctorId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Dose")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Duration")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Frequency")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long?>("InstitutionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Instructions")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long?>("ItemId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("MedicineName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long?>("PatientEncounterId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("PatientId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Qty")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("RequiredAction")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("RetireComments")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Retired")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("RetiredAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Route")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long?>("VisitId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreaterId");
+
+                    b.HasIndex("DepartmentId");
+
+                    b.HasIndex("DoctorId");
+
+                    b.HasIndex("InstitutionId");
+
+                    b.HasIndex("ItemId");
+
+                    b.HasIndex("PatientEncounterId");
+
+                    b.HasIndex("PatientId");
+
+                    b.ToTable("PRESCRIPTION");
+                });
+
             modelBuilder.Entity("HmisWeb.Models.PriceMatrix", b =>
                 {
                     b.Property<long>("Id")
@@ -4980,6 +5729,109 @@ namespace HmisWeb.Migrations
                     b.ToTable("PRICEMATRIX", (string)null);
                 });
 
+            modelBuilder.Entity("HmisWeb.Models.RefundRequest", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("Approved")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("ApprovedById")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("BillId")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("Cancelled")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("CancelledAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("CancelledById")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Comments")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("CreaterId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("DepartmentId")
+                        .HasColumnType("bigint");
+
+                    b.Property<double>("FeeAmount")
+                        .HasColumnType("float");
+
+                    b.Property<string>("FeeType")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long?>("InstitutionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("PatientId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("PatientName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Reason")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Refunded")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("RefundedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("RefundedById")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("RetireComments")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Retired")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("RetiredAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("VisitId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApprovedById");
+
+                    b.HasIndex("BillId");
+
+                    b.HasIndex("CancelledById");
+
+                    b.HasIndex("CreaterId");
+
+                    b.HasIndex("DepartmentId");
+
+                    b.HasIndex("InstitutionId");
+
+                    b.HasIndex("PatientId");
+
+                    b.HasIndex("RefundedById");
+
+                    b.HasIndex("VisitId");
+
+                    b.ToTable("REFUNDREQUEST");
+                });
+
             modelBuilder.Entity("HmisWeb.Models.ReportTemplate", b =>
                 {
                     b.Property<long>("Id")
@@ -5048,6 +5900,114 @@ namespace HmisWeb.Migrations
                     b.HasIndex("RetirerId");
 
                     b.ToTable("REPORTTEMPLATE");
+                });
+
+            modelBuilder.Entity("HmisWeb.Models.Resource", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Code")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("CreaterId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("EditedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("EditerId")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RetireComments")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Retired")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("RetiredAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("RetirerId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreaterId");
+
+                    b.HasIndex("EditerId");
+
+                    b.HasIndex("RetirerId");
+
+                    b.ToTable("RESOURCE");
+                });
+
+            modelBuilder.Entity("HmisWeb.Models.ResourceServiceRate", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("CreaterId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("DepartmentId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("EditedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("EditerId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ItemId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("ResourceId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("RetireComments")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Retired")
+                        .HasColumnType("bit");
+
+                    b.Property<double>("StaffRate")
+                        .HasColumnType("float");
+
+                    b.Property<double>("UnitRate")
+                        .HasColumnType("float");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreaterId");
+
+                    b.HasIndex("DepartmentId");
+
+                    b.HasIndex("EditerId");
+
+                    b.HasIndex("ItemId");
+
+                    b.HasIndex("ResourceId");
+
+                    b.ToTable("RESOURCESERVICERATE");
                 });
 
             modelBuilder.Entity("HmisWeb.Models.Room", b =>
@@ -6211,6 +7171,387 @@ namespace HmisWeb.Migrations
                     b.ToTable("UPLOAD");
                 });
 
+            modelBuilder.Entity("HmisWeb.Models.UsOrder", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Barcode")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("BarcodeLabel")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long?>("BillId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("CharCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("CollectionDateTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CollectionNotes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long?>("CollectorId")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("Completed")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("CreaterId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("DepartmentId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long?>("DoctorId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("DueDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("EditedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("EditerId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("FinalizedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("FinalizedById")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ImagesJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long?>("InstitutionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Instructions")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("LastSavedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("OrderName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Ordered")
+                        .HasColumnType("bit");
+
+                    b.Property<long?>("PatientEncounterId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("PatientId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Qty")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ReportStatus")
+                        .HasColumnType("int");
+
+                    b.Property<long?>("ReportTemplateId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Result")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ResultHtml")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ResultNotes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RetireComments")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Retired")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("RetiredAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("SampleCollected")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("SampleCollectedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("SampleCollectedById")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("SampleCondition")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SampleType")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long?>("UsServiceId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("VisitId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("WordCount")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BillId");
+
+                    b.HasIndex("CollectorId");
+
+                    b.HasIndex("CreaterId");
+
+                    b.HasIndex("DepartmentId");
+
+                    b.HasIndex("DoctorId");
+
+                    b.HasIndex("FinalizedById");
+
+                    b.HasIndex("InstitutionId");
+
+                    b.HasIndex("PatientEncounterId");
+
+                    b.HasIndex("PatientId");
+
+                    b.HasIndex("ReportTemplateId");
+
+                    b.HasIndex("SampleCollectedById");
+
+                    b.HasIndex("UsServiceId");
+
+                    b.ToTable("USORDER", (string)null);
+                });
+
+            modelBuilder.Entity("HmisWeb.Models.UsReportTemplate", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("CreaterId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("EditedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("EditerId")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Retired")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("RetiredAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("SectionsJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("TemplateHtml")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long?>("UsServiceId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreaterId");
+
+                    b.HasIndex("EditerId");
+
+                    b.HasIndex("UsServiceId");
+
+                    b.ToTable("USREPORTTEMPLATE", (string)null);
+                });
+
+            modelBuilder.Entity("HmisWeb.Models.UsService", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("Active")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("Billable")
+                        .HasColumnType("bit");
+
+                    b.Property<long?>("CategoryId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Code")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("CreaterId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("DepartmentId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("DiscountAllowed")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("EditedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("EditerId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("InstitutionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int?>("ItemType")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PrintName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("Priority")
+                        .HasColumnType("int");
+
+                    b.Property<double?>("Rate")
+                        .HasColumnType("float");
+
+                    b.Property<double?>("RateForeigner")
+                        .HasColumnType("float");
+
+                    b.Property<string>("Requirements")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RetireComments")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Retired")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("RetiredAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("RetirerId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Sname")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("CreaterId");
+
+                    b.HasIndex("DepartmentId");
+
+                    b.HasIndex("EditerId");
+
+                    b.HasIndex("InstitutionId");
+
+                    b.HasIndex("RetirerId");
+
+                    b.ToTable("USSERVICE", (string)null);
+                });
+
+            modelBuilder.Entity("HmisWeb.Models.UsServiceCategory", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Code")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("CreaterId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("EditedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("EditerId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("InstitutionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RetireComments")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Retired")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("RetiredAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("RetirerId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Sname")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreaterId");
+
+                    b.HasIndex("EditerId");
+
+                    b.HasIndex("InstitutionId");
+
+                    b.HasIndex("RetirerId");
+
+                    b.ToTable("USSERVICECATEGORY", (string)null);
+                });
+
             modelBuilder.Entity("HmisWeb.Models.UserIcon", b =>
                 {
                     b.Property<long>("Id")
@@ -7329,6 +8670,418 @@ namespace HmisWeb.Migrations
                     b.ToTable("WEBUSERROUTE");
                 });
 
+            modelBuilder.Entity("HmisWeb.Models.XrMedicalTerm", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Category")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Definition")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Retired")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Synonyms")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Term")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("XRMEDICALTERM", (string)null);
+                });
+
+            modelBuilder.Entity("HmisWeb.Models.XrOrder", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Barcode")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("BarcodeLabel")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long?>("BillId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("CharCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("CollectionDateTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CollectionNotes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long?>("CollectorId")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("Completed")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("CreaterId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("DepartmentId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long?>("DoctorId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("DueDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("EditedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("EditerId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("FinalizedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("FinalizedById")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ImagesJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long?>("InstitutionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Instructions")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("LastSavedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("OrderName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Ordered")
+                        .HasColumnType("bit");
+
+                    b.Property<long?>("PatientEncounterId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("PatientId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Qty")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ReportStatus")
+                        .HasColumnType("int");
+
+                    b.Property<long?>("ReportTemplateId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Result")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ResultHtml")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ResultNotes")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RetireComments")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Retired")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("RetiredAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("SampleCollected")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("SampleCollectedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("SampleCollectedById")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("SampleCondition")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SampleType")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long?>("VisitId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("WordCount")
+                        .HasColumnType("int");
+
+                    b.Property<long?>("XrServiceId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BillId");
+
+                    b.HasIndex("CollectorId");
+
+                    b.HasIndex("CreaterId");
+
+                    b.HasIndex("DepartmentId");
+
+                    b.HasIndex("DoctorId");
+
+                    b.HasIndex("FinalizedById");
+
+                    b.HasIndex("InstitutionId");
+
+                    b.HasIndex("PatientEncounterId");
+
+                    b.HasIndex("PatientId");
+
+                    b.HasIndex("ReportTemplateId");
+
+                    b.HasIndex("SampleCollectedById");
+
+                    b.HasIndex("XrServiceId");
+
+                    b.ToTable("XRORDER", (string)null);
+                });
+
+            modelBuilder.Entity("HmisWeb.Models.XrReportTemplate", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("CreaterId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("EditedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("EditerId")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Retired")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("RetiredAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("SectionsJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("TemplateHtml")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long?>("XrServiceId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreaterId");
+
+                    b.HasIndex("EditerId");
+
+                    b.HasIndex("XrServiceId");
+
+                    b.ToTable("XREPORTTEMPLATE", (string)null);
+                });
+
+            modelBuilder.Entity("HmisWeb.Models.XrService", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("Active")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("Billable")
+                        .HasColumnType("bit");
+
+                    b.Property<long?>("CategoryId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Code")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("CreaterId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("DepartmentId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("DiscountAllowed")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("EditedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("EditerId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("InstitutionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int?>("ItemType")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PrintName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("Priority")
+                        .HasColumnType("int");
+
+                    b.Property<double?>("Rate")
+                        .HasColumnType("float");
+
+                    b.Property<double?>("RateForeigner")
+                        .HasColumnType("float");
+
+                    b.Property<string>("Requirements")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RetireComments")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Retired")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("RetiredAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("RetirerId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Sname")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("CreaterId");
+
+                    b.HasIndex("DepartmentId");
+
+                    b.HasIndex("EditerId");
+
+                    b.HasIndex("InstitutionId");
+
+                    b.HasIndex("RetirerId");
+
+                    b.ToTable("XRSERVICE", (string)null);
+                });
+
+            modelBuilder.Entity("HmisWeb.Models.XrServiceCategory", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Code")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("CreaterId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("EditedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("EditerId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("InstitutionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("RetireComments")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("Retired")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("RetiredAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long?>("RetirerId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Sname")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreaterId");
+
+                    b.HasIndex("EditerId");
+
+                    b.HasIndex("InstitutionId");
+
+                    b.HasIndex("RetirerId");
+
+                    b.ToTable("XRSERVICECATEGORY", (string)null);
+                });
+
             modelBuilder.Entity("HmisWeb.Models.FormFormat", b =>
                 {
                     b.HasBaseType("HmisWeb.Models.Category");
@@ -7791,14 +9544,29 @@ namespace HmisWeb.Migrations
                 {
                     b.HasBaseType("HmisWeb.Models.Doctor");
 
+                    b.Property<double>("DefaultHospitalFee")
+                        .HasColumnType("float");
+
+                    b.Property<string>("DefaultRoomNo")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("Degrees")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<double>("FirstVisitFee")
                         .HasColumnType("float");
 
+                    b.Property<string>("SessionEndTime")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SessionStartTime")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<double>("SubsequentVisitFee")
                         .HasColumnType("float");
+
+                    b.Property<string>("WorkDays")
+                        .HasColumnType("nvarchar(max)");
 
                     b.ToTable("STAFF");
 
@@ -8769,6 +10537,54 @@ namespace HmisWeb.Migrations
                     b.Navigation("Retirer");
                 });
 
+            modelBuilder.Entity("HmisWeb.Models.CompanyEmployee", b =>
+                {
+                    b.HasOne("HmisWeb.Models.Institution", "Company")
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("HmisWeb.Models.WebUser", "Creater")
+                        .WithMany()
+                        .HasForeignKey("CreaterId");
+
+                    b.HasOne("HmisWeb.Models.WebUser", "Editer")
+                        .WithMany()
+                        .HasForeignKey("EditerId");
+
+                    b.HasOne("HmisWeb.Models.Person", "Person")
+                        .WithMany()
+                        .HasForeignKey("PersonId");
+
+                    b.Navigation("Company");
+
+                    b.Navigation("Creater");
+
+                    b.Navigation("Editer");
+
+                    b.Navigation("Person");
+                });
+
+            modelBuilder.Entity("HmisWeb.Models.CompanyServiceRate", b =>
+                {
+                    b.HasOne("HmisWeb.Models.Institution", "Company")
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("HmisWeb.Models.Item", "Item")
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Company");
+
+                    b.Navigation("Item");
+                });
+
             modelBuilder.Entity("HmisWeb.Models.ConfigOption", b =>
                 {
                     b.HasOne("HmisWeb.Models.WebUser", "Creater")
@@ -8791,6 +10607,43 @@ namespace HmisWeb.Migrations
                     b.Navigation("Department");
 
                     b.Navigation("Institution");
+                });
+
+            modelBuilder.Entity("HmisWeb.Models.ConsultantServiceRate", b =>
+                {
+                    b.HasOne("HmisWeb.Models.Consultant", "Consultant")
+                        .WithMany()
+                        .HasForeignKey("ConsultantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("HmisWeb.Models.WebUser", "Creater")
+                        .WithMany()
+                        .HasForeignKey("CreaterId");
+
+                    b.HasOne("HmisWeb.Models.Department", "Department")
+                        .WithMany()
+                        .HasForeignKey("DepartmentId");
+
+                    b.HasOne("HmisWeb.Models.WebUser", "Editer")
+                        .WithMany()
+                        .HasForeignKey("EditerId");
+
+                    b.HasOne("HmisWeb.Models.Item", "Item")
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Consultant");
+
+                    b.Navigation("Creater");
+
+                    b.Navigation("Department");
+
+                    b.Navigation("Editer");
+
+                    b.Navigation("Item");
                 });
 
             modelBuilder.Entity("HmisWeb.Models.ConsultantSettlement", b =>
@@ -9173,6 +11026,51 @@ namespace HmisWeb.Migrations
                     b.Navigation("Retirer");
                 });
 
+            modelBuilder.Entity("HmisWeb.Models.FollowUp", b =>
+                {
+                    b.HasOne("HmisWeb.Models.WebUser", "Creater")
+                        .WithMany()
+                        .HasForeignKey("CreaterId");
+
+                    b.HasOne("HmisWeb.Models.Department", "Department")
+                        .WithMany()
+                        .HasForeignKey("DepartmentId");
+
+                    b.HasOne("HmisWeb.Models.Doctor", "Doctor")
+                        .WithMany()
+                        .HasForeignKey("DoctorId");
+
+                    b.HasOne("HmisWeb.Models.Institution", "Institution")
+                        .WithMany()
+                        .HasForeignKey("InstitutionId");
+
+                    b.HasOne("HmisWeb.Models.PatientEncounter", "PatientEncounter")
+                        .WithMany()
+                        .HasForeignKey("PatientEncounterId");
+
+                    b.HasOne("HmisWeb.Models.Patient", "Patient")
+                        .WithMany()
+                        .HasForeignKey("PatientId");
+
+                    b.HasOne("HmisWeb.Models.Doctor", "RecommendedDoctor")
+                        .WithMany()
+                        .HasForeignKey("RecommendedDoctorId");
+
+                    b.Navigation("Creater");
+
+                    b.Navigation("Department");
+
+                    b.Navigation("Doctor");
+
+                    b.Navigation("Institution");
+
+                    b.Navigation("Patient");
+
+                    b.Navigation("PatientEncounter");
+
+                    b.Navigation("RecommendedDoctor");
+                });
+
             modelBuilder.Entity("HmisWeb.Models.Form", b =>
                 {
                     b.HasOne("HmisWeb.Models.WebUser", "Creater")
@@ -9285,6 +11183,57 @@ namespace HmisWeb.Migrations
                     b.Navigation("Retirer");
 
                     b.Navigation("Route");
+                });
+
+            modelBuilder.Entity("HmisWeb.Models.InvestigationOrder", b =>
+                {
+                    b.HasOne("HmisWeb.Models.WebUser", "Collector")
+                        .WithMany()
+                        .HasForeignKey("CollectorId");
+
+                    b.HasOne("HmisWeb.Models.WebUser", "Creater")
+                        .WithMany()
+                        .HasForeignKey("CreaterId");
+
+                    b.HasOne("HmisWeb.Models.Department", "Department")
+                        .WithMany()
+                        .HasForeignKey("DepartmentId");
+
+                    b.HasOne("HmisWeb.Models.Doctor", "Doctor")
+                        .WithMany()
+                        .HasForeignKey("DoctorId");
+
+                    b.HasOne("HmisWeb.Models.Institution", "Institution")
+                        .WithMany()
+                        .HasForeignKey("InstitutionId");
+
+                    b.HasOne("HmisWeb.Models.Item", "Item")
+                        .WithMany()
+                        .HasForeignKey("ItemId");
+
+                    b.HasOne("HmisWeb.Models.PatientEncounter", "PatientEncounter")
+                        .WithMany()
+                        .HasForeignKey("PatientEncounterId");
+
+                    b.HasOne("HmisWeb.Models.Patient", "Patient")
+                        .WithMany()
+                        .HasForeignKey("PatientId");
+
+                    b.Navigation("Collector");
+
+                    b.Navigation("Creater");
+
+                    b.Navigation("Department");
+
+                    b.Navigation("Doctor");
+
+                    b.Navigation("Institution");
+
+                    b.Navigation("Item");
+
+                    b.Navigation("Patient");
+
+                    b.Navigation("PatientEncounter");
                 });
 
             modelBuilder.Entity("HmisWeb.Models.IssueRateMargins", b =>
@@ -9761,6 +11710,45 @@ namespace HmisWeb.Migrations
                     b.Navigation("Retirer");
                 });
 
+            modelBuilder.Entity("HmisWeb.Models.MiscFee", b =>
+                {
+                    b.HasOne("HmisWeb.Models.WebUser", "Creater")
+                        .WithMany()
+                        .HasForeignKey("CreaterId");
+
+                    b.HasOne("HmisWeb.Models.Department", "Department")
+                        .WithMany()
+                        .HasForeignKey("DepartmentId");
+
+                    b.HasOne("HmisWeb.Models.Institution", "Institution")
+                        .WithMany()
+                        .HasForeignKey("InstitutionId");
+
+                    b.HasOne("HmisWeb.Models.Patient", "Patient")
+                        .WithMany()
+                        .HasForeignKey("PatientId");
+
+                    b.HasOne("HmisWeb.Models.WebUser", "ReceivedBy")
+                        .WithMany()
+                        .HasForeignKey("ReceivedById");
+
+                    b.HasOne("HmisWeb.Models.PatientEncounter", "Visit")
+                        .WithMany()
+                        .HasForeignKey("VisitId");
+
+                    b.Navigation("Creater");
+
+                    b.Navigation("Department");
+
+                    b.Navigation("Institution");
+
+                    b.Navigation("Patient");
+
+                    b.Navigation("ReceivedBy");
+
+                    b.Navigation("Visit");
+                });
+
             modelBuilder.Entity("HmisWeb.Models.Notification", b =>
                 {
                     b.HasOne("HmisWeb.Models.Bill", "Bill")
@@ -9852,6 +11840,24 @@ namespace HmisWeb.Migrations
                     b.Navigation("Packege");
 
                     b.Navigation("Retirer");
+                });
+
+            modelBuilder.Entity("HmisWeb.Models.PanelServiceCharge", b =>
+                {
+                    b.HasOne("HmisWeb.Models.Institution", "Company")
+                        .WithMany()
+                        .HasForeignKey("CompanyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("HmisWeb.Models.Item", "Item")
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Company");
+
+                    b.Navigation("Item");
                 });
 
             modelBuilder.Entity("HmisWeb.Models.Patient", b =>
@@ -10530,6 +12536,51 @@ namespace HmisWeb.Migrations
                     b.Navigation("ItemBatch");
                 });
 
+            modelBuilder.Entity("HmisWeb.Models.Prescription", b =>
+                {
+                    b.HasOne("HmisWeb.Models.WebUser", "Creater")
+                        .WithMany()
+                        .HasForeignKey("CreaterId");
+
+                    b.HasOne("HmisWeb.Models.Department", "Department")
+                        .WithMany()
+                        .HasForeignKey("DepartmentId");
+
+                    b.HasOne("HmisWeb.Models.Doctor", "Doctor")
+                        .WithMany()
+                        .HasForeignKey("DoctorId");
+
+                    b.HasOne("HmisWeb.Models.Institution", "Institution")
+                        .WithMany()
+                        .HasForeignKey("InstitutionId");
+
+                    b.HasOne("HmisWeb.Models.Item", "Item")
+                        .WithMany()
+                        .HasForeignKey("ItemId");
+
+                    b.HasOne("HmisWeb.Models.PatientEncounter", "PatientEncounter")
+                        .WithMany()
+                        .HasForeignKey("PatientEncounterId");
+
+                    b.HasOne("HmisWeb.Models.Patient", "Patient")
+                        .WithMany()
+                        .HasForeignKey("PatientId");
+
+                    b.Navigation("Creater");
+
+                    b.Navigation("Department");
+
+                    b.Navigation("Doctor");
+
+                    b.Navigation("Institution");
+
+                    b.Navigation("Item");
+
+                    b.Navigation("Patient");
+
+                    b.Navigation("PatientEncounter");
+                });
+
             modelBuilder.Entity("HmisWeb.Models.PriceMatrix", b =>
                 {
                     b.HasOne("HmisWeb.Models.WebUser", "Creater")
@@ -10575,6 +12626,63 @@ namespace HmisWeb.Migrations
                     b.Navigation("Retirer");
                 });
 
+            modelBuilder.Entity("HmisWeb.Models.RefundRequest", b =>
+                {
+                    b.HasOne("HmisWeb.Models.WebUser", "ApprovedBy")
+                        .WithMany()
+                        .HasForeignKey("ApprovedById");
+
+                    b.HasOne("HmisWeb.Models.Bill", "Bill")
+                        .WithMany()
+                        .HasForeignKey("BillId");
+
+                    b.HasOne("HmisWeb.Models.WebUser", "CancelledBy")
+                        .WithMany()
+                        .HasForeignKey("CancelledById");
+
+                    b.HasOne("HmisWeb.Models.WebUser", "Creater")
+                        .WithMany()
+                        .HasForeignKey("CreaterId");
+
+                    b.HasOne("HmisWeb.Models.Department", "Department")
+                        .WithMany()
+                        .HasForeignKey("DepartmentId");
+
+                    b.HasOne("HmisWeb.Models.Institution", "Institution")
+                        .WithMany()
+                        .HasForeignKey("InstitutionId");
+
+                    b.HasOne("HmisWeb.Models.Patient", "Patient")
+                        .WithMany()
+                        .HasForeignKey("PatientId");
+
+                    b.HasOne("HmisWeb.Models.WebUser", "RefundedBy")
+                        .WithMany()
+                        .HasForeignKey("RefundedById");
+
+                    b.HasOne("HmisWeb.Models.PatientEncounter", "Visit")
+                        .WithMany()
+                        .HasForeignKey("VisitId");
+
+                    b.Navigation("ApprovedBy");
+
+                    b.Navigation("Bill");
+
+                    b.Navigation("CancelledBy");
+
+                    b.Navigation("Creater");
+
+                    b.Navigation("Department");
+
+                    b.Navigation("Institution");
+
+                    b.Navigation("Patient");
+
+                    b.Navigation("RefundedBy");
+
+                    b.Navigation("Visit");
+                });
+
             modelBuilder.Entity("HmisWeb.Models.ReportTemplate", b =>
                 {
                     b.HasOne("HmisWeb.Models.Category", "Category")
@@ -10597,6 +12705,64 @@ namespace HmisWeb.Migrations
                     b.Navigation("Creater");
 
                     b.Navigation("Retirer");
+                });
+
+            modelBuilder.Entity("HmisWeb.Models.Resource", b =>
+                {
+                    b.HasOne("HmisWeb.Models.WebUser", "Creater")
+                        .WithMany()
+                        .HasForeignKey("CreaterId");
+
+                    b.HasOne("HmisWeb.Models.WebUser", "Editer")
+                        .WithMany()
+                        .HasForeignKey("EditerId");
+
+                    b.HasOne("HmisWeb.Models.WebUser", "Retirer")
+                        .WithMany()
+                        .HasForeignKey("RetirerId");
+
+                    b.Navigation("Creater");
+
+                    b.Navigation("Editer");
+
+                    b.Navigation("Retirer");
+                });
+
+            modelBuilder.Entity("HmisWeb.Models.ResourceServiceRate", b =>
+                {
+                    b.HasOne("HmisWeb.Models.WebUser", "Creater")
+                        .WithMany()
+                        .HasForeignKey("CreaterId");
+
+                    b.HasOne("HmisWeb.Models.Department", "Department")
+                        .WithMany()
+                        .HasForeignKey("DepartmentId");
+
+                    b.HasOne("HmisWeb.Models.WebUser", "Editer")
+                        .WithMany()
+                        .HasForeignKey("EditerId");
+
+                    b.HasOne("HmisWeb.Models.Item", "Item")
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("HmisWeb.Models.Resource", "Resource")
+                        .WithMany()
+                        .HasForeignKey("ResourceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Creater");
+
+                    b.Navigation("Department");
+
+                    b.Navigation("Editer");
+
+                    b.Navigation("Item");
+
+                    b.Navigation("Resource");
                 });
 
             modelBuilder.Entity("HmisWeb.Models.Room", b =>
@@ -10859,7 +13025,7 @@ namespace HmisWeb.Migrations
                         .HasForeignKey("DepartmentId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("HmisWeb.Models.Category", "Designation")
+                    b.HasOne("HmisWeb.Models.Designation", "Designation")
                         .WithMany()
                         .HasForeignKey("DesignationId")
                         .OnDelete(DeleteBehavior.Restrict);
@@ -10869,7 +13035,7 @@ namespace HmisWeb.Migrations
                         .HasForeignKey("EditerId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("HmisWeb.Models.Category", "Grade")
+                    b.HasOne("HmisWeb.Models.Grade", "Grade")
                         .WithMany()
                         .HasForeignKey("GradeId")
                         .OnDelete(DeleteBehavior.Restrict);
@@ -10899,7 +13065,7 @@ namespace HmisWeb.Migrations
                         .HasForeignKey("SpecialityId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("HmisWeb.Models.Category", "StaffCategory")
+                    b.HasOne("HmisWeb.Models.StaffCategory", "StaffCategory")
                         .WithMany()
                         .HasForeignKey("StaffCategoryId")
                         .OnDelete(DeleteBehavior.Restrict);
@@ -11251,6 +13417,173 @@ namespace HmisWeb.Migrations
                     b.Navigation("Retirer");
 
                     b.Navigation("WebContent");
+                });
+
+            modelBuilder.Entity("HmisWeb.Models.UsOrder", b =>
+                {
+                    b.HasOne("HmisWeb.Models.Bill", "Bill")
+                        .WithMany()
+                        .HasForeignKey("BillId");
+
+                    b.HasOne("HmisWeb.Models.WebUser", "Collector")
+                        .WithMany()
+                        .HasForeignKey("CollectorId");
+
+                    b.HasOne("HmisWeb.Models.WebUser", "Creater")
+                        .WithMany()
+                        .HasForeignKey("CreaterId");
+
+                    b.HasOne("HmisWeb.Models.Department", "Department")
+                        .WithMany()
+                        .HasForeignKey("DepartmentId");
+
+                    b.HasOne("HmisWeb.Models.Doctor", "Doctor")
+                        .WithMany()
+                        .HasForeignKey("DoctorId");
+
+                    b.HasOne("HmisWeb.Models.WebUser", "FinalizedBy")
+                        .WithMany()
+                        .HasForeignKey("FinalizedById")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("HmisWeb.Models.Institution", "Institution")
+                        .WithMany()
+                        .HasForeignKey("InstitutionId");
+
+                    b.HasOne("HmisWeb.Models.PatientEncounter", "PatientEncounter")
+                        .WithMany()
+                        .HasForeignKey("PatientEncounterId");
+
+                    b.HasOne("HmisWeb.Models.Patient", "Patient")
+                        .WithMany()
+                        .HasForeignKey("PatientId");
+
+                    b.HasOne("HmisWeb.Models.UsReportTemplate", "ReportTemplate")
+                        .WithMany()
+                        .HasForeignKey("ReportTemplateId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("HmisWeb.Models.WebUser", "SampleCollectedBy")
+                        .WithMany()
+                        .HasForeignKey("SampleCollectedById");
+
+                    b.HasOne("HmisWeb.Models.UsService", "UsService")
+                        .WithMany()
+                        .HasForeignKey("UsServiceId");
+
+                    b.Navigation("Bill");
+
+                    b.Navigation("Collector");
+
+                    b.Navigation("Creater");
+
+                    b.Navigation("Department");
+
+                    b.Navigation("Doctor");
+
+                    b.Navigation("FinalizedBy");
+
+                    b.Navigation("Institution");
+
+                    b.Navigation("Patient");
+
+                    b.Navigation("PatientEncounter");
+
+                    b.Navigation("ReportTemplate");
+
+                    b.Navigation("SampleCollectedBy");
+
+                    b.Navigation("UsService");
+                });
+
+            modelBuilder.Entity("HmisWeb.Models.UsReportTemplate", b =>
+                {
+                    b.HasOne("HmisWeb.Models.WebUser", "Creater")
+                        .WithMany()
+                        .HasForeignKey("CreaterId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("HmisWeb.Models.WebUser", "Editer")
+                        .WithMany()
+                        .HasForeignKey("EditerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("HmisWeb.Models.UsService", "UsService")
+                        .WithMany()
+                        .HasForeignKey("UsServiceId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Creater");
+
+                    b.Navigation("Editer");
+
+                    b.Navigation("UsService");
+                });
+
+            modelBuilder.Entity("HmisWeb.Models.UsService", b =>
+                {
+                    b.HasOne("HmisWeb.Models.UsServiceCategory", "Category")
+                        .WithMany()
+                        .HasForeignKey("CategoryId");
+
+                    b.HasOne("HmisWeb.Models.WebUser", "Creater")
+                        .WithMany()
+                        .HasForeignKey("CreaterId");
+
+                    b.HasOne("HmisWeb.Models.Department", "Department")
+                        .WithMany()
+                        .HasForeignKey("DepartmentId");
+
+                    b.HasOne("HmisWeb.Models.WebUser", "Editer")
+                        .WithMany()
+                        .HasForeignKey("EditerId");
+
+                    b.HasOne("HmisWeb.Models.Institution", "Institution")
+                        .WithMany()
+                        .HasForeignKey("InstitutionId");
+
+                    b.HasOne("HmisWeb.Models.WebUser", "Retirer")
+                        .WithMany()
+                        .HasForeignKey("RetirerId");
+
+                    b.Navigation("Category");
+
+                    b.Navigation("Creater");
+
+                    b.Navigation("Department");
+
+                    b.Navigation("Editer");
+
+                    b.Navigation("Institution");
+
+                    b.Navigation("Retirer");
+                });
+
+            modelBuilder.Entity("HmisWeb.Models.UsServiceCategory", b =>
+                {
+                    b.HasOne("HmisWeb.Models.WebUser", "Creater")
+                        .WithMany()
+                        .HasForeignKey("CreaterId");
+
+                    b.HasOne("HmisWeb.Models.WebUser", "Editer")
+                        .WithMany()
+                        .HasForeignKey("EditerId");
+
+                    b.HasOne("HmisWeb.Models.Institution", "Institution")
+                        .WithMany()
+                        .HasForeignKey("InstitutionId");
+
+                    b.HasOne("HmisWeb.Models.WebUser", "Retirer")
+                        .WithMany()
+                        .HasForeignKey("RetirerId");
+
+                    b.Navigation("Creater");
+
+                    b.Navigation("Editer");
+
+                    b.Navigation("Institution");
+
+                    b.Navigation("Retirer");
                 });
 
             modelBuilder.Entity("HmisWeb.Models.UserIcon", b =>
@@ -11659,6 +13992,173 @@ namespace HmisWeb.Migrations
                     b.Navigation("Route");
 
                     b.Navigation("WebUser");
+                });
+
+            modelBuilder.Entity("HmisWeb.Models.XrOrder", b =>
+                {
+                    b.HasOne("HmisWeb.Models.Bill", "Bill")
+                        .WithMany()
+                        .HasForeignKey("BillId");
+
+                    b.HasOne("HmisWeb.Models.WebUser", "Collector")
+                        .WithMany()
+                        .HasForeignKey("CollectorId");
+
+                    b.HasOne("HmisWeb.Models.WebUser", "Creater")
+                        .WithMany()
+                        .HasForeignKey("CreaterId");
+
+                    b.HasOne("HmisWeb.Models.Department", "Department")
+                        .WithMany()
+                        .HasForeignKey("DepartmentId");
+
+                    b.HasOne("HmisWeb.Models.Doctor", "Doctor")
+                        .WithMany()
+                        .HasForeignKey("DoctorId");
+
+                    b.HasOne("HmisWeb.Models.WebUser", "FinalizedBy")
+                        .WithMany()
+                        .HasForeignKey("FinalizedById")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("HmisWeb.Models.Institution", "Institution")
+                        .WithMany()
+                        .HasForeignKey("InstitutionId");
+
+                    b.HasOne("HmisWeb.Models.PatientEncounter", "PatientEncounter")
+                        .WithMany()
+                        .HasForeignKey("PatientEncounterId");
+
+                    b.HasOne("HmisWeb.Models.Patient", "Patient")
+                        .WithMany()
+                        .HasForeignKey("PatientId");
+
+                    b.HasOne("HmisWeb.Models.XrReportTemplate", "ReportTemplate")
+                        .WithMany()
+                        .HasForeignKey("ReportTemplateId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("HmisWeb.Models.WebUser", "SampleCollectedBy")
+                        .WithMany()
+                        .HasForeignKey("SampleCollectedById");
+
+                    b.HasOne("HmisWeb.Models.XrService", "XrService")
+                        .WithMany()
+                        .HasForeignKey("XrServiceId");
+
+                    b.Navigation("Bill");
+
+                    b.Navigation("Collector");
+
+                    b.Navigation("Creater");
+
+                    b.Navigation("Department");
+
+                    b.Navigation("Doctor");
+
+                    b.Navigation("FinalizedBy");
+
+                    b.Navigation("Institution");
+
+                    b.Navigation("Patient");
+
+                    b.Navigation("PatientEncounter");
+
+                    b.Navigation("ReportTemplate");
+
+                    b.Navigation("SampleCollectedBy");
+
+                    b.Navigation("XrService");
+                });
+
+            modelBuilder.Entity("HmisWeb.Models.XrReportTemplate", b =>
+                {
+                    b.HasOne("HmisWeb.Models.WebUser", "Creater")
+                        .WithMany()
+                        .HasForeignKey("CreaterId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("HmisWeb.Models.WebUser", "Editer")
+                        .WithMany()
+                        .HasForeignKey("EditerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("HmisWeb.Models.XrService", "XrService")
+                        .WithMany()
+                        .HasForeignKey("XrServiceId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Creater");
+
+                    b.Navigation("Editer");
+
+                    b.Navigation("XrService");
+                });
+
+            modelBuilder.Entity("HmisWeb.Models.XrService", b =>
+                {
+                    b.HasOne("HmisWeb.Models.XrServiceCategory", "Category")
+                        .WithMany()
+                        .HasForeignKey("CategoryId");
+
+                    b.HasOne("HmisWeb.Models.WebUser", "Creater")
+                        .WithMany()
+                        .HasForeignKey("CreaterId");
+
+                    b.HasOne("HmisWeb.Models.Department", "Department")
+                        .WithMany()
+                        .HasForeignKey("DepartmentId");
+
+                    b.HasOne("HmisWeb.Models.WebUser", "Editer")
+                        .WithMany()
+                        .HasForeignKey("EditerId");
+
+                    b.HasOne("HmisWeb.Models.Institution", "Institution")
+                        .WithMany()
+                        .HasForeignKey("InstitutionId");
+
+                    b.HasOne("HmisWeb.Models.WebUser", "Retirer")
+                        .WithMany()
+                        .HasForeignKey("RetirerId");
+
+                    b.Navigation("Category");
+
+                    b.Navigation("Creater");
+
+                    b.Navigation("Department");
+
+                    b.Navigation("Editer");
+
+                    b.Navigation("Institution");
+
+                    b.Navigation("Retirer");
+                });
+
+            modelBuilder.Entity("HmisWeb.Models.XrServiceCategory", b =>
+                {
+                    b.HasOne("HmisWeb.Models.WebUser", "Creater")
+                        .WithMany()
+                        .HasForeignKey("CreaterId");
+
+                    b.HasOne("HmisWeb.Models.WebUser", "Editer")
+                        .WithMany()
+                        .HasForeignKey("EditerId");
+
+                    b.HasOne("HmisWeb.Models.Institution", "Institution")
+                        .WithMany()
+                        .HasForeignKey("InstitutionId");
+
+                    b.HasOne("HmisWeb.Models.WebUser", "Retirer")
+                        .WithMany()
+                        .HasForeignKey("RetirerId");
+
+                    b.Navigation("Creater");
+
+                    b.Navigation("Editer");
+
+                    b.Navigation("Institution");
+
+                    b.Navigation("Retirer");
                 });
 
             modelBuilder.Entity("HmisWeb.Models.SessionNumberGenerator", b =>

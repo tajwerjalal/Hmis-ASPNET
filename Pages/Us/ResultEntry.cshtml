@@ -1,0 +1,1026 @@
+@page "/us/ResultEntry"
+@model HmisWeb.Pages.Us.ResultEntryModel
+@using HmisWeb.Data.Enums
+@{
+    ViewData["Title"] = "Report Entry";
+}
+
+<link href="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.snow.css" rel="stylesheet" />
+
+<style>
+    /* ---- Workspace shell: left rail fixed, editor takes everything left over ---- */
+    .rw-shell { display: grid; grid-template-columns: minmax(300px, 30%) 1fr; gap: 12px; align-items: start; }
+    .rw-left { min-width: 0; }
+    .rw-right { min-width: 0; }
+
+    .rw-panel { border: 1px solid #dee2e6; border-radius: 6px; background: #fff; box-shadow: 0 1px 2px rgba(16,24,40,.05); margin-bottom: 10px; }
+    .rw-panel > .rw-panel-head { padding: 6px 10px; border-bottom: 1px solid #e9ecef; background: #f8f9fb; font-weight: 600; font-size: .78rem; text-transform: uppercase; letter-spacing: .03em; color: #495057; display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+    .rw-panel > .rw-panel-body { padding: 8px 10px; }
+
+    .rw-kv { display: grid; grid-template-columns: 108px 1fr; gap: 2px 8px; font-size: .78rem; }
+    .rw-kv dt { color: #6c757d; font-weight: 500; margin: 0; }
+    .rw-kv dd { margin: 0; font-weight: 600; color: #212529; word-break: break-word; }
+
+    /* ---- Compact Word-style toolbar ---- */
+    .rw-toolbar { display: flex; flex-wrap: wrap; gap: 2px; padding: 4px 6px; border: 1px solid #dee2e6; border-bottom: 0; border-radius: 6px 6px 0 0; background: #f8f9fb; }
+    .rw-tbtn { width: 26px; height: 24px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border: 1px solid transparent; background: transparent; color: #495057; border-radius: 3px; font-size: .8rem; line-height: 1; }
+    .rw-tbtn:hover { background: #e9ecef; color: #0d6efd; }
+    .rw-tbtn.active { background: #0d6efd; color: #fff; }
+    .rw-tbtn:disabled { opacity: .4; }
+    .rw-tsep { width: 1px; align-self: stretch; margin: 2px 3px; background: #dee2e6; }
+
+    /* ---- Utility strip: the handful of non-formatting actions, kept out of the toolbar ---- */
+    .rw-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 5px 8px; border: 1px solid #dee2e6; border-top: 0; background: #fff; }
+    .rw-tools .rw-tbtn { width: auto; padding: 0 8px; gap: 4px; font-size: .74rem; border-color: #e9ecef; background: #f8f9fb; }
+    .rw-tools .rw-tbtn:hover { background: #e9ecef; }
+
+    /* ---- Editor ---- */
+    .rw-editor-wrap { border: 1px solid #dee2e6; border-radius: 0 0 6px 6px; background: #fff; }
+    .rw-editor { min-height: calc(100vh - 340px); font-size: .92rem; }
+    .rw-editor.ql-toolbar.ql-snow, .rw-editor .ql-toolbar.ql-snow { border: 0; }
+    .rw-statusbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 5px 10px; border: 1px solid #dee2e6; border-top: 0; background: #f8f9fb; font-size: .74rem; color: #6c757d; border-radius: 0 0 6px 6px; }
+    .rw-statusbar b { color: #212529; font-weight: 600; }
+
+    /* ---- Test grid ---- */
+    .rw-tests { font-size: .78rem; }
+    .rw-tests thead th { position: sticky; top: 0; background: #f1f3f5; font-size: .7rem; text-transform: uppercase; letter-spacing: .03em; color: #6c757d; z-index: 1; }
+    .rw-tests tbody tr { cursor: pointer; }
+    .rw-tests tbody tr.active > td { background: #e7f1ff; box-shadow: inset 3px 0 0 #0d6efd; font-weight: 600; }
+    .rw-tests td, .rw-tests th { padding: 4px 6px; vertical-align: middle; }
+
+    .rw-lock { background: #fff8e6; border: 1px solid #ffe08a; border-radius: 5px; padding: 6px 9px; font-size: .78rem; color: #7a5b00; display: flex; align-items: center; gap: 8px; justify-content: space-between; flex-wrap: wrap; }
+
+    @@media (max-width: 1200px) {
+        .rw-shell { grid-template-columns: 1fr; }
+        .rw-editor { min-height: 420px; }
+    }
+</style>
+
+@if (!string.IsNullOrEmpty(Model.Success))
+{
+    <div class="alert alert-success py-2"><i class="bi bi-check-circle me-1"></i>@Model.Success</div>
+}
+@if (!string.IsNullOrEmpty(Model.Message))
+{
+    <div class="alert alert-warning py-2"><i class="bi bi-exclamation-triangle me-1"></i>@Model.Message</div>
+}
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger py-2"><i class="bi bi-exclamation-circle me-1"></i>@Model.ErrorMessage</div>
+}
+
+@if (Model.SelectedPatient == null)
+{
+    @* No patient chosen: search / register on the left, pending work on the right. *@
+    <div class="rw-shell">
+        <div class="rw-left">
+            <div class="rw-panel">
+                <div class="rw-panel-head">
+                    <span><i class="bi bi-search me-1"></i>Find Patient</span>
+                    <a href="javascript:void(0)" onclick="rwToggleNewPatient(true)" class="text-success" title="Add new patient"><i class="bi bi-person-plus"></i></a>
+                </div>
+                <div class="rw-panel-body">
+                    <form method="post" asp-page-handler="SearchPatients">
+                        @Html.AntiForgeryToken()
+                        <div class="input-group input-group-sm">
+                            <input asp-for="PatientSearch" class="form-control" placeholder="PHN / Name / Mobile / NIC" />
+                            <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i></button>
+                        </div>
+                    </form>
+
+                    @if (Model.PatientResults.Count > 0)
+                    {
+                        <div class="table-responsive mt-2" style="max-height: 220px; overflow-y:auto;">
+                            <table class="table table-hover mb-0 align-middle rw-tests">
+                                <thead><tr><th>ID</th><th>Name</th><th>Age</th><th>Sex</th><th></th></tr></thead>
+                                <tbody>
+                                    @foreach (var pt in Model.PatientResults)
+                                    {
+                                        <tr>
+                                            <td>@pt.PatientId</td>
+                                            <td>@pt.Person?.Name</td>
+                                            <td>@pt.Person?.GetAgeString()</td>
+                                            <td>@pt.Person?.Sex</td>
+                                            <td class="text-end">
+                                                <form method="post" asp-page-handler="SelectPatient" class="d-inline">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="SelectedPatientId" value="@pt.Id" />
+                                                    <button type="submit" class="btn btn-sm btn-outline-primary">Select</button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+
+                    <div id="rwNewPatient" style="display:none" class="mt-2 pt-2 border-top">
+                        <form method="post" asp-page-handler="CreatePatient">
+                            @Html.AntiForgeryToken()
+                            <div class="row g-1">
+                                <div class="col-12"><input asp-for="NewName" class="form-control form-control-sm" placeholder="Full name *" /></div>
+                                <div class="col-6"><input asp-for="NewNameWithInitials" class="form-control form-control-sm" placeholder="Name with initials" /></div>
+                                <div class="col-6"><select asp-for="NewSex" asp-items="@(Html.GetEnumSelectList<Sex>())" class="form-select form-select-sm"></select></div>
+                                <div class="col-6"><input asp-for="NewNic" class="form-control form-control-sm" placeholder="NIC" /></div>
+                                <div class="col-6"><input asp-for="NewMobile" class="form-control form-control-sm" placeholder="Mobile" /></div>
+                                <div class="col-12 d-flex gap-1">
+                                    <button type="submit" class="btn btn-sm btn-success flex-fill"><i class="bi bi-plus-lg me-1"></i>Add</button>
+                                    <a href="javascript:void(0)" onclick="rwToggleNewPatient(false)" class="btn btn-sm btn-outline-secondary">Cancel</a>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="rw-right">
+            <div class="rw-panel">
+                <div class="rw-panel-head">
+                    <span><i class="bi bi-hourglass-split me-1 text-primary"></i>Awaiting Report Entry</span>
+                    <span class="fw-normal text-secondary">@Model.PendingReports.Count patient(s)</span>
+                </div>
+                <div class="rw-panel-body py-1 small text-secondary border-bottom">
+                    Scans already collected and whose report you are holding. One indent can hold several tests.
+                </div>
+                @if (Model.PendingReports.Count == 0)
+                {
+                    <div class="rw-panel-body text-center text-secondary py-5">
+                        <i class="bi bi-inboxes fs-2 d-block mb-2"></i>
+                        No collected scan is waiting for a report.
+                    </div>
+                }
+                else
+                {
+                    <div class="table-responsive" style="max-height: calc(100vh - 300px); overflow-y:auto;">
+                        <table class="table table-hover mb-0 align-middle rw-tests">
+                            <thead>
+                                <tr>
+                                    <th>Patient ID</th><th>Patient Name</th><th>Age</th><th>Sex</th>
+                                    <th>Scan(s)</th><th>US Indent No</th><th>Collected</th><th class="text-end"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var r in Model.PendingReports)
+                                {
+                                    <tr>
+                                        <td>@r.PatientId</td>
+                                        <td>@r.PatientName</td>
+                                        <td>@r.AgeString</td>
+                                        <td>@r.Sex</td>
+                                        <td>@r.Scans</td>
+                                        <td>@r.BillNo</td>
+                                        <td>
+                                            <small>@r.CollectedAt.ToString("dd MMM yyyy HH:mm")</small>
+                                            @if (!string.IsNullOrEmpty(r.Barcode))
+                                            {
+                                                <small class="text-secondary d-block">@r.Barcode</small>
+                                            }
+                                        </td>
+                                        <td class="text-end">
+                                            <form method="post" asp-page-handler="SelectPatient">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="SelectedPatientId" value="@r.PatientDbId" />
+                                                <button type="submit" class="btn btn-sm btn-primary">Enter Report</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    @* Patient chosen: everything below is one form, because HTML forbids nested forms. *@
+    <div class="mb-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-2">
+            <h5 class="mb-0 fw-bold"><i class="bi bi-journal-medical me-2 text-primary"></i>Report Entry</h5>
+            <span class="badge bg-light text-dark border">@Model.SelectedPatient.Person?.Name</span>
+            <span class="badge bg-light text-dark border">MR: @Model.SelectedPatient.PatientId</span>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            @if (Model.IsFinalized)
+            {
+                <span class="badge bg-success"><i class="bi bi-file-earmark-check me-1"></i>Finalized</span>
+            }
+            else
+            {
+                <span class="badge bg-info text-dark">@Model.ReportStatusLabel</span>
+            }
+            <form method="post" asp-page-handler="StartNew" class="d-inline">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Switch patient</button>
+            </form>
+        </div>
+    </div>
+
+    <form method="post" id="rwSaveForm" asp-page-handler="SaveReport">
+        @Html.AntiForgeryToken()
+        <input type="hidden" id="rwOrderId" asp-for="SelectedOrderId" />
+        <input type="hidden" id="rwReportHtml" asp-for="ReportHtml" />
+        <input type="hidden" id="rwWordCount" asp-for="WordCount" />
+        <input type="hidden" id="rwCharCount" asp-for="CharCount" />
+        <input type="hidden" name="mode" id="rwMode" value="Draft" />
+
+        <div class="rw-shell">
+            @* ---------------- Left rail ---------------- *@
+            <div class="rw-left">
+                @if (Model.IsFinalized)
+                {
+                    <div class="rw-lock mb-2">
+                        <span><i class="bi bi-lock-fill me-1"></i>Finalized @Model.ActiveTest?.FinalizedAt?.ToString("dd MMM yyyy hh:mm tt"). Editing is locked.</span>
+                    </div>
+                }
+
+                <div class="rw-panel">
+                    <div class="rw-panel-head"><span><i class="bi bi-person-vcard me-1"></i>Patient Information</span></div>
+                    <div class="rw-panel-body">
+                        <dl class="rw-kv mb-0">
+                            <dt>US / Reg No</dt><dd id="rwField_UsIndentNo">@(Model.PatientInfo.UsIndentNo ?? "-")</dd>
+                            <dt>Patient Name</dt><dd id="rwField_PatientName">@Model.PatientInfo.PatientName</dd>
+                            <dt>Patient ID</dt><dd id="rwField_PatientId">@(Model.PatientInfo.PatientId ?? "-")</dd>
+                            <dt>MR No</dt><dd id="rwField_MrNo">@(Model.PatientInfo.MrNo ?? "-")</dd>
+                            <dt>Age</dt><dd id="rwField_Age">@(string.IsNullOrEmpty(Model.PatientInfo.Age) ? "-" : Model.PatientInfo.Age)</dd>
+                            <dt>Gender</dt><dd id="rwField_Sex">@(string.IsNullOrEmpty(Model.PatientInfo.Sex) ? "-" : Model.PatientInfo.Sex)</dd>
+                            <dt>Barcode</dt><dd id="rwField_Barcode">@(Model.PatientInfo.Barcode ?? "-")</dd>
+                            <dt>Bill No</dt><dd id="rwField_BillNo">@(Model.PatientInfo.BillNo ?? "-")</dd>
+                            <dt>Visit / BHT</dt><dd>@(Model.PatientInfo.VisitNo ?? "-")@(string.IsNullOrEmpty(Model.PatientInfo.BhtNo) ? "" : " / " + Model.PatientInfo.BhtNo)</dd>
+                            <dt>Ref. Doctor</dt><dd id="rwField_ReferringDoctor">@(string.IsNullOrEmpty(Model.PatientInfo.ReferringDoctor) ? "-" : Model.PatientInfo.ReferringDoctor)</dd>
+                            <dt>Inv. Date</dt><dd>@(Model.PatientInfo.CollectedAt?.ToString("dd MMM yyyy HH:mm") ?? "-")</dd>
+                            <dt>Report Date</dt><dd id="rwField_ReportDate">@Model.PatientInfo.ReportDate.ToString("dd MMM yyyy")</dd>
+                            <dt>Investigation</dt><dd id="rwField_TestName">@(Model.PatientInfo.TestName ?? "-")</dd>
+                            <dt>Investigated By</dt><dd id="rwField_InvestigatedBy">@(string.IsNullOrEmpty(Model.PatientInfo.InvestigatedBy) ? "-" : Model.PatientInfo.InvestigatedBy)</dd>
+                        </dl>
+                    </div>
+                </div>
+
+                @* Every test of this patient, one row each. An indent can carry several, so
+                   each row owns its own Load button and the server picks that test's template. *@
+                <div class="rw-panel">
+                    <div class="rw-panel-head">
+                        <span><i class="bi bi-list-task me-1"></i>Test Requisitions</span>
+                        <span class="fw-normal text-secondary">@Model.Tests.Count</span>
+                    </div>
+                    <div class="rw-panel-body border-bottom py-2">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="rwShowCompleted" @(Model.IncludeCompleted ? "checked" : "")
+                                   onclick="rwToggleIncludeCompleted()" />
+                            <label class="form-check-label small" for="rwShowCompleted">Show completed / finalized reports</label>
+                        </div>
+                    </div>
+                    @if (Model.Tests.Count == 0)
+                    {
+                        <div class="rw-panel-body text-center text-secondary py-4">
+                            <i class="bi bi-inbox fs-3 d-block mb-1"></i>
+                            No collected scan for this patient.
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive" style="max-height: 260px; overflow-y:auto;">
+                            <table class="table table-hover mb-0 align-middle rw-tests">
+                                <thead>
+                                    <tr><th>#</th><th>Test</th><th>US Indent No</th><th>Status</th><th class="text-end">Load</th></tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var t in Model.Tests)
+                                    {
+                                        var active = Model.ActiveTest != null && Model.ActiveTest.OrderId == t.OrderId;
+                                        <tr class="@(active ? "active" : "")" onclick="rwPickOrder(@t.OrderId)">
+                                            <td>@t.RowNo</td>
+                                            <td>
+                                                <span class="text-secondary">@t.TestCode</span> @t.TestName
+                                                @if (!string.IsNullOrEmpty(t.Barcode))
+                                                {
+                                                    <small class="text-secondary d-block">@t.Barcode</small>
+                                                }
+                                            </td>
+                                            <td class="text-nowrap">@(t.BillNo ?? "-")</td>
+                                            <td>
+                                                @if (t.CollectedAt == null)
+                                                {
+                                                    <span class="badge bg-secondary">Not collected</span>
+                                                }
+                                                else if (t.IsFinalized)
+                                                {
+                                                    <span class="badge bg-success text-white">Final</span>
+                                                }
+                                                else if (!string.IsNullOrEmpty(t.ReportHtml))
+                                                {
+                                                    <span class="badge bg-warning text-dark">Draft</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-secondary">Pending</span>
+                                                }
+                                            </td>
+                                            <td class="text-end" onclick="event.stopPropagation();">
+                                                @if (t.IsFinalized)
+                                                {
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" disabled
+                                                            title="Reopen the report before loading a template">
+                                                        <i class="bi bi-lock-fill"></i>
+                                                    </button>
+                                                }
+                                                else
+                                                {
+                                                    @* Selects this test and loads its own template in one action. *@
+                                                    <button type="submit" class="btn btn-sm btn-outline-primary"
+                                                            formaction="@Url.Page("/Us/ResultEntry", "LoadTemplate")"
+                                                            onclick="rwLoadForOrder(@t.OrderId)"
+                                                            title="Load the template configured for this investigation">
+                                                        <i class="bi bi-arrow-repeat"></i> Load
+                                                    </button>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+
+                <div class="rw-panel">
+                    <div class="rw-panel-head"><span><i class="bi bi-person-badge me-1"></i>Investigated By</span></div>
+                    <div class="rw-panel-body">
+                        <select asp-for="InvestigatedById" asp-items="Model.DoctorOptions" class="form-select form-select-sm">
+                            <option value="">-- Select doctor --</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="d-grid gap-1">
+                    <button type="submit" class="btn btn-sm btn-outline-primary" data-mode="Save">
+                        <i class="bi bi-save me-1"></i>Save Draft <small class="text-muted">(Ctrl+S)</small>
+                    </button>
+                    @if (Model.IsFinalized)
+                    {
+                        <button type="submit" class="btn btn-sm btn-outline-warning" data-mode="Reopen">
+                            <i class="bi bi-unlock me-1"></i>Reopen for Editing
+                        </button>
+                    }
+                    else
+                    {
+                        <button type="submit" class="btn btn-sm btn-success" data-mode="Finalize">
+                            <i class="bi bi-file-earmark-check me-1"></i>Save &amp; Finalize
+                        </button>
+                    }
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="rwPrint()">
+                        <i class="bi bi-printer me-1"></i>Print
+                    </button>
+                    <a href="/us/ReportSetup" target="_blank" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-gear me-1"></i>Report Setup
+                    </a>
+                </div>
+            </div>
+
+            @* ---------------- Editor ---------------- *@
+            <div class="rw-right">
+                @* Formatting only. Anything that is not formatting lives on the utility
+                   strip below the editor or on the buttons in the left rail. *@
+                <div class="rw-toolbar" id="rwToolbar">
+                    <button type="button" class="rw-tbtn" title="Bold (Ctrl+B)" onclick="rwCmd('bold')"><i class="bi bi-type-bold"></i></button>
+                    <button type="button" class="rw-tbtn" title="Italic (Ctrl+I)" onclick="rwCmd('italic')"><i class="bi bi-type-italic"></i></button>
+                    <button type="button" class="rw-tbtn" title="Underline (Ctrl+U)" onclick="rwCmd('underline')"><i class="bi bi-type-underline"></i></button>
+
+                    <span class="rw-tsep"></span>
+                    <button type="button" class="rw-tbtn" title="Bulleted list" onclick="rwCmd('list')"><i class="bi bi-list-ul"></i></button>
+                    <button type="button" class="rw-tbtn" title="Numbered list" onclick="rwCmd('ordered')"><i class="bi bi-list-ol"></i></button>
+
+                    <span class="rw-tsep"></span>
+                    <button type="button" class="rw-tbtn" title="Align left" onclick="rwCmd('left')"><i class="bi bi-text-left"></i></button>
+                    <button type="button" class="rw-tbtn" title="Align center" onclick="rwCmd('center')"><i class="bi bi-text-center"></i></button>
+                    <button type="button" class="rw-tbtn" title="Align right" onclick="rwCmd('right')"><i class="bi bi-text-right"></i></button>
+                    <button type="button" class="rw-tbtn" title="Justify" onclick="rwCmd('justify')"><i class="bi bi-text-paragraph"></i></button>
+                </div>
+
+                <div class="rw-editor-wrap">
+                    <div id="rwEditor" class="rw-editor" spellcheck="true" data-locked="@(Model.IsFinalized ? "1" : "0")">@Html.Raw(Model.ReportHtml)</div>
+                </div>
+
+                <div class="rw-tools">
+                    <button type="button" class="rw-tbtn" title="Insert a standard section header" onclick="rwSections()"><i class="bi bi-list-check"></i> Section</button>
+                    <button type="button" class="rw-tbtn" title="Insert a standard observation" onclick="rwPhrases()"><i class="bi bi-chat-left-text"></i> Phrase</button>
+                    <button type="button" class="rw-tbtn" title="Insert the patient details block" onclick="rwInsertPatient()"><i class="bi bi-person-vcard"></i> Patient</button>
+                    <button type="button" class="rw-tbtn" title="Find and replace (Ctrl+F)" onclick="rwFind()"><i class="bi bi-search"></i> Find</button>
+                    <button type="button" class="rw-tbtn" title="Look up the selected word" onclick="rwDictionary()"><i class="bi bi-book"></i> Dictionary</button>
+                    <button type="button" class="rw-tbtn" title="Local medical terminology" onclick="rwMedicalDictionary()"><i class="bi bi-clipboard2-pulse"></i> Medical</button>
+                    <button type="button" class="rw-tbtn" title="Print preview" onclick="rwPrintPreview()"><i class="bi bi-eye"></i> Preview</button>
+                    <button type="button" class="rw-tbtn" title="Copy the report as rich text" onclick="rwCopyHtml()"><i class="bi bi-box-arrow-up"></i> Copy</button>
+                </div>
+
+                <div class="rw-statusbar">
+                    <span>Words: <b id="rwWords">0</b></span>
+                    <span>Characters: <b id="rwChars">0</b></span>
+                    <span>Status: <b>@Model.ReportStatusLabel</b></span>
+                    <span>Last saved: <b id="rwSavedAt">-</b></span>
+                    <span class="ms-auto d-flex align-items-center gap-2">
+                        <span id="rwDirty" class="badge bg-warning text-dark d-none">Unsaved</span>
+                        <span id="rwSpellCount" class="text-danger small"></span>
+                    </span>
+                </div>
+
+                <div class="rw-panel mt-2">
+                    <div class="rw-panel-head"><span><i class="bi bi-sticky me-1"></i>Notes (optional)</span></div>
+                    <div class="rw-panel-body">
+                        <textarea rows="2" asp-for="ResultNotes" class="form-control form-control-sm" placeholder="Additional remarks stored with the report..."></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <div class="modal fade" id="rwFindModal" tabindex="-1">
+        <div class="modal-dialog modal-sm modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header py-2">
+                    <h6 class="modal-title"><i class="bi bi-search me-1"></i>Find</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="text" id="rwFindText" class="form-control form-control-sm mb-2" placeholder="Find what" />
+                    <input type="text" id="rwReplaceText" class="form-control form-control-sm mb-2" placeholder="Replace with (optional)" />
+                    <label class="form-check small"><input type="checkbox" class="form-check-input" id="rwFindCase" /> Match case</label>
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="rwFindNext()">Find next</button>
+                    <button type="button" class="btn btn-sm btn-primary" onclick="rwDoReplace()">Replace</button>
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="rwReplaceAll()">All</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="rwDictModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header py-2">
+                    <h6 class="modal-title"><i class="bi bi-book me-1"></i>Dictionary</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="rwDictBody">
+                    <div class="text-secondary small">Select a word in the report, then look it up here.</div>
+                </div>
+                <div class="modal-footer py-2">
+                    <small class="text-secondary me-auto">Source: dictionaryapi.dev &mdash; only the selected word is sent.</small>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="rwMedModal" tabindex="-1">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header py-2">
+                    <h6 class="modal-title"><i class="bi bi-clipboard2-pulse me-1"></i>Medical Dictionary</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="input-group input-group-sm mb-2">
+                        <input type="text" id="rwMedSearch" class="form-control" placeholder="Search medical term..." />
+                        <button type="button" class="btn btn-primary" onclick="rwMedSearchGo()"><i class="bi bi-search"></i></button>
+                    </div>
+                    <div id="rwMedResults" style="max-height: 380px; overflow-y:auto;">
+                        <div class="text-secondary small">Type to search the local terminology database.</div>
+                    </div>
+                </div>
+                <div class="modal-footer py-2">
+                    <small class="text-secondary me-auto">Runs locally &mdash; no patient data leaves the server.</small>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="rwListModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header py-2">
+                    <h6 class="modal-title" id="rwListTitle">Insert</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="rwListBody" style="max-height: 340px; overflow-y:auto;"></div>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <input type="hidden" id="rwMedicalVocab" value="@string.Join(",", Model.MedicalVocabulary)" />
+    <input type="hidden" id="rwSectionList" value="@string.Join("|", Model.StandardSections)" />
+    <input type="hidden" id="rwPhraseList" value="@string.Join("|", Model.StandardObservations)" />
+}
+
+<script src="https://cdn.jsdelivr.net/npm/quill@1.3.7/dist/quill.min.js"></script>
+<script>
+    // =====================================================================
+    // Report Entry workspace behaviour.
+    // Quill owns the report body; everything else (counters, autosave,
+    // spell check, dictionaries) reads and writes through this small layer.
+    // =====================================================================
+    (function () {
+        var quill = null;
+        var dirty = false;
+        var autosaveTimer = null;
+
+        // ---- Quill setup -------------------------------------------------
+        var el = document.getElementById('rwEditor');
+        if (el) {
+            quill = new Quill(el, {
+                theme: 'snow',
+                placeholder: 'Type the ultrasound findings here...',
+                readOnly: el.getAttribute('data-locked') === '1',
+                modules: {
+                    toolbar: false,           // the page renders its own compact toolbar
+                    spellcheck: false         // the browser's own dictionary is used instead
+                }
+            });
+
+            quill.on('text-change', function (delta, old, source) {
+                if (source === 'user') markDirty();
+                syncHidden();
+                updateCounters();
+                updateSpellBadge();
+            });
+
+            // Ctrl+S saves the draft rather than letting the browser save the page.
+            el.addEventListener('keydown', function (e) {
+                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+                    e.preventDefault();
+                    window.rwSubmit('Save');
+                }
+                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') {
+                    e.preventDefault();
+                    window.rwFind();
+                }
+            });
+        }
+
+        // ---- dirty state ---------------------------------------------------
+        function markDirty() {
+            dirty = true;
+            var badge = document.getElementById('rwDirty');
+            if (badge) badge.classList.remove('d-none');
+        }
+        function clearDirty() {
+            dirty = false;
+            var badge = document.getElementById('rwDirty');
+            if (badge) badge.classList.add('d-none');
+        }
+
+        window.addEventListener('beforeunload', function (e) {
+            if (dirty) { e.preventDefault(); e.returnValue = ''; }
+        });
+
+        // ---- hidden field sync ---------------------------------------------
+        function html() { return quill ? quill.root.innerHTML : ''; }
+
+        function syncHidden() {
+            if (!quill) return;
+            document.getElementById('rwReportHtml').value = html();
+            updateCounters();
+        }
+
+        function updateCounters() {
+            if (!quill) return;
+            var text = quill.getText();
+            var words = text.split(/\s+/).filter(function (w) { return w.length > 0; }).length;
+            var chars = text.replace(/\n/g, '').length;
+            document.getElementById('rwWords').textContent = words;
+            document.getElementById('rwChars').textContent = chars;
+            document.getElementById('rwWordCount').value = words;
+            document.getElementById('rwCharCount').value = chars;
+        }
+
+        // ---- autosave -------------------------------------------------------
+        window.rwAutoSave = function () {
+            if (!quill || !dirty) return;
+            var orderId = document.getElementById('rwOrderId').value;
+            if (!orderId) return;
+            var body = new URLSearchParams();
+            body.append('ReportHtml', html());
+            body.append('WordCount', document.getElementById('rwWordCount').value);
+            body.append('CharCount', document.getElementById('rwCharCount').value);
+            var tokenInput = document.querySelector('#rwSaveForm input[name="__RequestVerificationToken"]');
+            if (tokenInput) body.append('__RequestVerificationToken', tokenInput.value);
+
+            fetch('/us/ResultEntry?handler=AutoSave', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: body.toString()
+            }).then(function (r) { return r.json(); }).then(function (res) {
+                if (res && res.ok) {
+                    clearDirty();
+                    var saved = document.getElementById('rwSavedAt');
+                    if (saved) saved.textContent = res.lastSaved;
+                }
+            }).catch(function () { });
+        };
+
+        // ---- formatting commands -------------------------------------------
+        window.rwCmd = function (cmd, value) {
+            if (!quill) return;
+            if (cmd === 'rwLoadTemplate') { window.rwLoadTemplate(); return; }
+            if (cmd === 'rwPaste') { window.rwPaste(); return; }
+
+            if (cmd === 'removeFormat') {
+                var range = quill.getSelection();
+                if (range) quill.removeFormat(range.index, range.length || 0, 'user');
+            } else if (cmd === 'indent') {
+                quill.format('list', 'indent', 'user');
+            } else if (cmd === 'outdent') {
+                quill.format('list', 'outdent', 'user');
+            } else if (cmd === 'list' || cmd === 'ordered') {
+                var want = cmd === 'ordered' ? 'ordered' : 'bullet';
+                var cur = quill.getFormat(quill.getSelection(true)).list;
+                quill.format('list', cur === want ? false : want, 'user');
+            } else {
+                quill.focus();
+                quill.format(cmd, value === true ? true : value, 'user');
+            }
+            quill.focus();
+        };
+
+        window.rwInsertText = function (text) {
+            if (!quill) return;
+            var pos = quill.getSelection() ? quill.getSelection().index : quill.getLength() - 1;
+            quill.focus();
+            quill.insertText(pos, text, 'user');
+        };
+
+        window.rwInsertDateTime = function () {
+            window.rwInsertText(new Date().toLocaleString());
+        };
+
+        window.rwPaste = function () {
+            if (!quill) return;
+            var range = quill.getSelection();
+            if (range && navigator.clipboard) {
+                navigator.clipboard.readText().then(function (t) {
+                    quill.insertText(range.index, t, 'user');
+                    quill.setSelection(range.index + t.length, 0, 'silent');
+                }).catch(function () { });
+                return;
+            }
+            document.execCommand('paste');
+        };
+
+        window.rwSelectAll = function () {
+            if (!quill) return;
+            quill.focus();
+            quill.setSelection(0, quill.getLength() - 1, 'user');
+        };
+
+        function currentWord() {
+            if (!quill) return '';
+            var range = quill.getSelection();
+            if (!range) return '';
+            if (range.length === 0) {
+                var before = quill.getText(0, range.index);
+                var m = before.match(/([A-Za-z]+)\s*$/);
+                return m ? m[1] : '';
+            }
+            return quill.getText(range.index, range.length).replace(/[^A-Za-z\s-]/g, '');
+        }
+        window.rwCurrentWord = currentWord;
+
+        // ---- find & replace ------------------------------------------------
+        window.rwFind = function () { new bootstrap.Modal('#rwFindModal').show(); };
+        window.rwReplace = function () { new bootstrap.Modal('#rwFindModal').show(); };
+
+        window.rwFindNext = function () {
+            var q = document.getElementById('rwFindText').value;
+            if (!q || !quill) return;
+            var text = quill.getText();
+            var start = quill.getSelection() ? quill.getSelection().index : 0;
+            var flags = document.getElementById('rwFindCase').checked ? '' : 'i';
+            var re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), flags);
+            var found = text.substring(start).match(re);
+            if (!found) {
+                var again = text.match(re);
+                if (!again) { alert('Not found: "' + q + '"'); return; }
+                quill.setSelection(text.indexOf(again[0]), again[0].length, 'user');
+                quill.focus();
+                return;
+            }
+            var abs = start + found.index;
+            quill.setSelection(abs, found[0].length, 'user');
+            quill.focus();
+        };
+
+        window.rwDoReplace = function () {
+            var q = document.getElementById('rwFindText').value;
+            var r = document.getElementById('rwReplaceText').value;
+            var sel = quill ? quill.getSelection() : null;
+            if (!sel || !sel.length) { window.rwFindNext(); return; }
+            var text = quill.getText(sel.index, sel.length);
+            var flags = document.getElementById('rwFindCase').checked ? '' : 'i';
+            if (new RegExp('^' + q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), flags).test(text)) {
+                quill.deleteText(sel.index, sel.length, 'user');
+                quill.insertText(sel.index, r, 'user');
+                markDirty();
+            }
+        };
+
+        window.rwReplaceAll = function () {
+            var q = document.getElementById('rwFindText').value;
+            var r = document.getElementById('rwReplaceText').value;
+            if (!q || !quill) return;
+            var flags = document.getElementById('rwFindCase').checked ? 'g' : 'gi';
+            var re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), flags);
+            var count = (quill.getText().match(re) || []).length;
+            if (!count) { alert('Not found: "' + q + '"'); return; }
+            quill.setText(quill.getText().replace(re, r), 'user');
+            markDirty();
+            alert(count + ' replacement(s) made.');
+        };
+
+        // ---- spell check ----------------------------------------------------
+        // The contenteditable carries spellcheck="true", so the browser's built-in
+        // dictionary underlines misspellings live and nothing leaves the machine. This
+        // button reports the counts and offers the medical vocabulary for review.
+        function wordStats() {
+            if (!quill) return { words: [], unknown: [] };
+            var words = quill.getText().split(/\s+/).filter(function (w) { return w.length > 3; });
+            var vocab = ((document.getElementById('rwMedicalVocab') || {}).value || '').split(',');
+            var known = {};
+            vocab.forEach(function (v) { if (v) known[v.toLowerCase()] = true; });
+            var unknown = [];
+            words.forEach(function (w) {
+                var clean = w.replace(/[^A-Za-z-]/g, '').toLowerCase();
+                if (clean.length > 3 && !known[clean] && unknown.indexOf(clean) < 0) unknown.push(clean);
+            });
+            return { words: words, unknown: unknown };
+        }
+
+        function updateSpellBadge() {
+            var badge = document.getElementById('rwSpellCount');
+            if (!badge || !quill) return;
+            var s = wordStats();
+            var known = ((document.getElementById('rwMedicalVocab') || {}).value || '').split(',').filter(Boolean).length;
+            badge.textContent = s.words.length ? (known + ' medical terms loaded') : '';
+            badge.title = s.unknown.length + ' word(s) not in the local medical vocabulary';
+        }
+
+        window.rwSpellCheck = function () {
+            if (!quill) return;
+            var s = wordStats();
+            if (!s.words.length) { alert('Nothing to check yet.'); return; }
+            quill.focus();
+            alert(
+                s.words.length + ' word(s) checked.\n' +
+                'The browser underlines spelling errors as you type (no data is sent anywhere).\n\n' +
+                s.unknown.length + ' word(s) are not in the local medical vocabulary:\n' +
+                s.unknown.slice(0, 20).join(', ') +
+                '\n\nUse Medical Dictionary to confirm any of these.');
+        };
+
+        // ---- dictionary lookups ---------------------------------------------
+        window.rwDictionary = function () {
+            var word = currentWord();
+            var body = document.getElementById('rwDictBody');
+            if (!word) {
+                body.innerHTML = '<div class="text-secondary small">Select a word in the report, then look it up here.</div>';
+            } else {
+                body.innerHTML = '<div class="text-secondary small">Looking up &hellip;</div>';
+                fetch('/us/ResultEntry?handler=Dictionary&word=' + encodeURIComponent(word))
+                    .then(function (r) { return r.json(); })
+                    .then(function (res) {
+                        if (!res || !res.found) {
+                            body.innerHTML = '<div class="text-secondary small">No entry found for "' + esc(word) + '".</div>';
+                            return;
+                        }
+                        var html = '<h6 class="mb-1">' + esc(res.word) + '</h6>';
+                        (res.definitions || []).forEach(function (d) {
+                            html += '<p class="mb-1 small"><b>' + esc(d.partOfSpeech || '') + '</b> ' + esc(d.definition || '') + '</p>';
+                        });
+                        (res.synonyms || []).slice(0, 12).forEach(function (s) {
+                            html += '<button type="button" class="btn btn-sm btn-outline-secondary me-1 mb-1" onclick="rwInsertText(\'' + esc(s) + '\')">' + esc(s) + '</button>';
+                        });
+                        body.innerHTML = html;
+                    })
+                    .catch(function () {
+                        body.innerHTML = '<div class="text-secondary small">The dictionary service could not be reached.</div>';
+                    });
+            }
+            new bootstrap.Modal('#rwDictModal').show();
+        };
+
+        window.rwMedicalDictionary = function () {
+            var term = currentWord();
+            if (term) document.getElementById('rwMedSearch').value = term;
+            window.rwMedSearchGo();
+            new bootstrap.Modal('#rwMedModal').show();
+        };
+
+        window.rwMedSearchGo = function () {
+            var term = document.getElementById('rwMedSearch').value.trim();
+            var box = document.getElementById('rwMedResults');
+            box.innerHTML = '<div class="text-secondary small">Searching&hellip;</div>';
+            fetch('/us/ResultEntry?handler=MedicalTerms&term=' + encodeURIComponent(term))
+                .then(function (r) { return r.json(); })
+                .then(function (list) {
+                    if (!list || !list.length) {
+                        box.innerHTML = '<div class="text-secondary small">No matching term.</div>';
+                        return;
+                    }
+                    var html = '';
+                    list.forEach(function (m) {
+                        html += '<div class="border-bottom py-1">' +
+                            '<b>' + esc(m.term) + '</b> ' +
+                            (m.category ? '<span class="badge bg-light text-dark border ms-1">' + esc(m.category) + '</span>' : '') +
+                            '<div class="small text-secondary">' + esc(m.definition) + '</div>' +
+                            (m.synonyms ? '<div class="small">Syn: ' + esc(m.synonyms) + '</div>' : '') +
+                            '<button type="button" class="btn btn-sm btn-outline-primary mt-1" onclick="rwInsertText(\'' + esc(m.term) + '\')">Insert</button>' +
+                            '</div>';
+                    });
+                    box.innerHTML = html;
+                })
+                .catch(function () {
+                    box.innerHTML = '<div class="text-secondary small">The terminology database could not be reached.</div>';
+                });
+        };
+
+        function esc(s) {
+            return (s || '').toString().replace(/[&<>"']/g, function (c) {
+                return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+            });
+        }
+
+        // ---- insert helpers ---------------------------------------------------
+        function showList(title, items) {
+            document.getElementById('rwListTitle').textContent = title;
+            var box = document.getElementById('rwListBody');
+            if (!items || !items.length) {
+                box.innerHTML = '<div class="text-secondary small">Nothing available.</div>';
+            } else {
+                box.innerHTML = items.map(function (t) {
+                    return '<button type="button" class="btn btn-sm btn-outline-secondary w-100 text-start mb-1" onclick="rwInsertText(' + JSON.stringify(t).replace(/"/g, '&quot;') + ')">' + esc(t) + '</button>';
+                }).join('');
+            }
+            new bootstrap.Modal('#rwListModal').show();
+        }
+
+        window.rwSections = function () {
+            var list = (document.getElementById('rwSectionList') || {}).value;
+            showList('Insert section', (list || '').split('|').filter(Boolean));
+        };
+
+        window.rwPhrases = function () {
+            var list = (document.getElementById('rwPhraseList') || {}).value;
+            showList('Insert observation', (list || '').split('|').filter(Boolean));
+        };
+
+        function rwField(name) {
+            var el = document.getElementById('rwField_' + name);
+            if (!el) return '';
+            return (el.textContent || '').trim();
+        }
+
+        window.rwInsertPatient = function () {
+            var lines = [
+                'Patient: ' + rwField('PatientName'),
+                'Age / Sex: ' + rwField('Age') + ' / ' + rwField('Sex'),
+                'MR No: ' + rwField('MrNo'),
+                'US Indent No: ' + rwField('UsIndentNo'),
+                'Investigation: ' + rwField('TestName'),
+                'Referred by: ' + rwField('ReferringDoctor'),
+                'Investigated by: ' + rwField('InvestigatedBy')
+            ];
+            window.rwInsertText('\n' + lines.join('\n') + '\n');
+        };
+
+        window.rwHr = function () { window.rwInsertText('\n---\n'); };
+
+        // ---- template load ----------------------------------------------------
+        // Each grid row owns its Load button. It selects that test and asks the server to
+        // rebuild the body from the template configured for that investigation, so one
+        // indent carrying several tests gets the right layout for each of them.
+        window.rwLoadForOrder = function (orderId) {
+            if (dirty && !confirm('Replace the current report body with the template for this test? Unsaved text will be lost.')) {
+                return false;
+            }
+            document.getElementById('rwOrderId').value = orderId;
+            return true;
+        };
+
+        window.rwLoadTemplate = function () {
+            if (dirty && !confirm('Replace the current report body with the template for this test? Unsaved text will be lost.')) return;
+            var f = document.getElementById('rwSaveForm');
+            f.action = '/us/ResultEntry?handler=LoadTemplate';
+            f.submit();
+        };
+
+        // Switching tests posts to the SelectOrder handler. HTML does not allow a form inside a
+        // form, so the whole page is one form and each button points at its own handler.
+        window.rwPickOrder = function (orderId) {
+            if (dirty && !confirm('Discard unsaved changes and switch to the other test?')) return;
+            document.getElementById('rwOrderId').value = orderId;
+            var f = document.getElementById('rwSaveForm');
+            f.action = '/us/ResultEntry?handler=SelectOrder';
+            f.submit();
+        };
+
+        // Finalized reports live behind this toggle so the default grid stays focused on work
+        // that still needs doing.
+        window.rwToggleIncludeCompleted = function () {
+            if (dirty && !confirm('Discard unsaved changes and change the filter?')) return;
+            var f = document.getElementById('rwSaveForm');
+            f.action = '/us/ResultEntry?handler=ToggleIncludeCompleted';
+            f.submit();
+        };
+
+        window.rwToggleNewPatient = function (show) {
+            var box = document.getElementById('rwNewPatient');
+            if (box) box.style.display = show ? 'block' : 'none';
+        };
+
+        // ---- submit ------------------------------------------------------------
+        window.rwSetMode = function (mode) {
+            document.getElementById('rwMode').value = mode;
+        };
+
+        window.rwSubmit = function (mode) {
+            if (!quill) return;
+            if (mode === 'Reopen' && !confirm('Reopen this finalized report for editing?')) return;
+            syncHidden();
+            clearDirty();
+            document.getElementById('rwMode').value = mode || 'Draft';
+            var f = document.getElementById('rwSaveForm');
+            f.action = '/us/ResultEntry?handler=SaveReport&mode=' + encodeURIComponent(mode || 'Draft');
+            f.submit();
+        };
+
+        // Save-bar buttons declare their intent with data-mode so the request goes to the
+        // right handler with the right mode without inline onclick handlers.
+        document.querySelectorAll('#rwSaveForm button[data-mode]').forEach(function (b) {
+            b.addEventListener('click', function (e) {
+                e.preventDefault();
+                window.rwSubmit(b.getAttribute('data-mode'));
+            });
+        });
+
+        // ---- print ------------------------------------------------------------
+        function buildPrintDocument() {
+            return '<!doctype html><html><head><meta charset="utf-8"><title>Ultrasound Report</title>' +
+                '<style>body{font-family:Segoe UI,Arial,sans-serif;font-size:12pt;padding:28px;color:#000}' +
+                'table{border-collapse:collapse;width:100%;font-size:9pt;margin-bottom:12px}' +
+                'td,th{border:1px solid #999;padding:3px 5px}th{background:#f0f0f0;text-align:left;width:30%}' +
+                'h1{font-size:14pt;text-align:center;margin:0 0 4px}h3{font-size:11pt;margin:12px 0 4px}' +
+                'hr{border:0;border-top:1px solid #333}</style></head><body>' +
+                '<h1>ULTRASOUND REPORT</h1>' +
+                '<table><tr><th>Patient</th><td>' + rwEsc(rwField('PatientName')) + '</td><th>MR No</th><td>' + rwEsc(rwField('MrNo')) + '</td></tr>' +
+                '<tr><th>Age / Sex</th><td>' + rwEsc(rwField('Age')) + ' / ' + rwEsc(rwField('Sex')) + '</td><th>Indent No</th><td>' + rwEsc(rwField('BillNo')) + '</td></tr>' +
+                '<tr><th>Investigation</th><td>' + rwEsc(rwField('TestName')) + '</td><th>Date</th><td>' + rwEsc(rwField('ReportDate')) + '</td></tr>' +
+                '<tr><th>Investigated By</th><td>' + rwEsc(rwField('InvestigatedBy')) + '</td><th>Printed</th><td>' + new Date().toLocaleString() + '</td></tr></table>' +
+                '<hr>' + html() +
+                '</body></html>';
+        }
+
+        function rwEsc(s) { return esc(s); }
+
+        window.rwPrint = function () {
+            var w = window.open('', '_blank', 'width=900,height=1100');
+            if (!w) { alert('Allow pop-ups to print the report.'); return; }
+            w.document.write(buildPrintDocument());
+            w.document.close();
+            w.focus();
+            setTimeout(function () { w.print(); }, 400);
+        };
+
+        window.rwPrintPreview = function () {
+            var w = window.open('', '_blank', 'width=900,height=1100');
+            if (!w) { alert('Allow pop-ups to preview the report.'); return; }
+            w.document.write(buildPrintDocument());
+            w.document.close();
+            w.focus();
+        };
+
+        window.rwCopyHtml = function () {
+            if (!navigator.clipboard) { alert('Clipboard is not available in this browser.'); return; }
+            navigator.clipboard.writeText(html()).then(function () {
+                alert('Report copied as rich text.');
+            }).catch(function () {
+                alert('The clipboard could not be written to.');
+            });
+        };
+
+        // ---- idle autosave ------------------------------------------------------
+        if (quill) {
+            syncHidden();
+            updateCounters();
+            updateSpellBadge();
+            autosaveTimer = setInterval(window.rwAutoSave, 30000);
+        }
+    })();
+</script>

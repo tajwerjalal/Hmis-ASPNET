@@ -39,13 +39,13 @@ namespace HmisWeb.Models
         public virtual Person Person { get; set; }
 
         [ForeignKey("DesignationId")]
-        public virtual Category Designation { get; set; }
+        public virtual Designation Designation { get; set; }
 
         [ForeignKey("GradeId")]
-        public virtual Category Grade { get; set; }
+        public virtual Grade Grade { get; set; }
 
         [ForeignKey("StaffCategoryId")]
-        public virtual Category StaffCategory { get; set; }
+        public virtual StaffCategory StaffCategory { get; set; }
 
         [ForeignKey("RosterId")]
         public virtual Roster Roster { get; set; }

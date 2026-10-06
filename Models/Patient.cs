@@ -60,5 +60,8 @@ namespace HmisWeb.Models
         public long? PatientId { get; set; }
         public bool? CardIssues { get; set; }
         public DateTime? CardIssuedDate { get; set; }
+
+        [NotMapped]
+        public int PendingTestCount { get; set; }
     }
 }

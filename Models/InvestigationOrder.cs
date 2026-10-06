@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using HmisWeb.Data.Enums;
 
 namespace HmisWeb.Models
 {
@@ -27,6 +28,20 @@ namespace HmisWeb.Models
         public string Result { get; set; } = string.Empty;
         public string ResultNotes { get; set; } = string.Empty;
 
+        // Sample Collection fields
+        public bool SampleCollected { get; set; }
+        public DateTime? SampleCollectedAt { get; set; }
+        public long? SampleCollectedById { get; set; }
+        public string SampleType { get; set; }
+        public string SampleContainer { get; set; }
+        public string SampleVolume { get; set; }
+        public string SampleCondition { get; set; }
+        public string Barcode { get; set; }
+        public string BarcodeLabel { get; set; }
+        public long? CollectorId { get; set; }
+        public DateTime? CollectionDateTime { get; set; }
+        public string CollectionNotes { get; set; }
+
         public long? DoctorId { get; set; }
         public long? CreaterId { get; set; }
         public DateTime? CreatedAt { get; set; }
@@ -48,5 +63,7 @@ namespace HmisWeb.Models
         public virtual Doctor? Doctor { get; set; }
         [ForeignKey("CreaterId")]
         public virtual WebUser? Creater { get; set; }
+        [ForeignKey("CollectorId")]
+        public virtual WebUser? Collector { get; set; }
     }
 }

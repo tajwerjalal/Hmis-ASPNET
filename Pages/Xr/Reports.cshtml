@@ -1,0 +1,140 @@
+@page "/xr/Reports"
+@model HmisWeb.Pages.Xr.ReportsModel
+@{
+    ViewData["Title"] = "X-ray Register";
+}
+
+<div class="mb-3">
+    <h4 class="mb-0 fw-bold"><i class="bi bi-graph-up me-2 text-primary"></i>X-ray Register</h4>
+    <span class="text-secondary small">Register of X-ray films ordered, collected and reported</span>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger py-2"><i class="bi bi-exclamation-circle me-1"></i>@Model.ErrorMessage</div>
+}
+
+<form method="get" asp-page="/Xr/Reports" class="card mb-3">
+    <div class="card-body">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label asp-for="FromDate" class="form-label small fw-bold mb-1">From</label>
+                <input asp-for="FromDate" type="date" class="form-control form-control-sm" />
+            </div>
+            <div class="col-md-3">
+                <label asp-for="ToDate" class="form-label small fw-bold mb-1">To</label>
+                <input asp-for="ToDate" type="date" class="form-control form-control-sm" />
+            </div>
+            <div class="col-md-3">
+                <label asp-for="Status" class="form-label small fw-bold mb-1">Status</label>
+                <select asp-for="Status" class="form-select form-select-sm">
+                    <option value="">All</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Completed">Reported</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label asp-for="SearchTerm" class="form-label small fw-bold mb-1">Search</label>
+                <input asp-for="SearchTerm" class="form-control form-control-sm" placeholder="Service, code, barcode, name" />
+            </div>
+        </div>
+    </div>
+    <div class="card-body border-top bg-light d-flex gap-2">
+        <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search me-1"></i>Apply</button>
+        <a asp-page="/Xr/Reports" asp-route-FromDate="@DateTime.Today" asp-route-ToDate="@DateTime.Today" class="btn btn-outline-secondary btn-sm">Today</a>
+        @if (Model.Rows.Any())
+        {
+            <a asp-page="/Xr/Reports" asp-page-handler="Export"
+               asp-route-FromDate="@Model.FromDate" asp-route-ToDate="@Model.ToDate"
+               asp-route-Status="@Model.Status" asp-route-SearchTerm="@Model.SearchTerm"
+               class="btn btn-outline-success btn-sm ms-auto"><i class="bi bi-download me-1"></i>Export CSV</a>
+        }
+    </div>
+</form>
+
+<div class="row g-2 mb-3">
+    <div class="col-md-4">
+        <div class="card"><div class="card-body py-3">
+            <div class="text-secondary small fw-bold text-uppercase">Total scans</div>
+            <div class="fs-4 fw-bold">@Model.TotalScans</div>
+        </div></div>
+    </div>
+    <div class="col-md-4">
+        <div class="card"><div class="card-body py-3">
+            <div class="text-secondary small fw-bold text-uppercase">Reported</div>
+            <div class="fs-4 fw-bold text-success">@Model.CompletedScans</div>
+        </div></div>
+    </div>
+    <div class="col-md-4">
+        <div class="card"><div class="card-body py-3">
+            <div class="text-secondary small fw-bold text-uppercase">Not yet reported</div>
+            <div class="fs-4 fw-bold text-warning">@Model.PendingScans</div>
+        </div></div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header bg-white fw-semibold">Scans (@Model.Rows.Count)</div>
+    <div class="card-body p-0">
+        @if (Model.Rows.Any())
+        {
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Date</th>
+                            <th>PHN</th>
+                            <th>Patient</th>
+                            <th>Service</th>
+                            <th>Category</th>
+                            <th>Barcode</th>
+                            <th>Bill</th>
+                            <th class="text-center">Qty</th>
+                            <th>Collected</th>
+                            <th>Reported</th>
+                            <th class="text-center">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var r in Model.Rows)
+                        {
+                            <tr>
+                                <td class="small text-nowrap">@r.OrderDate?.ToString("dd MMM yyyy")</td>
+                                <td class="small">@(r.PatientCode ?? "-")</td>
+                                <td class="small fw-semibold">@(r.PatientName ?? "-")</td>
+                                <td class="small">@r.ServiceName <small class="text-secondary">@r.Code</small></td>
+                                <td class="small">@(r.Category ?? "-")</td>
+                                <td class="small">@(r.Barcode ?? "-")</td>
+                                <td class="small">@(r.BillNo ?? "-")</td>
+                                <td class="text-center small">@r.Qty</td>
+                                <td class="small text-nowrap">@(r.CollectedAt?.ToString("dd MMM HH:mm") ?? "-")</td>
+                                <td class="small text-nowrap">@(r.ReportedAt?.ToString("dd MMM HH:mm") ?? "-")</td>
+                                <td class="text-center">
+                                    @if (r.Status == "Reported")
+                                    {
+                                        <span class="badge bg-success">Reported</span>
+                                    }
+                                    else if (r.Status == "Collected")
+                                    {
+                                        <span class="badge bg-info text-dark">Collected</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary">Pending</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="text-center py-5">
+                <i class="bi bi-inbox text-secondary" style="font-size:2rem;"></i>
+                <p class="text-secondary mt-2 mb-0">No X-ray films in this date range.</p>
+            </div>
+        }
+    </div>
+</div>

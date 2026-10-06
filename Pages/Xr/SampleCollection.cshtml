@@ -1,0 +1,327 @@
+@page "/xr/SampleCollection"
+@model HmisWeb.Pages.Xr.SampleCollectionModel
+@using HmisWeb.Data.Enums
+@{
+    ViewData["Title"] = "X-ray Collection Entry";
+}
+
+<div class="mb-3">
+    <h4 class="mb-0 fw-bold"><i class="bi bi-heart-pulse me-2 text-primary"></i>X-ray Collection Entry</h4>
+    <span class="text-secondary small">Record X-ray films that have been performed</span>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.Success))
+{
+    <div class="alert alert-success py-2"><i class="bi bi-check-circle me-1"></i>@Model.Success</div>
+}
+@if (!string.IsNullOrEmpty(Model.Message))
+{
+    <div class="alert alert-warning py-2"><i class="bi bi-exclamation-triangle me-1"></i>@Model.Message</div>
+}
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger py-2"><i class="bi bi-exclamation-circle me-1"></i>@Model.ErrorMessage</div>
+}
+
+@if (Model.SelectedPatient == null)
+{
+    <div class="d-flex justify-content-between align-items-center mb-2 gap-2">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-search me-1"></i>Find Patient</h6>
+        <a href="javascript:void(0)" onclick="toggleNewPatient(true)" class="btn btn-sm btn-outline-success"><i class="bi bi-person-plus me-1"></i>Add New Patient</a>
+    </div>
+
+    <form method="post" asp-page-handler="SearchPatients" class="card mb-3">
+        @Html.AntiForgeryToken()
+        <div class="card-body">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-8">
+                    <input asp-for="PatientSearch" class="form-control" placeholder="PHN, Patient/Mobile/NIC, Name (complete search)..." autofocus />
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-primary w-100"><i class="bi bi-search me-1"></i>Search</button>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <div id="newPatientSection" style="display:none">
+        <div class="card mb-3">
+            <div class="card-header bg-white fw-semibold"><i class="bi bi-person-plus me-1 text-success"></i>Register a new (walk-in) patient</div>
+            <div class="card-body">
+                <form method="post" asp-page-handler="CreatePatient" class="row g-2">
+                    @Html.AntiForgeryToken()
+                    <div class="col-md-4"><input asp-for="NewName" class="form-control form-control-sm" placeholder="Full name *" /></div>
+                    <div class="col-md-4"><input asp-for="NewNameWithInitials" class="form-control form-control-sm" placeholder="Name with initials" /></div>
+                    <div class="col-md-4"><input asp-for="NewNic" class="form-control form-control-sm" placeholder="NIC" /></div>
+                    <div class="col-md-4"><input asp-for="NewMobile" class="form-control form-control-sm" placeholder="Mobile" /></div>
+                    <div class="col-md-4"><input asp-for="NewPhone" class="form-control form-control-sm" placeholder="Phone" /></div>
+                    <div class="col-md-4">
+                        <select asp-for="NewSex" asp-items="Html.GetEnumSelectList<Sex>()" class="form-select form-select-sm">
+                            <option value="">-- Sex --</option>
+                        </select>
+                    </div>
+                    <div class="col-12 d-flex gap-2 align-items-center">
+                        <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-plus-lg me-1"></i>Add &amp; continue</button>
+                        <a href="javascript:void(0)" onclick="toggleNewPatient(false)" class="small text-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    @if (Model.PatientResults.Any())
+    {
+        <div class="card mb-3"><div class="card-body p-0">
+            <table class="table table-hover mb-0 align-middle"><thead class="table-light"><tr>
+                <th>Patient ID</th><th>PHN</th><th>Name</th><th>Sex</th><th>Mobile</th><th>NIC</th><th></th>
+            </tr></thead><tbody>
+            @foreach (var p in Model.PatientResults)
+            {
+                <tr>
+                    <td>@p.Id</td>
+                    <td>@(p.PatientId?.ToString() ?? "-")</td>
+                    <td>@(p.Person?.NameWithInitials ?? p.Person?.Name ?? "Unnamed")</td>
+                    <td>@(p.Person?.Sex?.ToString() ?? "-")</td>
+                    <td>@(p.Person?.Mobile ?? "-")</td>
+                    <td>@(p.Person?.Nic ?? "-")</td>
+                    <td class="text-end">
+                        <form method="post" asp-page-handler="SelectPatient">
+                            <input type="hidden" name="SelectedPatientId" value="@p.Id" />
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-sm btn-outline-primary">Select</button>
+                        </form>
+                    </td>
+                </tr>
+            }</tbody></table>
+        </div></div>
+    }
+
+    @if (!Model.PatientResults.Any() && !string.IsNullOrEmpty(Model.PatientSearch))
+    {
+        <div class="alert alert-info py-2">
+            <i class="bi bi-info-circle me-1"></i>No patient found for "<b>@Model.PatientSearch</b>".
+            <a href="javascript:void(0)" onclick="toggleNewPatient(true)" class="fw-semibold text-decoration-underline">Add a new walk-in patient?</a>
+        </div>
+    }
+
+    <div class="card mb-3">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center fw-semibold">
+            <span><i class="bi bi-hourglass-split me-1 text-primary"></i>Awaiting Scan Collection</span>
+            @if (Model.PendingScans.Any())
+            {
+                <span class="small text-secondary">
+                    @Model.PendingScans.Count(r => r.IsPaid) paid
+                    @if (Model.UnpaidPendingCount > 0)
+                    {
+                        <span class="text-danger">/ @Model.UnpaidPendingCount awaiting payment</span>
+                    }
+                </span>
+            }
+        </div>
+        <div class="card-body py-2 small text-secondary border-bottom">
+            Workflow: <b>1. Indent</b> &rarr; <b>2. Cashier payment</b> &rarr; <b>3. Scan collection entry</b> &rarr; <b>4. Report entry</b>.
+            Paid rows can be collected straight away; unpaid rows must be settled at the cashier first.
+        </div>
+        @if (!Model.PendingScans.Any())
+        {
+            <div class="card-body text-center text-secondary py-4">
+                <i class="bi bi-check2-circle me-1"></i>No scans are awaiting collection.
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Patient ID</th>
+                            <th>Patient Name</th>
+                            <th>Age</th>
+                            <th>Sex</th>
+                            <th>U/S Required</th>
+                            <th>Paid</th>
+                            <th class="text-end"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var r in Model.PendingScans)
+                        {
+                            <tr>
+                                <td>@(r.PatientId?.ToString() ?? "-")</td>
+                                <td>@(string.IsNullOrEmpty(r.PatientName) ? "Unnamed" : r.PatientName)</td>
+                                <td>@(string.IsNullOrEmpty(r.AgeString) ? "-" : r.AgeString)</td>
+                                <td>@(r.Sex?.ToString() ?? "-")</td>
+                                <td>@r.XrRequired</td>
+                                <td>
+                                    @if (r.IsPaid)
+                                    {
+                                        <span class="badge bg-success text-white">Paid</span>
+                                        <small class="text-secondary d-block">@r.BillNetTotal.ToString("N2")</small>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-warning text-dark">Unpaid</span>
+                                        <small class="text-secondary d-block">@r.BillNetTotal.ToString("N2")</small>
+                                    }
+                                </td>
+                                <td class="text-end">
+                                    <form method="post" asp-page-handler="SelectPatient" class="d-inline">
+                                        <input type="hidden" name="SelectedPatientId" value="@r.PatientDbId" />
+                                        @Html.AntiForgeryToken()
+                                        <button type="submit" class="btn btn-sm @(r.IsPaid ? "btn-outline-primary" : "btn-outline-secondary")"
+                                                title="@(r.IsPaid ? "Collect this scan" : "Payment pending - settle at cashier first")">
+                                            @if (r.IsPaid)
+                                            {
+                                                <span>Collect</span>
+                                            }
+                                            else
+                                            {
+                                                <span>View</span>
+                                            }
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+}
+else
+{
+    <div class="card mb-3">
+        <div class="card-body py-3">
+            <div class="row g-3 align-items-center">
+                <div class="col-md-5">
+                    <div class="text-secondary small fw-bold text-uppercase">Patient</div>
+                    <div class="fw-semibold fs-5">@(Model.SelectedPatient.Person?.NameWithInitials ?? "Unnamed")</div>
+                    <small class="text-secondary">PHN: @(Model.SelectedPatient.PatientId?.ToString() ?? "-")</small>
+                </div>
+                <div class="col-md-7 text-end">
+                    <form method="post" asp-page-handler="StartNew" class="d-inline">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Switch patient</button>
+                    </form>
+                </div>
+            </div>
+            @if (Model.ActiveEncounters.Any())
+            {
+                <hr class="my-2" />
+                <form method="post" asp-page-handler="StartNew" class="d-inline">
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold mb-1">Active IPD Encounter</label>
+                            <select name="SelectedEncounterId" class="form-select form-select-sm">
+                                <option value="">-- OPD / No Encounter --</option>
+                                @foreach (var e in Model.ActiveEncounters)
+                                {
+                                    var isSelected = Model.SelectedEncounter?.Id == e.Id;
+                                    <option value="@e.Id" selected="@isSelected">@(e.BhtNo ?? ("BHT #" + e.Id)) &mdash; @(e.DateOfAdmission?.ToString("dd MMM") ?? "-")</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <button type="submit" class="btn btn-sm btn-outline-primary w-100 mt-1">Filter Scans</button>
+                        </div>
+                    </div>
+                </form>
+            }
+            else
+            {
+                <span class="badge bg-soft-success text-dark border p-2 mt-2"><i class="bi bi-person me-1"></i>OPD &mdash; no active inpatient encounter.</span>
+            }
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header bg-white fw-semibold d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <span><i class="bi bi-list-check me-1 text-primary"></i>Pending Scans (@Model.PendingOrders.Count)</span>
+            @if (Model.PendingOrders.Any())
+            {
+                <form method="post" asp-page-handler="GenerateBarcodes" class="mb-0">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="bi bi-upc-scan me-1"></i>Generate Barcodes</button>
+                </form>
+            }
+        </div>
+        <div class="card-body p-0">
+            @if (Model.PendingOrders.Any())
+            {
+                <form method="post" asp-page-handler="SaveCollections">
+                    @Html.AntiForgeryToken()
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0 align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width:40px;"></th>
+                                    <th>Scan</th>
+                                    <th>Barcode</th>
+                                    <th>Scan Type</th>
+                                    <th>Collected At</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (int i = 0; i < Model.SampleCollections.Count; i++)
+                                {
+                                    var row = Model.SampleCollections[i];
+                                    <tr>
+                                        <td class="text-center">
+                                            <input type="hidden" asp-for="SampleCollections[i].OrderId" />
+                                            <input class="form-check-input" type="checkbox" asp-for="SampleCollections[i].Collect" />
+                                        </td>
+                                        <td>
+                                            <div class="fw-semibold small">@row.ServiceName</div>
+                                            <small class="text-secondary">
+                                                @row.Code
+                                                @if (row.Qty > 1)
+                                                {
+                                                    <span>&times;@row.Qty</span>
+                                                }
+                                                @if (!string.IsNullOrWhiteSpace(row.BillNo))
+                                                {
+                                                    <span> &middot; Bill #@row.BillNo</span>
+                                                }
+                                            </small>
+                                            @if (!string.IsNullOrWhiteSpace(row.Instructions))
+                                            {
+                                                <div class="small text-warning-emphasis"><i class="bi bi-info-circle me-1"></i>@row.Instructions</div>
+                                            }
+                                        </td>
+                                        <td><input asp-for="SampleCollections[i].Barcode" class="form-control form-control-sm" style="min-width:170px;" /></td>
+                                        <td><input asp-for="SampleCollections[i].SampleType" class="form-control form-control-sm" placeholder="e.g. Abdomen" /></td>
+                                        <td><input asp-for="SampleCollections[i].CollectionDateTime" type="datetime-local" class="form-control form-control-sm" /></td>
+                                        <td><input asp-for="SampleCollections[i].CollectionNotes" class="form-control form-control-sm" placeholder="Optional" /></td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="card-body border-top bg-light">
+                        <button type="submit" class="btn btn-success btn-sm"><i class="bi bi-check2-square me-1"></i>Mark Selected as Collected</button>
+                        <span class="text-secondary small ms-2">Findings are entered later on Scan Result Entry.</span>
+                    </div>
+                </form>
+            }
+            else
+            {
+                <div class="text-center py-5">
+                    <i class="bi bi-inbox text-secondary" style="font-size:2rem;"></i>
+                    <p class="text-secondary mt-2 mb-0">No pending scans for this patient.</p>
+                    <small class="text-secondary">Films appear here once an X-ray indent is saved.</small>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <script>
+        function toggleNewPatient(open) {
+            var el = document.getElementById('newPatientSection');
+            if (el) { el.style.display = open ? '' : 'none'; }
+        }
+    </script>
+}

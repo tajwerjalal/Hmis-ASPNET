@@ -7,6 +7,9 @@ using HmisWeb.Data;
 using HmisWeb.Data.Enums;
 using HmisWeb.Models;
 using HmisWeb.Services;
+using PdfSharpCore.Drawing;
+using PdfSharpCore.Fonts;
+using PdfSharpCore.Pdf;
 
 namespace HmisWeb.Pages.Lab
 {
@@ -66,18 +69,6 @@ namespace HmisWeb.Pages.Lab
         public long? SelectedEncounterId { get; set; }
 
         [BindProperty]
-        public long? DepartmentId { get; set; }
-
-        [BindProperty]
-        public PaymentMethod PaymentMethod { get; set; } = PaymentMethod.Cash;
-
-        [BindProperty]
-        public double TenderedAmount { get; set; }
-
-        [BindProperty]
-        public double BillDiscount { get; set; }
-
-        [BindProperty]
         public string Comments { get; set; }
 
         public Patient SelectedPatient { get; set; }
@@ -86,17 +77,46 @@ namespace HmisWeb.Pages.Lab
         public List<IndentCartItem> DisplayCart { get; set; } = new();
         public List<PatientEncounter> ActiveEncounters { get; set; } = new();
         public PatientEncounter SelectedEncounter { get; set; }
-        public List<Department> Departments { get; set; } = new();
+        public Department LabDepartment { get; set; }
         public List<Bill> UnpaidBills { get; set; } = new();
         public bool HasUnpaidBills => UnpaidBills.Any();
         public double Total { get; set; }
         public double DiscountTotal { get; set; }
         public double NetTotal { get; set; }
-        public double CashBalance { get; set; }
         public string Message { get; set; }
         public string ErrorMessage { get; set; }
         public string Success { get; set; }
-        public List<SelectListItem> PaymentMethodList { get; set; } = new();
+
+        // Invoice for printing
+        public LabInvoiceModel Invoice { get; set; }
+
+        public class LabInvoiceModel
+        {
+            public long BillId { get; set; }
+            public string InvoiceNumber { get; set; }
+            public string HospitalName { get; set; }
+            public string HospitalNo { get; set; }
+            public DateTime InvoiceDate { get; set; }
+            public string PatientName { get; set; }
+            public long? PatientPhn { get; set; }
+            public string VisitNumber { get; set; }
+            public string DepartmentName { get; set; }
+            public List<InvoiceLine> Lines { get; set; } = new();
+            public double SubTotal { get; set; }
+            public double Discount { get; set; }
+            public double NetTotal { get; set; }
+            public string Cashier { get; set; }
+            public bool IsIPD { get; set; }
+        }
+
+        public class InvoiceLine
+        {
+            public string ItemName { get; set; }
+            public int Qty { get; set; }
+            public double Rate { get; set; }
+            public double Discount { get; set; }
+            public double NetValue { get; set; }
+        }
 
         public async Task OnGetAsync()
         {
@@ -186,7 +206,7 @@ namespace HmisWeb.Pages.Lab
             if (SelectedItemId == null)
                 return Page();
 
-            var departmentId = DepartmentId ?? _appSession.LoggedDepartment?.Id;
+            var departmentId = LabDepartment?.Id ?? _appSession.LoggedDepartment?.Id;
             var item = await _db.Items.FirstOrDefaultAsync(i => i.Id == SelectedItemId && !i.Retired && i.Billable
                 && (i.ItemType == ItemType.Investigation || i.ItemType == ItemType.Service)
                 && (departmentId == null || i.DepartmentId == departmentId));
@@ -283,27 +303,16 @@ namespace HmisWeb.Pages.Lab
             double total = Math.Round(cart.Sum(c => c.GrossValue), 2);
             double itemDiscount = Math.Round(cart.Sum(c => c.Discount), 2);
             double maxBillDiscount = Math.Max(total - itemDiscount, 0);
-            double billDiscount = Math.Round(Math.Min(Math.Max(BillDiscount, 0), maxBillDiscount), 2);
+            double billDiscount = 0; // Bill-level discount removed; only item-level discounts
             double netTotal = Math.Round(total - itemDiscount - billDiscount, 2);
             if (netTotal < 0) netTotal = 0;
 
             var now = DateTime.Now;
             var userId = _appSession.WebUserId;
             var site = _appSession.LoggedSite;
-            var dept = DepartmentId.HasValue
-                ? await _db.Departments.FirstOrDefaultAsync(d => d.Id == DepartmentId.Value && !d.Retired)
-                : (_appSession.LoggedDepartment ?? await _db.Departments.OrderBy(d => d.Id).FirstOrDefaultAsync());
+            var dept = LabDepartment ?? _appSession.LoggedDepartment ?? await _db.Departments.OrderBy(d => d.Id).FirstOrDefaultAsync();
 
             bool ipd = encounter != null;
-            bool isCredit = PaymentMethod == PaymentMethod.Credit;
-            bool settled = !isCredit;
-            bool cash = PaymentMethod == PaymentMethod.Cash;
-
-            double tendered = ipd ? 0
-                : (settled && cash ? Math.Max(TenderedAmount, netTotal) : 0);
-            double cashBalance = ipd || !settled || !cash
-                ? 0
-                : Math.Round(tendered - netTotal, 2);
 
             var bill = new Bill
             {
@@ -322,34 +331,18 @@ namespace HmisWeb.Pages.Lab
                 BillTotal = total,
                 Discount = itemDiscount + billDiscount,
                 NetTotal = netTotal,
-                Balance = ipd ? netTotal : (settled ? 0 : netTotal),
-                Paid = ipd ? false : settled,
-                PaidAt = ipd || !settled ? (DateTime?)null : now,
-                BillPaymentCompletelySettled = settled,
-                PaymentMethod = ipd ? null : PaymentMethod,
-                TenderedAmount = ipd ? 0 : tendered,
-                CashPaid = ipd ? 0 : tendered,
-                CashBalance = cashBalance,
+                Balance = netTotal,
+                Paid = false,
+                BillPaymentCompletelySettled = false,
+                PaymentMethod = null,
+                TenderedAmount = 0,
+                CashPaid = 0,
+                CashBalance = 0,
                 ReferenceNumber = ipd ? encounter.BhtNo : null,
                 Comments = "Lab service indent. " + (Comments ?? string.Empty)
             };
             _db.Bills.Add(bill);
             await _db.SaveChangesAsync();
-
-            if (!ipd)
-            {
-                bill.Payments.Add(new Payment
-                {
-                    PaymentMethod = PaymentMethod,
-                    PaidValue = netTotal,
-                    WrittenAt = now,
-                    Realized = settled,
-                    RealizedAt = settled ? (DateTime?)now : null,
-                    InstitutionId = site?.Id ?? patient.CreatedInstitutionId,
-                    DepartmentId = dept?.Id,
-                    CreatedAt = now
-                });
-            }
 
             int serial = 1;
             foreach (var c in cart)
@@ -376,11 +369,240 @@ namespace HmisWeb.Pages.Lab
 
             TempData["IndentSuccess"] = ipd
                 ? $"Lab indent #{bill.Id} saved to IPD bill of #{encounter.Id} ({encounter.BhtNo}). Amount {netTotal:N2} added to the patient account."
-                : (settled
-                    ? $"Lab bill #{bill.Id} settled via {PaymentMethod}. Cash paid {tendered:N2}, change due {cashBalance:N2}."
-                    : $"Lab bill #{bill.Id} saved as CREDIT. Not settled.");
+                : $"Lab bill #{bill.Id} created as UNPAID. Patient must pay at Cashier. Amount due: {netTotal:N2}.";
 
             return RedirectToPage("/Lab/Indent");
+        }
+
+        public async Task<IActionResult> OnGetPrintInvoiceAsync(long billId)
+        {
+            var bill = await _db.Bills
+                .Include(b => b.Patient).ThenInclude(p => p.Person)
+                .Include(b => b.Department)
+                .Include(b => b.BillItems).ThenInclude(bi => bi.Item)
+                .Include(b => b.PatientEncounter)
+                .FirstOrDefaultAsync(b => b.Id == billId && !b.Retired);
+
+            if (bill == null) return NotFound();
+
+            var invoice = BuildInvoiceModel(bill);
+            var pdfBytes = BuildInvoicePdf(invoice);
+            return base.File(pdfBytes, "application/pdf", $"LabInvoice-{bill.Id}.pdf");
+        }
+
+        public async Task<IActionResult> OnGetViewInvoiceAsync(long billId)
+        {
+            var bill = await _db.Bills
+                .Include(b => b.Patient).ThenInclude(p => p.Person)
+                .Include(b => b.Department)
+                .Include(b => b.BillItems).ThenInclude(bi => bi.Item)
+                .Include(b => b.PatientEncounter)
+                .FirstOrDefaultAsync(b => b.Id == billId && !b.Retired);
+
+            if (bill == null) return NotFound();
+
+            Invoice = BuildInvoiceModel(bill);
+            await LoadStateAsync();
+            return Page();
+        }
+
+        private LabInvoiceModel BuildInvoiceModel(Bill bill)
+        {
+            var lines = new List<InvoiceLine>();
+            if (bill.BillItems != null)
+            {
+                foreach (var bi in bill.BillItems)
+                {
+                    lines.Add(new InvoiceLine
+                    {
+                        ItemName = bi.Item?.PrintName ?? bi.Item?.Name ?? "Service",
+                        Qty = (int)(bi.Qty ?? 1),
+                        Rate = bi.Rate,
+                        Discount = bi.Discount,
+                        NetValue = bi.NetValue
+                    });
+                }
+            }
+
+            return new LabInvoiceModel
+            {
+                BillId = bill.Id,
+                InvoiceNumber = bill.InvoiceNumber ?? $"INV-{bill.Id:D6}",
+                HospitalName = _appSession.LoggedSite?.PrintingName ?? _appSession.LoggedSite?.Name ?? "HMIS Hospital",
+                HospitalNo = _appSession.LoggedSite?.RegNo ?? _appSession.LoggedSite?.Code ?? "",
+                InvoiceDate = bill.CreatedAt ?? DateTime.Now,
+                PatientName = bill.Patient?.Person?.NameWithInitials ?? bill.Patient?.Person?.Name ?? "Patient",
+                PatientPhn = bill.Patient?.PatientId,
+                VisitNumber = bill.PatientEncounterId?.ToString() ?? bill.ReferenceNumber ?? "-",
+                DepartmentName = bill.Department?.Name ?? "Laboratory",
+                Lines = lines,
+                SubTotal = bill.GrantTotal,
+                Discount = bill.Discount,
+                NetTotal = bill.NetTotal,
+                Cashier = _appSession.LoggedUser?.WebUserPerson?.NameWithInitials
+                    ?? _appSession.LoggedUser?.RealUserName
+                    ?? _appSession.LoggedUser?.UserName
+                    ?? "Staff",
+                IsIPD = bill.BillType == BillType.InwardServiceBill
+            };
+        }
+
+        private byte[] BuildInvoicePdf(LabInvoiceModel inv)
+        {
+            HmisFontResolver.Install();
+            const double PW = 595.28; // A4 width
+            const double PH = 841.89; // A4 height
+            const double margin = 30;
+
+            using var ms = new MemoryStream();
+            using (var doc = new PdfDocument())
+            {
+                var page = doc.AddPage();
+                page.Width = PW;
+                page.Height = PH;
+                using (var g = XGraphics.FromPdfPage(page))
+                {
+                    DrawInvoice(g, inv, margin, margin, PW - margin * 2, PH - margin * 2);
+                }
+                doc.Save(ms, false);
+            }
+            return ms.ToArray();
+        }
+
+        private void DrawInvoice(XGraphics g, LabInvoiceModel inv, double x, double y, double w, double h)
+        {
+            var pen = new XPen(XColor.FromArgb(70, 70, 70), 1);
+            var brush = XBrushes.Black;
+            var brushGray = XBrushes.Gray;
+            var brushLight = new XSolidBrush(XColor.FromArgb(240, 240, 240));
+
+            double cx = x;
+            double cw = w;
+            double ty = y;
+
+            var fTitle = new XFont("Arial", 18, XFontStyle.Bold);
+            var fSub = new XFont("Arial", 10, XFontStyle.Bold);
+            var fNormal = new XFont("Arial", 9);
+            var fSmall = new XFont("Arial", 8);
+            var fBold = new XFont("Arial", 9, XFontStyle.Bold);
+            var fHeader = new XFont("Arial", 9, XFontStyle.Bold);
+
+            // Header - Hospital Name
+            g.DrawString(inv.HospitalName, fTitle, brush, new XRect(cx, ty, cw, 28), XStringFormats.Center);
+            ty += 26;
+            g.DrawString(inv.HospitalNo, fSmall, brushGray, new XRect(cx, ty, cw, 14), XStringFormats.Center);
+            ty += 16;
+            g.DrawString(inv.IsIPD ? "IPD LAB SERVICE INVOICE" : "LAB SERVICE INVOICE (OPD)", fSub, brush, new XRect(cx, ty, cw, 18), XStringFormats.Center);
+            ty += 20;
+
+            // Line
+            g.DrawLine(pen, cx, ty, cx + cw, ty);
+            ty += 10;
+
+            // Invoice info row
+            var colW = cw / 2;
+            ty = DrawRow(g, fSmall, "Invoice No:", inv.InvoiceNumber, cx, ty, colW);
+            ty = DrawRow(g, fSmall, "Date:", inv.InvoiceDate.ToString("dd MMM yyyy HH:mm"), cx + colW, ty - 14, colW);
+            ty += 4;
+
+            ty = DrawRow(g, fSmall, "Patient:", inv.PatientName, cx, ty, colW);
+            ty = DrawRow(g, fSmall, "PHN:", inv.PatientPhn?.ToString() ?? "-", cx + colW, ty - 14, colW);
+            ty += 4;
+
+            ty = DrawRow(g, fSmall, "Visit/Ref:", inv.VisitNumber, cx, ty, colW);
+            ty = DrawRow(g, fSmall, "Department:", inv.DepartmentName, cx + colW, ty - 14, colW);
+            ty += 4;
+
+            if (inv.IsIPD)
+            {
+                ty = DrawRow(g, fSmall, "Type:", "IPD (Added to patient account)", cx, ty, cw);
+                ty += 4;
+            }
+
+            g.DrawLine(pen, cx, ty, cx + cw, ty);
+            ty += 8;
+
+            // Table header
+            double col1 = cw * 0.50;
+            double col2 = cw * 0.10;
+            double col3 = cw * 0.15;
+            double col4 = cw * 0.12;
+            double col5 = cw * 0.13;
+
+            g.DrawRectangle(pen, brushLight, cx, ty, cw, 18);
+            g.DrawString("Description", fHeader, brush, new XRect(cx + 4, ty, col1 - 8, 18), XStringFormats.CenterLeft);
+            g.DrawString("Qty", fHeader, brush, new XRect(cx + col1, ty, col2, 18), XStringFormats.Center);
+            g.DrawString("Rate", fHeader, brush, new XRect(cx + col1 + col2, ty, col3, 18), XStringFormats.CenterRight);
+            g.DrawString("Disc", fHeader, brush, new XRect(cx + col1 + col2 + col3, ty, col4, 18), XStringFormats.CenterRight);
+            g.DrawString("Amount", fHeader, brush, new XRect(cx + col1 + col2 + col3 + col4, ty, col5, 18), XStringFormats.CenterRight);
+            ty += 20;
+            g.DrawLine(pen, cx, ty, cx + cw, ty);
+
+            // Table rows
+            foreach (var line in inv.Lines)
+            {
+                if (ty > y + h - 80)
+                {
+                    g.DrawString("... (more items)", fSmall, brushGray, new XRect(cx + 4, ty, cw, 14), XStringFormats.CenterLeft);
+                    ty += 16;
+                    break;
+                }
+
+                g.DrawString(line.ItemName, fNormal, brush, new XRect(cx + 4, ty, col1 - 8, 14), XStringFormats.CenterLeft);
+                g.DrawString(line.Qty.ToString(), fNormal, brush, new XRect(cx + col1, ty, col2, 14), XStringFormats.Center);
+                g.DrawString(line.Rate.ToString("N2"), fNormal, brush, new XRect(cx + col1 + col2, ty, col3, 14), XStringFormats.CenterRight);
+                g.DrawString(line.Discount > 0 ? line.Discount.ToString("N2") : "-", fNormal, brush, new XRect(cx + col1 + col2 + col3, ty, col4, 14), XStringFormats.CenterRight);
+                g.DrawString(line.NetValue.ToString("N2"), fBold, brush, new XRect(cx + col1 + col2 + col3 + col4, ty, col5, 14), XStringFormats.CenterRight);
+                ty += 16;
+            }
+
+            g.DrawLine(pen, cx, ty, cx + cw, ty);
+            ty += 6;
+
+            // Totals
+            double totalCol = cw * 0.7;
+            double amtCol = cw * 0.3;
+
+            ty = DrawTotalRow(g, fNormal, "Sub Total", inv.SubTotal.ToString("N2"), cx, ty, totalCol, amtCol);
+            ty = DrawTotalRow(g, fNormal, "Discount", inv.Discount.ToString("N2"), cx, ty, totalCol, amtCol);
+            ty += 2;
+            g.DrawLine(new XPen(XColor.FromArgb(100, 100, 100), 1), cx + totalCol, ty, cx + cw, ty);
+            ty += 4;
+            ty = DrawTotalRow(g, fBold, "NET TOTAL", inv.NetTotal.ToString("N2"), cx, ty, totalCol, amtCol);
+            ty += 10;
+
+            if (inv.IsIPD)
+            {
+                g.DrawString("*** IPD Patient - Amount added to account. Settle at discharge ***", fSmall, brushGray, new XRect(cx, ty, cw, 14), XStringFormats.Center);
+                ty += 16;
+            }
+            else
+            {
+                g.DrawString("*** NOT PAID - Present this invoice at Cashier for payment ***", fSmall, XBrushes.Red, new XRect(cx, ty, cw, 14), XStringFormats.Center);
+                ty += 16;
+            }
+
+            // Footer
+            ty = y + h - 50;
+            g.DrawLine(pen, cx, ty, cx + cw, ty);
+            ty += 6;
+            g.DrawString($"Generated by: {inv.Cashier}  |  {DateTime.Now:dd MMM yyyy HH:mm}", fSmall, brushGray, new XRect(cx, ty, cw, 14), XStringFormats.Center);
+            ty += 12;
+            g.DrawString("Thank you for choosing our laboratory services", fSmall, brushGray, new XRect(cx, ty, cw, 14), XStringFormats.Center);
+        }
+
+        private double DrawRow(XGraphics g, XFont f, string label, string value, double x, double y, double w)
+        {
+            g.DrawString(label, f, XBrushes.DarkGray, new XRect(x + 4, y, w * 0.35, 14), XStringFormats.CenterLeft);
+            g.DrawString(value ?? "-", f, XBrushes.Black, new XRect(x + w * 0.38, y, w * 0.6, 14), XStringFormats.CenterLeft);
+            return y + 14;
+        }
+
+        private double DrawTotalRow(XGraphics g, XFont f, string label, string value, double x, double y, double labelW, double valW)
+        {
+            g.DrawString(label, f, XBrushes.Black, new XRect(x + labelW - 120, y, 115, 16), XStringFormats.CenterRight);
+            g.DrawString(value, f, XBrushes.Black, new XRect(x + labelW, y, valW, 16), XStringFormats.CenterRight);
+            return y + 16;
         }
 
         private async Task LoadStateAsync()
@@ -419,21 +641,18 @@ namespace HmisWeb.Pages.Lab
         {
             Total = Math.Round(DisplayCart.Sum(c => c.GrossValue), 2);
             DiscountTotal = Math.Round(DisplayCart.Sum(c => c.Discount), 2);
-            NetTotal = Math.Round(Total - DiscountTotal - Math.Min(Math.Max(BillDiscount, 0), Total - DiscountTotal), 2);
+            NetTotal = Math.Round(Total - DiscountTotal, 2);
             if (NetTotal < 0) NetTotal = 0;
-            var tendered = PaymentMethod == PaymentMethod.Cash ? Math.Max(TenderedAmount, NetTotal) : 0;
-            CashBalance = Math.Round(tendered - NetTotal, 2);
         }
 
         private async Task SearchItemsAsync()
         {
             var term = ItemSearch?.Trim();
-            var departmentId = DepartmentId ?? _appSession.LoggedDepartment?.Id;
             var q = _db.Items.Where(i => !i.Retired && i.Billable
                 && (i.ItemType == ItemType.Investigation || i.ItemType == ItemType.Service));
 
-            if (departmentId != null)
-                q = q.Where(i => i.DepartmentId == departmentId);
+            if (LabDepartment != null)
+                q = q.Where(i => i.DepartmentId == LabDepartment.Id);
 
             if (!string.IsNullOrWhiteSpace(term))
             {
@@ -498,20 +717,19 @@ namespace HmisWeb.Pages.Lab
 
         private async Task LoadLookupsAsync()
         {
-            Departments = await _db.Departments
-                .Where(d => !d.Retired)
-                .OrderBy(d => d.Name)
-                .ToListAsync();
-            if (DepartmentId == null && _appSession.LoggedDepartment != null)
-                DepartmentId = _appSession.LoggedDepartment.Id;
+            // Find laboratory department (DepartmentType == Laboratory)
+            LabDepartment = await _db.Departments
+                .Where(d => !d.Retired && d.DepartmentType == DepartmentType.Laboratory)
+                .FirstOrDefaultAsync();
 
-            PaymentMethodList = new List<SelectListItem>
+            // Fallback: if no lab department found, use logged department or first available
+            if (LabDepartment == null)
             {
-                new SelectListItem { Value = "Cash", Text = "Cash" },
-                new SelectListItem { Value = "Card", Text = "Card" },
-                new SelectListItem { Value = "Cheque", Text = "Cheque" },
-                new SelectListItem { Value = "Credit", Text = "Credit" }
-            };
+                LabDepartment = _appSession.LoggedDepartment ?? await _db.Departments
+                    .Where(d => !d.Retired)
+                    .OrderBy(d => d.Name)
+                    .FirstOrDefaultAsync();
+            }
         }
 
         public class IndentCartItem
@@ -524,6 +742,29 @@ namespace HmisWeb.Pages.Lab
             public double Discount { get; set; }
             public double GrossValue => Math.Round(Qty * Rate, 2);
             public double NetValue => Math.Round(GrossValue - Discount, 2);
+        }
+
+        internal sealed class HmisFontResolver : IFontResolver
+        {
+            private static readonly string FontsDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Fonts");
+
+            public string DefaultFontName => "arial.ttf";
+
+            public FontResolverInfo ResolveTypeface(string familyName, bool isBold, bool isItalic)
+            {
+                return new FontResolverInfo(isBold ? "arialbd.ttf" : "arial.ttf", XStyleSimulations.None);
+            }
+
+            public byte[] GetFont(string faceName)
+            {
+                return System.IO.File.ReadAllBytes(Path.Combine(FontsDir, faceName));
+            }
+
+            public static void Install()
+            {
+                if (GlobalFontSettings.FontResolver == null)
+                    GlobalFontSettings.FontResolver = new HmisFontResolver();
+            }
         }
     }
 }

@@ -14,6 +14,13 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IAppSession, AppSession>();
 builder.Services.AddScoped<IPasswordService, PasswordService>();
 builder.Services.AddScoped<ICommonService, CommonService>();
+builder.Services.AddScoped<IUsReportTemplateService, UsReportTemplateService>();
+builder.Services.AddScoped<IReportDictionaryService, ReportDictionaryService>();
+builder.Services.AddScoped<IUsBillingMirrorService, UsBillingMirrorService>();
+        builder.Services.AddScoped<IXrReportTemplateService, XrReportTemplateService>();
+        builder.Services.AddScoped<IXrReportDictionaryService, XrReportDictionaryService>();
+        builder.Services.AddScoped<IXrBillingMirrorService, XrBillingMirrorService>();
+builder.Services.AddHttpClient();
 builder.Services.AddScoped<ILookupSeedService, LookupSeedService>();
 
 builder.Services.AddAuthentication("HmisAuth")

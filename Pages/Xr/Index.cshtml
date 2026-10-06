@@ -1,0 +1,87 @@
+@page "/xr"
+@model HmisWeb.Pages.Xr.IndexModel
+@{
+    ViewData["Title"] = "X-ray Module";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="mb-0 fw-bold"><i class="bi bi-heart-pulse me-2 text-primary"></i>X-ray Department</h3>
+    <span class="badge bg-primary fs-6">HMC X-ray</span>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-4">
+        <a class="card text-decoration-none text-dark h-100 shadow-sm border-0 hover-shadow" asp-page="/Xr/Indent">
+            <div class="card-body text-center p-4">
+                <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 64px; height: 64px;">
+                    <i class="bi bi-file-earmark-plus fs-3"></i>
+                </div>
+                <h5 class="fw-semibold">New Indent</h5>
+                <p class="text-secondary small mb-0">Create X-ray service indent for patient</p>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-4">
+        <a class="card text-decoration-none text-dark h-100 shadow-sm border-0 hover-shadow" asp-page="/Xr/SampleCollection">
+            <div class="card-body text-center p-4">
+                <div class="bg-success bg-opacity-10 text-success rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 64px; height: 64px;">
+                    <i class="bi bi-heart-pulse fs-3"></i>
+                </div>
+                <h5 class="fw-semibold">Film Collection</h5>
+                <p class="text-secondary small mb-0">Record scan collection and details</p>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-4">
+        <a class="card text-decoration-none text-dark h-100 shadow-sm border-0 hover-shadow" asp-page="/Xr/ResultEntry">
+            <div class="card-body text-center p-4">
+                <div class="bg-warning bg-opacity-10 text-warning rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 64px; height: 64px;">
+                    <i class="bi bi-clipboard2-check fs-3"></i>
+                </div>
+                <h5 class="fw-semibold">Result Entry</h5>
+                <p class="text-secondary small mb-0">Enter X-ray report results</p>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-4">
+        <a class="card text-decoration-none text-dark h-100 shadow-sm border-0 hover-shadow" asp-page="/Xr/Services">
+            <div class="card-body text-center p-4">
+                <div class="bg-info bg-opacity-10 text-info rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 64px; height: 64px;">
+                    <i class="bi bi-gear fs-3"></i>
+                </div>
+                <h5 class="fw-semibold">Services Setup</h5>
+                <p class="text-secondary small mb-0">Manage X-ray services and rates</p>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-4">
+        <a class="card text-decoration-none text-dark h-100 shadow-sm border-0 hover-shadow" asp-page="/Xr/Reports">
+            <div class="card-body text-center p-4">
+                <div class="bg-secondary bg-opacity-10 text-secondary rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 64px; height: 64px;">
+                    <i class="bi bi-graph-up fs-3"></i>
+                </div>
+                <h5 class="fw-semibold">Reports</h5>
+                <p class="text-secondary small mb-0">Collection, patient, and service reports</p>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-dark h-100 shadow-sm border-0 opacity-50">
+            <div class="card-body text-center p-4">
+                <div class="bg-dark bg-opacity-10 text-dark rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 64px; height: 64px;">
+                    <i class="bi bi-person-search fs-3"></i>
+                </div>
+                <h5 class="fw-semibold">Patient Inquiry</h5>
+                <p class="text-secondary small mb-0">Coming soon</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .hover-shadow:hover {
+        box-shadow: 0 0.5rem 1rem rgba(0,0,0,.15) !important;
+        transform: translateY(-2px);
+        transition: all 0.2s ease;
+    }
+</style>

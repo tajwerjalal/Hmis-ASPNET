@@ -120,6 +120,18 @@ public DbSet<ConsultantSettlement> ConsultantSettlements { get; set; }
         public DbSet<MiscFee> MiscFees { get; set; }
         public DbSet<Prescription> Prescriptions { get; set; }
         public DbSet<InvestigationOrder> InvestigationOrders { get; set; }
+        public DbSet<UsService> UsServices { get; set; }
+        public DbSet<UsServiceCategory> UsServiceCategories { get; set; }
+        public DbSet<UsOrder> UsOrders { get; set; }
+        public DbSet<UsReportTemplate> UsReportTemplates { get; set; }
+        public DbSet<MedicalTerm> MedicalTerms { get; set; }
+        public DbSet<XrService> XrServices { get; set; }
+        public DbSet<XrServiceCategory> XrServiceCategories { get; set; }
+        public DbSet<XrOrder> XrOrders { get; set; }
+        public DbSet<XrReportTemplate> XrReportTemplates { get; set; }
+        public DbSet<XrMedicalTerm> XrMedicalTerms { get; set; }
+        public DbSet<PanelServiceCharge> PanelServiceCharges { get; set; }
+        public DbSet<PanelDepartment> PanelDepartments { get; set; }
         public DbSet<FollowUp> FollowUps { get; set; }
         public DbSet<WebUserRoute> WebUserRoutes { get; set; }
 
@@ -870,6 +882,30 @@ modelBuilder.Entity<PatientEncounter>()
             modelBuilder.Entity<Doctor>()
                 .HasOne(d => d.ChannelingDestinationDepartment).WithMany().HasForeignKey(d => d.ChannelingDestinationDepartmentId).OnDelete(DeleteBehavior.Restrict);
 
+            // ===== UsOrder rich-text report lifecycle =====
+            modelBuilder.Entity<UsOrder>()
+                .HasOne(o => o.ReportTemplate).WithMany().HasForeignKey(o => o.ReportTemplateId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<UsOrder>()
+                .HasOne(o => o.FinalizedBy).WithMany().HasForeignKey(o => o.FinalizedById).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<UsReportTemplate>()
+                .HasOne(t => t.UsService).WithMany().HasForeignKey(t => t.UsServiceId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<UsReportTemplate>()
+                .HasOne(t => t.Creater).WithMany().HasForeignKey(t => t.CreaterId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<UsReportTemplate>()
+                .HasOne(t => t.Editer).WithMany().HasForeignKey(t => t.EditerId).OnDelete(DeleteBehavior.Restrict);
+
+            // ===== XrOrder rich-text report lifecycle (X-ray mirror of the US module) =====
+            modelBuilder.Entity<XrOrder>()
+                .HasOne(o => o.ReportTemplate).WithMany().HasForeignKey(o => o.ReportTemplateId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<XrOrder>()
+                .HasOne(o => o.FinalizedBy).WithMany().HasForeignKey(o => o.FinalizedById).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<XrReportTemplate>()
+                .HasOne(t => t.XrService).WithMany().HasForeignKey(t => t.XrServiceId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<XrReportTemplate>()
+                .HasOne(t => t.Creater).WithMany().HasForeignKey(t => t.CreaterId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<XrReportTemplate>()
+                .HasOne(t => t.Editer).WithMany().HasForeignKey(t => t.EditerId).OnDelete(DeleteBehavior.Restrict);
+
             // ===== StaffSalary =====
             modelBuilder.Entity<StaffSalary>()
                 .HasOne(s => s.Staff).WithMany().HasForeignKey(s => s.StaffId).OnDelete(DeleteBehavior.Restrict);
@@ -946,6 +982,25 @@ modelBuilder.Entity<PatientEncounter>()
             modelBuilder.Entity<Designation>().ToTable("DESIGNATION");
             modelBuilder.Entity<Grade>().ToTable("GRADE");
             modelBuilder.Entity<BillSession>().ToTable("BILLSESSION");
+            modelBuilder.Entity<UsService>().ToTable("USSERVICE");
+            modelBuilder.Entity<UsServiceCategory>().ToTable("USSERVICECATEGORY");
+            modelBuilder.Entity<UsOrder>().ToTable("USORDER");
+            modelBuilder.Entity<UsReportTemplate>().ToTable("USREPORTTEMPLATE");
+            modelBuilder.Entity<MedicalTerm>().ToTable("MEDICALTERM");
+            modelBuilder.Entity<XrService>().ToTable("XRSERVICE");
+            modelBuilder.Entity<XrServiceCategory>().ToTable("XRSERVICECATEGORY");
+            modelBuilder.Entity<XrOrder>().ToTable("XRORDER");
+            modelBuilder.Entity<XrReportTemplate>().ToTable("XREPORTTEMPLATE");
+            modelBuilder.Entity<XrMedicalTerm>().ToTable("XRMEDICALTERM");
+            modelBuilder.Entity<PanelServiceCharge>().ToTable("PANELSERVICECHARGE");
+            modelBuilder.Entity<PanelServiceCharge>()
+                .HasIndex(c => new { c.CompanyId, c.DepartmentCode, c.ServiceCode }).IsUnique();
+            modelBuilder.Entity<PanelServiceCharge>()
+                .HasOne(c => c.Company).WithMany().HasForeignKey(c => c.CompanyId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<PanelServiceCharge>()
+                .HasOne(c => c.Item).WithMany().HasForeignKey(c => c.ItemId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<PanelDepartment>().ToTable("PANELDEPARTMENT");
+            modelBuilder.Entity<PanelDepartment>().HasIndex(d => d.Code).IsUnique();
             modelBuilder.Entity<WebUserRoleUser>().ToTable("WEBUSERROLEUSER");
             modelBuilder.Entity<WebUserPrivilege>().ToTable("WEBUSERPRIVILEGE");
             modelBuilder.Entity<WebUserDepartment>().ToTable("WEBUSERDEPARTMENT");

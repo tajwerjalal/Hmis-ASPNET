@@ -7,52 +7,136 @@
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
     <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        html, body { height: 100%; margin: 0; padding: 0; }
         body { background-color: #f5f6fa; font-family: 'Segoe UI', Tahoma, Arial, sans-serif; }
+        
+        .wrapper { display: flex; min-height: 100vh; width: 100%; }
+        
         .sidebar {
             background: linear-gradient(180deg, #0d2137 0%, #123355 100%);
-            height: 100vh;
             color: #fff;
             position: fixed;
-            top: 0; left: 0; width: 250px;
+            top: 0; left: 0; bottom: 0; width: 250px;
             overflow-y: auto;
+            overflow-x: hidden;
+            z-index: 1000;
             padding-bottom: 2rem;
         }
-        .sidebar .brand { padding: 1.2rem 1.2rem; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 1.15rem; font-weight: 600; }
-        .sidebar .brand small { display: block; font-size: .7rem; font-weight: 300; color: #9fb3c8; }
-        .sidebar a.nav-link { color: #c7d6e5; padding: .65rem 1.2rem; font-size: .9rem; }
-        .sidebar a.nav-link:hover { background: rgba(255,255,255,0.06); color: #fff; }
-        .sidebar a.nav-link.active { background: #1d6fb8; color: #fff; }
-        .sidebar .nav-head { color: #6f8aa3; font-size: .7rem; text-transform: uppercase; letter-spacing: .5px; padding: 1rem 1.2rem .25rem; font-weight: 600; }
-        .sidebar a.nav-link i { width: 22px; text-align: center; margin-right: 6px; }
-        .menu-group > .menu-parent { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
-        .menu-group > .menu-parent > .bi-chevron-down { width: auto; margin-right: 0; font-size: .75rem; color: #8fa8bf; transition: transform .2s ease; }
-        .menu-group.open > .menu-parent { background: rgba(255,255,255,0.08); color: #fff; }
-        .menu-group.open > .menu-parent > .bi-chevron-down { transform: rotate(180deg); }
-        .submenu { display: none; }
-        .menu-group.open > .submenu { display: block; }
-        .submenu .nav-link { padding-left: 2.6rem; font-size: .86rem; }
-        .submenu .nav-link::before { content: "\2022"; margin-right: 7px; color: #7e97ae; }
-        .submenu .menu-group .submenu .nav-link { padding-left: 3.7rem; font-size: .84rem; }
-        .submenu .menu-group .submenu .submenu .nav-link { padding-left: 4.8rem; }
-        .submenu .menu-group > .menu-parent { padding-left: 1.8rem; font-size: .84rem; color: #cfe0f0; font-weight: 600; }
-        .submenu .menu-group > .menu-parent i { width: 18px; margin-right: 4px; }
-        .submenu .menu-group > .menu-parent > .bi-chevron-down { color: #8fa8bf; margin-right: 0; }
-        .menu-group.opd-flow .submenu .nav-link::before { content: none; }
-        .submenu .nav-link .step { display: inline-block; width: 20px; font-size: .68rem; font-weight: 600; color: #9fb3c8; }
-        .submenu .nav-link.active .step { color: #bcd6ee; }
-        .submenu .nav-link.active { background: #1d6fb8; color: #fff; }
-        .main-content { margin-left: 250px; padding: 1rem 1.5rem; }
-        .topbar { background: #fff; padding: .65rem 1.2rem; border-radius: .5rem; display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
-        .card { border: none; box-shadow: 0 1px 3px rgba(0,0,0,.08); border-radius: .5rem; }
-        .stat-card .icon { width: 48px; height: 48px; border-radius: .5rem; display:flex; align-items:center; justify-content:center; font-size:1.4rem; }
-        .table th { font-size: .78rem; text-transform: uppercase; letter-spacing: .3px; color: #6c757d; }
-        .form-label { font-size: .82rem; font-weight: 600; color: #495057; }
-        @@media print { .sidebar, .topbar, .no-print { display: none !important; } .main-content { margin-left: 0 !important; padding: 0 !important; } }
-        @@media (max-width: 992px) { .sidebar { position: static; min-height: auto; width: 100%; } .main-content { margin-left: 0; } }
+        .sidebar::-webkit-scrollbar { width: 6px; }
+        .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+        
+        .sidebar .brand { 
+            padding: 1rem 1.2rem; 
+            border-bottom: 1px solid rgba(255,255,255,0.1); 
+            font-size: 1.1rem; font-weight: 600; 
+            flex-shrink: 0;
+        }
+        .sidebar .brand small { display: block; font-size: .7rem; font-weight: 300; color: #9fb3c8; margin-top: .25rem; }
+        
+        .sidebar .nav-head { color: #6f8aa3; font-size: .65rem; text-transform: uppercase; letter-spacing: .5px; padding: .75rem 1.2rem .35rem; font-weight: 600; flex-shrink: 0; }
+        
+        .sidebar .nav-link { color: #c7d6e5; padding: .55rem 1.2rem; font-size: .85rem; display: flex; align-items: center; gap: .5rem; white-space: nowrap; }
+        .sidebar .nav-link:hover { background: rgba(255,255,255,0.06); color: #fff; }
+        .sidebar .nav-link i { width: 20px; text-align: center; flex-shrink: 0; font-size: 1rem; }
+        
+        /* Active leaf */
+        .sidebar .nav-link.active { 
+            background: #1d6fb8; 
+            color: #fff; 
+            font-weight: 600; 
+            border-left: 3px solid #4da3e8;
+        }
+        .sidebar .nav-link.active i { color: #fff; }
+        
+        /* Menu group parent */
+        .menu-group > .menu-parent { 
+            display: flex; align-items: center; justify-content: space-between; 
+            cursor: pointer; user-select: none; 
+            padding: .55rem 1.2rem; color: #c7d6e5; font-size: .85rem;
+        }
+        .menu-group > .menu-parent:hover { background: rgba(255,255,255,0.06); color: #fff; }
+        .menu-group > .menu-parent i { width: 20px; text-align: center; flex-shrink: 0; }
+        .menu-group > .menu-parent > .bi-chevron-down { 
+            width: auto; margin-left: auto; font-size: .7rem; color: #8fa8bf; 
+            transition: transform .2s ease; flex-shrink: 0;
+        }
+        .menu-group.open > .menu-parent > .bi-chevron-down { transform: rotate(180deg); color: #b8d0e8; }
+        
+        /* Active parent indicator */
+        .menu-group.active-parent > .menu-parent { 
+            background: rgba(29, 111, 184, 0.15); 
+            color: #cfe0f0; 
+            font-weight: 500; 
+            border-left: 3px solid #2a7fd4;
+        }
+        .menu-group.active-parent > .menu-parent > .bi-chevron-down { color: #6db3f2; }
+        
+        /* Open ancestor indicator */
+        .menu-group.open > .menu-parent { 
+            background: rgba(255,255,255,0.04); 
+            color: #b8d0e8; 
+        }
+        
+        /* Submenu */
+        .submenu { display: none; overflow: hidden; }
+        .menu-group.open > .submenu { display: block; animation: slideDown .15s ease; }
+        @@keyframes slideDown { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .submenu .nav-link { padding: .45rem 1.2rem .45rem 2.8rem; font-size: .8rem; }
+        .submenu .nav-link::before { content: none; }
+        .submenu .menu-group > .menu-parent { padding: .45rem 1.2rem .45rem 2.2rem; font-size: .78rem; color: #cfe0f0; font-weight: 600; }
+        .submenu .menu-group > .menu-parent i { width: 16px; margin-right: 4px; }
+        .submenu .menu-group > .menu-parent > .bi-chevron-down { color: #8fa8bf; }
+        .submenu .menu-group .submenu .nav-link { padding-left: 3.4rem; font-size: .78rem; }
+        .submenu .menu-group .submenu .submenu .nav-link { padding-left: 4rem; }
+        .menu-group.opd-flow .submenu .nav-link { padding-left: 2.8rem; }
+        
+        .submenu .nav-link .step { 
+            display: inline-flex; align-items: center; justify-content: center; 
+            width: 18px; height: 18px; font-size: .6rem; font-weight: 700; 
+            color: #9fb3c8; background: rgba(255,255,255,0.1); border-radius: 3px; 
+            flex-shrink: 0; margin-right: .5rem;
+        }
+        .submenu .nav-link.active .step { color: #fff; background: rgba(255,255,255,0.2); }
+        
+        /* Main content */
+        .main-content { 
+            margin-left: 250px; 
+            width: calc(100% - 250px); 
+            min-width: 0; 
+            min-height: 100vh;
+            padding: 0.5rem 1.5rem; 
+            background: #f5f6fa;
+        }
+        .topbar { 
+            background: #fff; padding: .55rem 1.2rem; border-radius: .5rem; 
+            display: flex; justify-content: space-between; align-items: center; 
+            gap: .5rem; flex-wrap: wrap; row-gap: .35rem;
+            margin-bottom: 0.5rem; box-shadow: 0 1px 3px rgba(0,0,0,.05); 
+            flex-shrink: 0;
+        }
+        .sidebar-toggle { color: #0d2137; font-size: 1.5rem; line-height: 1; text-decoration: none; }
+        .sidebar-toggle:hover { color: #1d6fb8; }
+        .sidebar-overlay { display: none; }
+        .card { border: none; box-shadow: 0 1px 3px rgba(0,0,0,.06); border-radius: .5rem; }
+        .stat-card .icon { width: 44px; height: 44px; border-radius: .5rem; display:flex; align-items:center; justify-content:center; font-size:1.25rem; }
+        .table th { font-size: .75rem; text-transform: uppercase; letter-spacing: .3px; color: #6c757d; }
+        .form-label { font-size: .8rem; font-weight: 600; color: #495057; }
+        
+        /* Responsive */
+        @@media (max-width: 992px) { 
+            .sidebar { position: fixed; left: -250px; width: 250px; height: 100vh; transition: left .3s ease; box-shadow: 4px 0 20px rgba(0,0,0,.15); }
+            .sidebar.open { left: 0; }
+            .main-content { margin-left: 0; width: 100%; }
+            .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 999; }
+            .sidebar-overlay.open { display: block; }
+        }
+        @@media print { .sidebar, .topbar, .no-print { display: none !important; } .main-content { margin-left: 0 !important; width: 100% !important; padding: 0 !important; } }
     </style>
 </head>
 <body>
-    <div class="d-flex">
+    <div class="wrapper">
         <nav class="sidebar">
             <div class="brand" style="display:flex; flex-direction:column; align-items:flex-start; gap:.45rem;">
                 <img src="~/images/logo.jpg" alt="Hospital Logo" style="max-height:56px; max-width:100%; width:auto; height:auto; border-radius:4px; display:block;" />
@@ -278,6 +362,110 @@
 
             <div class="menu-group">
                 <a href="javascript:void(0)" class="nav-link menu-parent">
+                    <span><i class="bi bi-heart-pulse"></i> Ultra-Sound</span>
+                    <i class="bi bi-chevron-down"></i>
+                </a>
+                <div class="submenu">
+
+                    <div class="menu-group">
+                        <a href="javascript:void(0)" class="nav-link menu-parent">
+                            <span><i class="bi bi-file-earmark-plus"></i> Transactions</span>
+                            <i class="bi bi-chevron-down"></i>
+                        </a>
+                        <div class="submenu">
+                            <a asp-page="/us/Indent" class="nav-link sub-link"><i class="bi bi-receipt"></i> US Service Indent</a>
+                            <a asp-page="/us/SampleCollection" class="nav-link sub-link"><i class="bi bi-heart-pulse"></i> Scan Collection Entry</a>
+                            <a asp-page="/us/ResultEntry" class="nav-link sub-link"><i class="bi bi-clipboard2-check"></i> Scan Result Entry</a>
+                            <span class="nav-link sub-link disabled" style="cursor:not-allowed;opacity:.55;" title="Not yet available"><i class="bi bi-person-search"></i> Patient Inquiry (coming soon)</span>
+                        </div>
+                    </div>
+
+                    <div class="menu-group">
+                        <a href="javascript:void(0)" class="nav-link menu-parent">
+                            <span><i class="bi bi-gear"></i> Setup</span>
+                            <i class="bi bi-chevron-down"></i>
+                        </a>
+                        <div class="submenu">
+                            <a asp-page="/us/Services" class="nav-link sub-link"><i class="bi bi-heart-pulse"></i> US Services Setup</a>
+                        </div>
+                    </div>
+
+                    <div class="menu-group">
+                        <a href="javascript:void(0)" class="nav-link menu-parent">
+                            <span><i class="bi bi-graph-up"></i> Reports</span>
+                            <i class="bi bi-chevron-down"></i>
+                        </a>
+                        <div class="submenu">
+                            <a asp-page="/us/Reports" class="nav-link sub-link"><i class="bi bi-graph-up"></i> Scan Register</a>
+                            <a asp-page="/us/Reports/ServiceList" class="nav-link sub-link"><i class="bi bi-list-ul"></i> Service List</a>
+                            <a asp-page="/us/Reports/TestCharges" class="nav-link sub-link"><i class="bi bi-cash-coin"></i> Test Charges</a>
+                            <a asp-page="/us/Reports/IndentPrintout" class="nav-link sub-link"><i class="bi bi-receipt"></i> Indent Printout</a>
+                            <a asp-page="/us/Reports/CollectionPeriodic" class="nav-link sub-link"><i class="bi bi-calendar-range"></i> Periodic Collection</a>
+                            <a asp-page="/us/Reports/CollectionCompany" class="nav-link sub-link"><i class="bi bi-building"></i> Company Wise Collection</a>
+                            <a asp-page="/us/Reports/CollectionPatient" class="nav-link sub-link"><i class="bi bi-person"></i> Patient Wise Collection</a>
+                            <a asp-page="/us/Reports/CollectionService" class="nav-link sub-link"><i class="bi bi-heart-pulse"></i> Test Wise Collection</a>
+                            <a asp-page="/us/Reports/AuditStatement" class="nav-link sub-link"><i class="bi bi-journal-check"></i> Audit Statement</a>
+                            <a asp-page="/us/Reports/CompanySummary" class="nav-link sub-link"><i class="bi bi-pie-chart"></i> Company Wise Summary</a>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="menu-group">
+                <a href="javascript:void(0)" class="nav-link menu-parent">
+                    <span><i class="bi bi-broadcast"></i> X-Ray</span>
+                    <i class="bi bi-chevron-down"></i>
+                </a>
+                <div class="submenu">
+
+                    <div class="menu-group">
+                        <a href="javascript:void(0)" class="nav-link menu-parent">
+                            <span><i class="bi bi-file-earmark-plus"></i> Transactions</span>
+                            <i class="bi bi-chevron-down"></i>
+                        </a>
+                        <div class="submenu">
+                            <a asp-page="/xr/Indent" class="nav-link sub-link"><i class="bi bi-receipt"></i> X-ray Service Indent</a>
+                            <a asp-page="/xr/SampleCollection" class="nav-link sub-link"><i class="bi bi-heart-pulse"></i> X-ray Collection Entry</a>
+                            <a asp-page="/xr/ResultEntry" class="nav-link sub-link"><i class="bi bi-clipboard2-check"></i> X-ray Result Entry</a>
+                        </div>
+                    </div>
+
+                    <div class="menu-group">
+                        <a href="javascript:void(0)" class="nav-link menu-parent">
+                            <span><i class="bi bi-gear"></i> Setup</span>
+                            <i class="bi bi-chevron-down"></i>
+                        </a>
+                        <div class="submenu">
+                            <a asp-page="/xr/Services" class="nav-link sub-link"><i class="bi bi-heart-pulse"></i> X-ray Services Setup</a>
+                            <a asp-page="/xr/ReportSetup" class="nav-link sub-link"><i class="bi bi-file-earmark-text"></i> X-ray Report Setup</a>
+                        </div>
+                    </div>
+
+                    <div class="menu-group">
+                        <a href="javascript:void(0)" class="nav-link menu-parent">
+                            <span><i class="bi bi-graph-up"></i> Reports</span>
+                            <i class="bi bi-chevron-down"></i>
+                        </a>
+                        <div class="submenu">
+                            <a asp-page="/xr/Reports" class="nav-link sub-link"><i class="bi bi-graph-up"></i> X-ray Register</a>
+                            <a asp-page="/xr/Reports/ServiceList" class="nav-link sub-link"><i class="bi bi-list-ul"></i> Service List</a>
+                            <a asp-page="/xr/Reports/TestCharges" class="nav-link sub-link"><i class="bi bi-cash-coin"></i> Test Charges</a>
+                            <a asp-page="/xr/Reports/IndentPrintout" class="nav-link sub-link"><i class="bi bi-receipt"></i> Indent Printout</a>
+                            <a asp-page="/xr/Reports/CollectionPeriodic" class="nav-link sub-link"><i class="bi bi-calendar-range"></i> Periodic Collection</a>
+                            <a asp-page="/xr/Reports/CollectionCompany" class="nav-link sub-link"><i class="bi bi-building"></i> Company Wise Collection</a>
+                            <a asp-page="/xr/Reports/CollectionPatient" class="nav-link sub-link"><i class="bi bi-person"></i> Patient Wise Collection</a>
+                            <a asp-page="/xr/Reports/CollectionService" class="nav-link sub-link"><i class="bi bi-heart-pulse"></i> Test Wise Collection</a>
+                            <a asp-page="/xr/Reports/AuditStatement" class="nav-link sub-link"><i class="bi bi-journal-check"></i> Audit Statement</a>
+                            <a asp-page="/xr/Reports/CompanySummary" class="nav-link sub-link"><i class="bi bi-pie-chart"></i> Company Wise Summary</a>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="menu-group">
+                <a href="javascript:void(0)" class="nav-link menu-parent">
                     <span><i class="bi bi-person-badge"></i> HR &amp; Payroll</span>
                     <i class="bi bi-chevron-down"></i>
                 </a>
@@ -331,8 +519,13 @@
             </div>
         </nav>
 
-        <div class="main-content w-100">
+        <div class="sidebar-overlay"></div>
+
+        <div class="main-content">
             <div class="topbar">
+                <button type="button" class="btn btn-link p-0 d-lg-none sidebar-toggle" aria-label="Toggle navigation" aria-expanded="false">
+                    <i class="bi bi-list"></i>
+                </button>
                 <div class="fw-semibold text-secondary">@(ViewData["Title"]?.ToString() ?? "HMIS")</div>
                 <div class="d-flex align-items-center gap-3">
                     <span class="text-secondary small" style="font-weight:500;">@DateTime.Now.ToString("dd MMM yyyy")</span>
@@ -353,10 +546,8 @@
                 if (force && force !== 'open') return;
                 if (force || (!wasOpen)) {
                     $group.addClass('open');
-                    $group.find('.menu-parent').addClass('active');
                 } else {
                     $group.removeClass('open');
-                    $group.find('.menu-parent').removeClass('active');
                 }
             }
 
@@ -376,13 +567,57 @@
                     match = (path === href || path.indexOf(href + '/') === 0);
                 }
                 if (match) {
+                    // 1. Mark ONLY the exact leaf as active
                     $(this).addClass('active');
-                    $(this).closest('.menu-group').addClass('open');
-                    $(this).closest('.menu-group').find('.menu-parent').addClass('active');
+
+                    // 2. Expand all ancestor menu-groups
+                    var $leafGroup = $(this).closest('.menu-group');
+                    $leafGroup.addClass('open');
                     $(this).parents('.menu-group').each(function () {
                         $(this).addClass('open');
-                        $(this).children('.menu-parent').addClass('active');
                     });
+
+                    // 3. Mark DIRECT PARENT group with distinct class (not .active)
+                    $leafGroup.addClass('active-parent');
+
+                    // 4. Higher ancestors get only .open (styled separately via CSS)
+                }
+            });
+
+            // Mobile sidebar toggle
+            var $sidebar = $('.sidebar');
+            var $overlay = $('.sidebar-overlay');
+            var $toggle = $('.sidebar-toggle');
+
+            function setSidebar(open) {
+                $sidebar.toggleClass('open', open);
+                $overlay.toggleClass('open', open);
+                $toggle.attr('aria-expanded', open ? 'true' : 'false');
+            }
+
+            $toggle.on('click', function () {
+                setSidebar(!$sidebar.hasClass('open'));
+            });
+
+            $overlay.on('click', function () {
+                setSidebar(false);
+            });
+
+            $('.sidebar a.nav-link').on('click', function () {
+                if (window.matchMedia('(max-width: 992px)').matches) {
+                    setSidebar(false);
+                }
+            });
+
+            $(document).on('keyup', function (e) {
+                if (e.key === 'Escape') {
+                    setSidebar(false);
+                }
+            });
+
+            $(window).on('resize', function () {
+                if (!window.matchMedia('(max-width: 992px)').matches) {
+                    setSidebar(false);
                 }
             });
         });

@@ -1,0 +1,168 @@
+@page "/xr/services"
+@model HmisWeb.Pages.Xr.ServicesModel
+@using HmisWeb.Data.Enums
+@{
+    ViewData["Title"] = "X-ray Services";
+}
+
+<div class="d-flex justify-content-between align-items-end mb-3">
+    <div>
+        <h4 class="mb-0 fw-bold"><i class="bi bi-list-ul me-2 text-primary"></i>X-ray Services</h4>
+        <div class="text-secondary small">Manage X-ray services, rates, and categories</div>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.Success))
+{
+    <div class="alert alert-success py-2"><i class="bi bi-check-circle me-1"></i>@Model.Success</div>
+}
+@if (!string.IsNullOrEmpty(Model.Message))
+{
+    <div class="alert alert-warning py-2"><i class="bi bi-exclamation-triangle me-1"></i>@Model.Message</div>
+}
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger py-2"><i class="bi bi-exclamation-circle me-1"></i>@Model.ErrorMessage</div>
+}
+
+<div class="card mb-3">
+    <div class="card-header bg-white fw-semibold"><i class="bi bi-plus-circle me-1 text-success"></i>Add New X-ray Service</div>
+    <div class="card-body">
+        <form method="post" asp-page-handler="Create" class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label small mb-1" for="NewName">Service name</label>
+                <input asp-for="NewName" class="form-control form-control-sm" placeholder="e.g. Chest X-Ray" required />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-1" for="NewCode">Code</label>
+                <input asp-for="NewCode" class="form-control form-control-sm" placeholder="e.g. XR-001" required />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-1" for="NewRate">Rate</label>
+                <input asp-for="NewRate" class="form-control form-control-sm" type="number" step="0.01" min="0" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small mb-1" for="NewCategoryId">Category</label>
+                <select asp-for="NewCategoryId" class="form-select form-select-sm">
+                    <option value="">-- none --</option>
+                    @foreach (var c in Model.Categories)
+                    {
+                        <option value="@c.Id">@c.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-1 d-grid">
+                <button type="submit" class="btn btn-success btn-sm"><i class="bi bi-check-lg"></i></button>
+            </div>
+        </form>
+        <div class="form-text mt-1">The code becomes the billing item code <code>INV-XR-&lt;code&gt;</code>, created automatically on save.</div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header bg-white fw-semibold d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <span>Services List (@Model.Services.Count)</span>
+        <div class="d-flex gap-2 align-items-center">
+            <form method="post" asp-page-handler="BackfillMirrors" class="d-inline"
+                  onsubmit="return confirm('Create billing items for any active service that is missing one?');">
+                <button type="submit" class="btn btn-outline-primary btn-sm" title="Create missing billing items">
+                    <i class="bi bi-arrow-repeat"></i> Sync Billing Items
+                </button>
+            </form>
+            <form method="get" asp-page="/Xr/Services" class="d-flex gap-2">
+                <input asp-for="SearchTerm" class="form-control form-control-sm" placeholder="Search by name, code, description..." style="width: 250px;" />
+                <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search"></i></button>
+                @if (!string.IsNullOrEmpty(Model.SearchTerm))
+                {
+                    <a asp-page="/Xr/Services" class="btn btn-outline-secondary btn-sm">Clear</a>
+                }
+            </form>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        @if (Model.Services.Any())
+        {
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Code</th>
+                            <th>Service Name</th>
+                            <th>Category</th>
+                            <th class="text-end">Rate</th>
+                            <th class="text-center">Priority</th>
+                            <th class="text-center">Status</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var s in Model.Services)
+                        {
+                            <tr>
+                                <td>@(s.Code ?? "-")</td>
+                                <td>
+                                    <div class="fw-semibold small">@s.Name</div>
+                                    @if (!string.IsNullOrEmpty(s.PrintName))
+                                    {
+                                        <small class="text-secondary">@s.PrintName</small>
+                                    }
+                                </td>
+                                <td>@(s.Category?.Name ?? "-")</td>
+                                <td class="text-end">@(s.Rate?.ToString("N2") ?? "-")</td>
+                                <td class="text-center">
+                                    <span class="badge bg-@(s.Priority == Priority.Stat ? "danger" : s.Priority == Priority.Urgent ? "warning" : "info") text-white">
+                                        @(s.Priority?.ToString() ?? "-")
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    @if (s.Active && !s.Retired)
+                                    {
+                                        <span class="badge bg-success">Active</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary">Inactive</span>
+                                    }
+                                </td>
+                                <td class="text-end text-nowrap">
+                                    <a asp-page="/Xr/Services/Edit" asp-route-id="@s.Id" class="btn btn-sm btn-outline-primary" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    @if (!s.Retired)
+                                    {
+                                        <form method="post" asp-page-handler="Retire" asp-route-id="@s.Id" class="d-inline" onsubmit="return confirm('Retire this service?');">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" class="btn btn-sm btn-outline-warning" title="Retire"><i class="bi bi-pause-circle"></i></button>
+                                        </form>
+                                    }
+                                    else
+                                    {
+                                        <form method="post" asp-page-handler="Activate" asp-route-id="@s.Id" class="d-inline" onsubmit="return confirm('Activate this service?');">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" class="btn btn-sm btn-outline-success" title="Activate"><i class="bi bi-play-circle"></i></button>
+                                        </form>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else if (!string.IsNullOrEmpty(Model.SearchTerm))
+        {
+            <div class="text-center py-5">
+                <i class="bi bi-search fs-1 text-secondary d-block mb-2"></i>
+                <p class="text-secondary mb-0">No services match "@Model.SearchTerm".</p>
+            </div>
+        }
+        else
+        {
+            <div class="text-center py-5">
+                <i class="bi bi-heart-pulse fs-1 text-secondary d-block mb-2"></i>
+                <p class="text-secondary mb-2">No X-ray services have been added yet.</p>
+                <a asp-page="/Xr/Services/Create" class="btn btn-success btn-sm"><i class="bi bi-plus-circle me-1"></i>Add the first service</a>
+            </div>
+        }
+    </div>
+</div>

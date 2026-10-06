@@ -1,0 +1,362 @@
+@page "/us/indent"
+@model HmisWeb.Pages.Us.IndentModel
+@using HmisWeb.Data.Enums
+@{
+    ViewData["Title"] = "Ultra-Sound Service Indent (Invoice)";
+}
+
+<div class="mb-3">
+    <h4 class="mb-0 fw-bold"><i class="bi bi-heart-pulse me-2 text-primary"></i>Ultra-Sound Service Indent (Invoice)</h4>
+    <span class="text-secondary small">Create an ultrasound invoice and settle via cash (OPD) or add to the patient's IPD account</span>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.Success))
+{
+    <div class="alert alert-success py-2"><i class="bi bi-check-circle me-1"></i>@Model.Success</div>
+}
+@if (!string.IsNullOrEmpty(Model.Message))
+{
+    <div class="alert alert-warning py-2"><i class="bi bi-exclamation-triangle me-1"></i>@Model.Message</div>
+}
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger py-2"><i class="bi bi-exclamation-circle me-1"></i>@Model.ErrorMessage</div>
+}
+
+@if (Model.SelectedPatient == null)
+{
+    <div class="d-flex justify-content-between align-items-center mb-2 gap-2">
+        <h6 class="mb-0 fw-semibold"><i class="bi bi-search me-1"></i>Find Patient</h6>
+        <div class="d-flex gap-2">
+            <a href="javascript:void(0)" onclick="toggleNewPatient(true)" class="btn btn-sm btn-outline-success"><i class="bi bi-person-plus me-1"></i>Add New Patient</a>
+            <form method="post" asp-page-handler="StartNew">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-sm btn-outline-secondary" title="Start a fresh indent"><i class="bi bi-file-earmark-plus me-1"></i>New Indent</button>
+            </form>
+        </div>
+    </div>
+
+    <form method="post" asp-page-handler="SearchPatients" class="card mb-3">
+        @Html.AntiForgeryToken()
+        <div class="card-body">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-8">
+                    <input asp-for="PatientSearch" class="form-control" placeholder="PHN, Patient/Mobile/NIC, Name (complete search)..." autofocus />
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-primary w-100"><i class="bi bi-search me-1"></i>Search</button>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <div id="newPatientSection" style="display:none">
+        <div class="card mb-3">
+            <div class="card-header bg-white fw-semibold"><i class="bi bi-person-plus me-1 text-success"></i>Register a new (walk-in) patient</div>
+            <div class="card-body">
+                <form method="post" asp-page-handler="CreatePatient" class="row g-2">
+                    @Html.AntiForgeryToken()
+                    <div class="col-md-4"><input asp-for="NewName" class="form-control form-control-sm" placeholder="Full name *" /></div>
+                    <div class="col-md-4"><input asp-for="NewNameWithInitials" class="form-control form-control-sm" placeholder="Name with initials" /></div>
+                    <div class="col-md-4"><input asp-for="NewNic" class="form-control form-control-sm" placeholder="NIC" /></div>
+                    <div class="col-md-4"><input asp-for="NewMobile" class="form-control form-control-sm" placeholder="Mobile" /></div>
+                    <div class="col-md-4"><input asp-for="NewPhone" class="form-control form-control-sm" placeholder="Phone" /></div>
+                    <div class="col-md-4">
+                        <select asp-for="NewSex" asp-items="Html.GetEnumSelectList<Sex>()" class="form-select form-select-sm">
+                            <option value="">-- Sex --</option>
+                        </select>
+                    </div>
+                    <div class="col-12 d-flex gap-2 align-items-center">
+                        <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-plus-lg me-1"></i>Add & start indent</button>
+                        <a href="javascript:void(0)" onclick="toggleNewPatient(false)" class="small text-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    @if (Model.PatientResults.Any())
+    {
+        <div class="card mb-3"><div class="card-body p-0">
+            <table class="table table-hover mb-0 align-middle"><thead class="table-light"><tr>
+                <th>Patient ID</th><th>PHN</th><th>Name</th><th>Sex</th><th>Mobile</th><th>NIC</th><th></th>
+            </tr></thead><tbody>
+            @foreach (var p in Model.PatientResults)
+            {
+                <tr>
+                    <td>@p.Id</td>
+                    <td>@(p.PatientId?.ToString() ?? "-")</td>
+                    <td>@(p.Person?.NameWithInitials ?? p.Person?.Name ?? "Unnamed")</td>
+                    <td>@(p.Person?.Sex?.ToString() ?? "-")</td>
+                    <td>@(p.Person?.Mobile ?? "-")</td>
+                    <td>@(p.Person?.Nic ?? "-")</td>
+                    <td class="text-end">
+                        <form method="post" asp-page-handler="SelectPatient">
+                            <input type="hidden" name="SelectedPatientId" value="@p.Id" />
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-sm btn-outline-primary">Select</button>
+                        </form>
+                    </td>
+                </tr>
+            }</tbody></table>
+        </div></div>
+    }
+
+    @if (!Model.PatientResults.Any() && !string.IsNullOrEmpty(Model.PatientSearch))
+    {
+        <div class="alert alert-info py-2">
+            <i class="bi bi-info-circle me-1"></i>No patient found for "<b>@Model.PatientSearch</b>".
+            <a href="javascript:void(0)" onclick="toggleNewPatient(true)" class="fw-semibold text-decoration-underline">Add a new walk-in patient?</a>
+        </div>
+    }
+}
+else
+{
+    <div class="row g-3">
+        <div class="col-lg-7">
+            <div class="card mb-3">
+                <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-cash-stack me-1 text-success"></i>Patient unpaid bills</span>
+                    @if (Model.HasUnpaidBills)
+                    {
+                        <span class="badge bg-warning text-dark">@Model.UnpaidBills.Count unpaid</span>
+                    }
+                </div>
+                <div class="card-body py-3">
+                    @if (Model.HasUnpaidBills)
+                    {
+                        <div class="table-responsive mb-3">
+                            <table class="table table-sm table-hover align-middle mb-0">
+                                <thead class="table-light"><tr><th>#</th><th>Date</th><th>Dept</th><th class="text-end">Amount</th><th>Type</th></tr></thead>
+                                <tbody>
+                                    @foreach (var b in Model.UnpaidBills)
+                                    {
+                                        <tr>
+                                            <td>@(b.InvoiceNumber ?? ("#" + b.Id))</td>
+                                            <td>@b.CreatedAt?.ToString("dd MMM yyyy")</td>
+                                            <td>@(b.Department?.Name ?? "-")</td>
+                                            <td class="text-end">@b.NetTotal.ToString("N2")</td>
+                                            <td><span class="badge bg-secondary">@b.BillType</span></td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="alert alert-warning py-2 mb-0">
+                            <i class="bi bi-exclamation-triangle me-1"></i>This patient has <strong>@Model.UnpaidBills.Count</strong> unpaid bill(s). You can create a new indent below or collect payment for existing ones.
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-secondary small mb-0">No unpaid bills. You can create a new indent below.</div>
+                    }
+                    <hr />
+                    <div class="row g-3 align-items-center">
+                        <div class="col-md-5">
+                            <div class="text-secondary small fw-bold text-uppercase">Patient</div>
+                            <div class="fw-semibold fs-5">@(Model.SelectedPatient.Person?.NameWithInitials ?? "Unnamed")</div>
+                            <small class="text-secondary">PHN: @(Model.SelectedPatient.PatientId?.ToString() ?? "-")</small>
+                        </div>
+                        <div class="col-md-7 text-end">
+                            <form method="post" asp-page-handler="StartNew">
+                                <input type="hidden" name="SelectedPatientId" value="@Model.SelectedPatient.Id" />
+                                @Html.AntiForgeryToken()
+                                <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Switch patient</button>
+                            </form>
+                        </div>
+                    </div>
+                    @if (Model.ActiveEncounters.Any())
+                    {
+                        <hr class="my-2" />
+                        <form method="post" asp-page-handler="StartNew" class="d-inline">
+                            <div class="row g-2 align-items-end">
+                                <div class="col-md-6">
+                                    <label class="form-label small fw-bold mb-1">Active IPD Encounter</label>
+                                    <select name="SelectedEncounterId" class="form-select form-select-sm">
+                                        <option value="">-- All Encounters --</option>
+                                        @foreach (var e in Model.ActiveEncounters)
+                                        {
+                                            var isSelected = Model.SelectedEncounter?.Id == e.Id;
+                                            if (isSelected)
+                                            {
+                                                <option value="@e.Id" selected>@(e.BhtNo ?? ("BHT #" + e.Id)) — @(e.DateOfAdmission?.ToString("dd MMM") ?? "-")</option>
+                                            }
+                                            else
+                                            {
+                                                <option value="@e.Id">@(e.BhtNo ?? ("BHT #" + e.Id)) — @(e.DateOfAdmission?.ToString("dd MMM") ?? "-")</option>
+                                            }
+                                        }
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <button type="submit" class="btn btn-sm btn-outline-primary w-100 mt-1">Filter Services</button>
+                                </div>
+                            </div>
+                        </form>
+                    }
+                    else
+                    {
+                        <span class="badge bg-soft-success text-dark border p-2 mt-2">
+                            <i class="bi bi-cash me-1"></i>OPD mode — settle with cash / card now.
+                        </span>
+                    }
+                </div>
+            </div>
+
+            <div class="card mb-3">
+                <div class="card-header bg-white fw-semibold"><i class="bi bi-search me-1 text-primary"></i>Add Ultra-Sound Services</div>
+                <div class="card-body">
+                    <form method="post" asp-page-handler="SearchServices" class="input-group">
+                        @Html.AntiForgeryToken()
+                        <input asp-for="ServiceSearch" class="form-control" placeholder="Search ultrasound services..." />
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i></button>
+                    </form>
+                    @if (Model.ServiceResults.Any())
+                    {
+                        <div class="mt-2">
+                            @foreach (var s in Model.ServiceResults)
+                            {
+                                <form method="post" asp-page-handler="AddService" class="mb-1">
+                                    <input type="hidden" name="ServiceSearch" value="@Model.ServiceSearch" />
+                                    <input type="hidden" name="SelectedServiceId" value="@s.Id" />
+                                    @Html.AntiForgeryToken()
+                                    <div class="d-flex justify-content-between align-items-center p-1 border-bottom">
+                                        <div>
+                                            <span class="badge bg-primary text-white me-1" style="font-size:.65rem;">US</span>
+                                            <span class="fw-semibold small">@s.Name</span>
+                                            @if (!string.IsNullOrEmpty(s.PrintName) && s.PrintName != s.Name)
+                                            {
+                                                <small class="text-secondary ms-1">@s.PrintName</small>
+                                            }
+                                            <small class="text-secondary ms-1">@(s.Rate?.ToString("N2") ?? "-")</small>
+                                        </div>
+                                        <button type="submit" class="btn btn-sm btn-outline-success"><i class="bi bi-plus-lg"></i></button>
+                                    </div>
+                                </form>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="card mb-3">
+                <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
+                    <span><i class="bi bi-receipt me-1 text-primary"></i>Indent Cart (@Model.DisplayCart.Count)</span>
+                    @if (Model.DisplayCart.Any())
+                    {
+                        <form method="post" asp-page-handler="Clear" class="mb-0">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-trash me-1"></i>Clear</button>
+                        </form>
+                    }
+                </div>
+                <div class="card-body p-0">
+                    @if (Model.DisplayCart.Any())
+                    {
+                        <form method="post" asp-page-handler="UpdateCart">
+                            @Html.AntiForgeryToken()
+                            <div class="table-responsive">
+                                <table class="table align-middle mb-0">
+                                    <thead class="table-light"><tr><th>Service</th><th class="text-center" style="width:90px;">Qty</th><th class="text-end" style="width:110px;">Rate</th><th class="text-end" style="width:110px;">Disc</th><th class="text-end">Line Total</th><th></th></tr></thead>
+                                    <tbody>
+                                        @for (int i = 0; i < Model.DisplayCart.Count; i++)
+                                        {
+                                            var line = Model.DisplayCart[i];
+                                            <tr>
+                                                <td>
+                                                    <input type="hidden" asp-for="Cart[i].ItemId" />
+                                                    <input type="hidden" asp-for="Cart[i].Code" />
+                                                    <input type="hidden" asp-for="Cart[i].ItemName" />
+                                                    <div class="small fw-semibold">@line.ItemName</div>
+                                                    <small class="text-secondary">@(line.Code ?? "#"+line.ItemId)</small>
+                                                </td>
+                                                <td><input asp-for="Cart[i].Qty" type="number" min="1" step="1" class="form-control form-control-sm text-center" /></td>
+                                                <td><input asp-for="Cart[i].Rate" type="number" min="0" step="0.01" class="form-control form-control-sm text-end" /></td>
+                                                <td><input asp-for="Cart[i].Discount" type="number" min="0" step="0.01" class="form-control form-control-sm text-end" /></td>
+                                                <td class="text-end align-middle fw-semibold small">@line.NetValue.ToString("N2")</td>
+                                                <td class="text-end">
+                                                    <button type="submit" name="ItemToRemove" value="@line.ItemId" class="btn btn-sm btn-outline-danger" title="Remove"><i class="bi bi-x-lg"></i></button>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                    <tfoot><tr class="table-light"><td colspan="4" class="fw-bold">Total</td><td class="text-end fw-bold fs-5">@Model.Total.ToString("N2")</td><td></td></tr></tfoot>
+                                </table>
+                            </div>
+                            <div class="card-body border-top bg-light">
+                                <button type="submit" class="btn btn-outline-secondary btn-sm">Update Cart</button>
+                            </div>
+                        </form>
+                    }
+                    else
+                    {
+                        <div class="text-center py-4"><i class="bi bi-receipt text-secondary" style="font-size:2rem;"></i><p class="text-secondary mt-2 mb-0">Cart is empty. Search and add ultrasound services.</p></div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="card mb-3">
+                <div class="card-header bg-white fw-semibold"><i class="bi bi-cash-stack me-1 text-primary"></i>Payment</div>
+                <div class="card-body">
+                    <form method="post" asp-page-handler="Save">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="SelectedEncounterId" value="@(Model.SelectedEncounter?.Id)" />
+
+                        @if (Model.SelectedEncounter != null)
+                        {
+                            <div class="bg-info bg-opacity-10 border border-info rounded p-3">
+                                <div class="fw-semibold"><i class="bi bi-hospital me-1"></i>IPD Mode</div>
+                                <small class="text-secondary">Net charges <strong>@Model.NetTotal.ToString("N2")</strong> will be added to the patient's IPD account and settled at discharge.</small>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle me-1"></i>
+                                <strong>OPD Mode:</strong> Bill will be created as <strong>unpaid</strong>. Patient must pay at <a asp-page="/Cashier/Receipt" class="text-decoration-underline">Cashier Receipt</a> page.
+                            </div>
+                        }
+
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label asp-for="Comments" class="form-label small fw-bold">Comments</label>
+                                <textarea asp-for="Comments" class="form-control" rows="2" placeholder="Optional"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="bg-light border rounded p-3 mt-3">
+                            <div class="row g-2">
+                                <div class="col-6 text-secondary small fw-bold">Gross Total:</div>
+                                <div class="col-6 text-end fw-semibold">@Model.Total.ToString("N2")</div>
+                                <div class="col-6 text-secondary small fw-bold">Discount:</div>
+                                <div class="col-6 text-end fw-semibold">@Model.DiscountTotal.ToString("N2")</div>
+                                <div class="col-6 text-secondary small fw-bold border-top pt-1">Net Total:</div>
+                                <div class="col-6 text-end fw-bold fs-5 border-top pt-1 text-primary">@Model.NetTotal.ToString("N2")</div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-success w-100 px-4 mt-3"
+                                disabled="@(!Model.DisplayCart.Any())">
+                            <i class="bi bi-save me-1"></i>Save US Indent
+                        </button>
+                        @if (!Model.DisplayCart.Any())
+                        {
+                            <div class="form-text text-center mt-2">Add at least one ultrasound service.</div>
+                        }
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <script>
+        function toggleNewPatient(open) {
+            var el = document.getElementById('newPatientSection');
+            if (el) { el.style.display = open ? '' : 'none'; }
+        }
+    </script>
+}

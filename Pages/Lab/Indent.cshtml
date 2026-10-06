@@ -19,6 +19,88 @@
     <div class="alert alert-warning py-2"><i class="bi bi-exclamation-triangle me-1"></i>@Model.Message</div>
 }
 
+@if (Model.Invoice != null)
+{
+    <div class="card mb-3 border-primary">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-file-earmark-text me-1"></i>Lab Service Invoice - Ready for Cashier</span>
+            <div class="d-flex gap-2">
+                <a asp-page-handler="PrintInvoice" asp-route-billId="@Model.Invoice.BillId" class="btn btn-light btn-sm" target="_blank">
+                    <i class="bi bi-printer me-1"></i>Print Invoice
+                </a>
+                <a asp-page="/Cashier/Receipt" class="btn btn-warning btn-sm">
+                    <i class="bi bi-cash-stack me-1"></i>Go to Cashier
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <strong>Patient:</strong> @Model.Invoice.PatientName<br />
+                    <strong>PHN:</strong> @(Model.Invoice.PatientPhn?.ToString() ?? "-")<br />
+                    <strong>Visit/Ref:</strong> @Model.Invoice.VisitNumber
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <strong>Invoice:</strong> @Model.Invoice.InvoiceNumber<br />
+                    <strong>Date:</strong> @Model.Invoice.InvoiceDate.ToString("dd MMM yyyy HH:mm")<br />
+                    <strong>Dept:</strong> @Model.Invoice.DepartmentName
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-bordered mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Test / Service</th>
+                            <th class="text-center">Qty</th>
+                            <th class="text-end">Rate</th>
+                            <th class="text-end">Disc</th>
+                            <th class="text-end">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var line in Model.Invoice.Lines)
+                        {
+                            <tr>
+                                <td>@line.ItemName</td>
+                                <td class="text-center">@line.Qty</td>
+                                <td class="text-end">@line.Rate.ToString("N2")</td>
+                                <td class="text-end">@(line.Discount > 0 ? line.Discount.ToString("N2") : "-")</td>
+                                <td class="text-end fw-bold">@line.NetValue.ToString("N2")</td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot>
+                        <tr class="table-light">
+                            <td colspan="4" class="text-end fw-bold">Sub Total</td>
+                            <td class="text-end">@Model.Invoice.SubTotal.ToString("N2")</td>
+                        </tr>
+                        <tr class="table-light">
+                            <td colspan="4" class="text-end fw-bold">Discount</td>
+                            <td class="text-end">@Model.Invoice.Discount.ToString("N2")</td>
+                        </tr>
+                        <tr class="table-primary">
+                            <td colspan="4" class="text-end fw-bold fs-5">NET TOTAL</td>
+                            <td class="text-end fw-bold fs-5 text-primary">@Model.Invoice.NetTotal.ToString("N2")</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            @if (Model.Invoice.IsIPD)
+            {
+                <div class="alert alert-info mt-3 mb-0">
+                    <i class="bi bi-hospital me-1"></i><strong>IPD Patient:</strong> Amount added to patient account. Will be settled at discharge.
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-warning mt-3 mb-0">
+                    <i class="bi bi-exclamation-triangle me-1"></i><strong>OPD Patient - UNPAID:</strong> Patient/attendant must present this invoice at <a asp-page="/Cashier/Receipt" class="text-decoration-underline fw-bold">Cashier</a> for payment. Cashier will verify and receive money.
+                </div>
+            }
+        </div>
+    </div>
+}
+
 @if (Model.SelectedPatient == null)
 {
     <div class="d-flex justify-content-between align-items-center mb-2 gap-2">
@@ -159,11 +241,19 @@ else
                             <small class="text-secondary">PHN: @(Model.SelectedPatient.Phn ?? "-")</small>
                         </div>
                         <div class="col-md-7 text-end">
-                            <form method="post" asp-page-handler="StartNew">
-                                <input type="hidden" name="SelectedPatientId" value="@Model.SelectedPatient.Id" />
-                                @Html.AntiForgeryToken()
-                                <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Switch patient</button>
-                            </form>
+                            <div class="d-flex gap-2 justify-content-end">
+                                <form method="post" asp-page-handler="StartNew" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-outline-secondary btn-sm" title="Clear patient and cart, start fresh">
+                                        <i class="bi bi-plus-lg me-1"></i>New Indent
+                                    </button>
+                                </form>
+                                <form method="post" asp-page-handler="StartNew" class="d-inline">
+                                    <input type="hidden" name="SelectedPatientId" value="@Model.SelectedPatient.Id" />
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Switch patient</button>
+                                </form>
+                            </div>
                         </div>
                     </div>
                     @if (Model.ActiveEncounters.Any())
@@ -202,9 +292,11 @@ else
                 <div class="card-body">
                     <form method="post" asp-page-handler="SearchItems" class="input-group">
                         @Html.AntiForgeryToken()
-                        <select asp-for="DepartmentId" asp-items="@(new SelectList(Model.Departments, "Id", "Name"))" class="form-select" style="max-width:220px;">
-                            <option value="">-- department --</option>
-                        </select>
+                        @* Department is auto-selected to Laboratory *@
+                        <span class="form-control-plaintext text-secondary small d-flex align-items-center" style="max-width:220px;">
+                            <i class="bi bi-flask me-1"></i> Laboratory
+                        </span>
+                        <input type="hidden" name="DepartmentId" value="@Model.LabDepartment?.Id" />
                         <input asp-for="ItemSearch" class="form-control" placeholder="Search investigations or services..." />
                         <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i></button>
                     </form>
@@ -216,7 +308,7 @@ else
                                 <form method="post" asp-page-handler="AddItem" class="mb-1">
                                     <input type="hidden" name="ItemSearch" value="@Model.ItemSearch" />
                                     <input type="hidden" name="SelectedItemId" value="@item.Id" />
-                                    <input type="hidden" name="DepartmentId" value="@Model.DepartmentId" />
+                                    <input type="hidden" name="DepartmentId" value="@Model.LabDepartment?.Id" />
                                     @Html.AntiForgeryToken()
                                     <div class="d-flex justify-content-between align-items-center p-1 border-bottom">
                                         <div>
@@ -307,28 +399,18 @@ else
                         }
                         else
                         {
-                            <div class="row g-3">
-                                <div class="col-12">
-                                    <label class="form-label small fw-bold">Payment Method</label>
-                                    <select asp-for="PaymentMethod" class="form-select">
-                                        @foreach (var m in Model.PaymentMethodList)
-                                        {
-                                            <option value="@m.Value" selected="@(m.Value == Model.PaymentMethod.ToString())">@m.Text</option>
-                                        }
-                                    </select>
-                                </div>
-                                <div class="col-12" id="tendered-row">
-                                    <label asp-for="BillDiscount" class="form-label small fw-bold">Bill Discount</label>
-                                    <input asp-for="BillDiscount" type="number" min="0" step="0.01" class="form-control mb-3" />
-                                    <label asp-for="TenderedAmount" class="form-label small fw-bold">Tendered Amount</label>
-                                    <input asp-for="TenderedAmount" type="number" min="0" step="0.01" class="form-control" placeholder="Enter amount received" />
-                                </div>
-                                <div class="col-12">
-                                    <label asp-for="Comments" class="form-label small fw-bold">Comments</label>
-                                    <textarea asp-for="Comments" class="form-control" rows="2" placeholder="Optional"></textarea>
-                                </div>
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle me-1"></i>
+                                <strong>OPD Mode:</strong> Bill will be created as <strong>unpaid</strong>. Patient must pay at <a asp-page="/Cashier/Receipt" class="text-decoration-underline">Cashier Receipt</a> page.
                             </div>
                         }
+
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label asp-for="Comments" class="form-label small fw-bold">Comments</label>
+                                <textarea asp-for="Comments" class="form-control" rows="2" placeholder="Optional"></textarea>
+                            </div>
+                        </div>
 
                         <div class="bg-light border rounded p-3 mt-3">
                             <div class="row g-2">
@@ -338,20 +420,12 @@ else
                                 <div class="col-6 text-end fw-semibold">@Model.DiscountTotal.ToString("N2")</div>
                                 <div class="col-6 text-secondary small fw-bold border-top pt-1">Net Total:</div>
                                 <div class="col-6 text-end fw-bold fs-5 border-top pt-1 text-primary">@Model.NetTotal.ToString("N2")</div>
-                                @if (Model.SelectedEncounter == null)
-                                {
-                                    <div class="col-6 text-secondary small fw-bold">Tendered:</div>
-                                    <div class="col-6 text-end fw-semibold">@Model.TenderedAmount.ToString("N2")</div>
-                                    <div class="col-6 text-secondary small fw-bold">Change Due:</div>
-                                    <div class="col-6 text-end fw-semibold text-success">@Model.CashBalance.ToString("N2")</div>
-                                }
                             </div>
                         </div>
 
-                        <button type="submit" class="btn @(Model.SelectedEncounter!=null?"btn-info":"btn-success") w-100 px-4 mt-3"
+                        <button type="submit" class="btn btn-success w-100 px-4 mt-3"
                                 disabled="@(!Model.DisplayCart.Any())">
-                            <i class="bi bi-cash-stack me-1"></i>
-                            @(Model.SelectedEncounter!=null ? "Save Lab Indent to IPD Account" : "Settle & Save Bill")
+                            <i class="bi bi-save me-1"></i>Save Lab Indent
                         </button>
                         @if (!Model.DisplayCart.Any())
                         {
@@ -370,14 +444,5 @@ else
             var el = document.getElementById('newPatientSection');
             if (el) { el.style.display = open ? '' : 'none'; }
         }
-        $(function () {
-            function toggleTendered() {
-                var m = $('#PaymentMethod').val();
-                if (m === 'Credit') { $('#tendered-row').hide(); }
-                else { $('#tendered-row').show(); }
-            }
-            $('#PaymentMethod').on('change', toggleTendered);
-            toggleTendered();
-        });
     </script>
 }
