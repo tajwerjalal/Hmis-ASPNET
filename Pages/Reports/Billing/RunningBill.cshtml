@@ -1,0 +1,105 @@
+@page
+@model HmisWeb.Pages.Reports.Billing.RunningBillModel
+@{
+    ViewData["Title"] = "IPD Running Bill";
+}
+
+<h4 class="mb-1">Billing Reports &gt; IPD Running Bill</h4>
+<p class="text-muted small mb-4">
+    Migration of VFP form <code>BS021040</code> &mdash; Running Bills for IPD patients whose slips are not yet
+    billed. Summary prints report <code>IPD-AUDS</code>, Detail prints <code>IPD-AUDD</code>.
+    At least one criterion is required.
+</p>
+
+@if (!string.IsNullOrEmpty(Model.Message))
+{
+    <div class="alert alert-warning py-2">@Model.Message</div>
+}
+
+<form method="post" asp-page-handler="Generate">
+    <div class="card mb-3">
+        <div class="card-header">
+            <i class="bi bi-funnel"></i> Report Criteria
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Report Type</label>
+                    <div class="btn-group w-100" role="group" aria-label="Report type">
+                        <input type="radio" class="btn-check" name="Input.Mode" id="modeSummary" value="summary" checked="@(Model.Input.Mode != "detail")" />
+                        <label class="btn btn-outline-primary" for="modeSummary">Summary</label>
+                        <input type="radio" class="btn-check" name="Input.Mode" id="modeDetail" value="detail" checked="@(Model.Input.Mode == "detail")" />
+                        <label class="btn btn-outline-primary" for="modeDetail">Detail</label>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Company <span class="text-muted small">(chkcomp)</span></label>
+                    <select asp-for="Input.Company" class="form-select form-select-sm">
+                        <option value="">-- all --</option>
+                        @foreach (var c in Model.Companies)
+                        {
+                            <option value="@c.Id">@c.Id &nbsp; @c.Name</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Department <span class="text-muted small">(chkdept)</span></label>
+                    <select asp-for="Input.Dept" class="form-select form-select-sm">
+                        <option value="">-- all --</option>
+                        @foreach (var d in Model.Departments)
+                        {
+                            <option value="@d.Id">@d.Id &nbsp; @d.Name</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">IPD No. / Reg. No. <span class="text-muted small">(chkopdreg)</span></label>
+                    <input asp-for="Input.RegNo" class="form-control form-control-sm" placeholder="e.g. 187038" />
+                </div>
+
+                <div class="col-md-4">
+                    <div class="form-check mt-md-4">
+                        <input class="form-check-input" type="checkbox" asp-for="Input.UseDates" id="useDates" />
+                        <label class="form-check-label" for="useDates">Apply slip date range <span class="text-muted small">(chkdate)</span></label>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">From</label>
+                    <input type="date" asp-for="Input.From" class="form-control form-control-sm" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">To</label>
+                    <input type="date" asp-for="Input.To" class="form-control form-control-sm" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Pages</label>
+                    <div class="input-group input-group-sm">
+                        <input type="number" min="1" asp-for="Input.StartPage" class="form-control" />
+                        <span class="input-group-text">-</span>
+                        <input type="number" min="1" asp-for="Input.EndPage" class="form-control" />
+                    </div>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-file-earmark-pdf"></i> Generate
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+<div class="card">
+    <div class="card-header"><i class="bi bi-info-circle"></i> How this report works</div>
+    <div class="card-body small text-muted">
+        <ul class="mb-0">
+            <li>Scope: inpatient registrations (<code>REGISTER.TYPE = 'I'</code>) that are <strong>not yet billed</strong> (<code>BILLGEN</code> clear), excluding lines flagged <code>P</code>.</li>
+            <li>Return slips (<code>TYPE = 'R'</code>) are subtracted from qty and amount.</li>
+            <li>Laboratory (<code>01</code>) is split into hospital lab and other laboratories; Pharmacy (<code>10</code>) shows medicine and refund separately.</li>
+            <li>Balance / Refund Amount = Total Charges &minus; Deposited + Refunded.</li>
+        </ul>
+    </div>
+</div>

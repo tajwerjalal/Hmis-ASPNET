@@ -1,0 +1,134 @@
+@page
+@model HmisWeb.Pages.Reports.Billing.RunModel
+@{
+    var def = Model.Def;
+    ViewData["Title"] = def?.Title ?? "Report";
+}
+
+@if (def == null)
+{
+    <div class="alert alert-danger">@Model.Message</div>
+    <a asp-page="/Reports/Billing/RunningBill" class="btn btn-outline-secondary">Back to IPD Running Bill</a>
+}
+else
+{
+    <h4 class="mb-1">Billing Reports &gt; @def.Title</h4>
+    <p class="text-muted small mb-4">
+        Migrated from VFP form <code>@def.LegacyForm</code> &mdash; legacy report(s)
+        <code>@def.LegacyReport</code>. At least one criterion is required, as in the original form.
+    </p>
+
+    <form method="post" asp-page-handler="Generate">
+        <input type="hidden" asp-for="Code" />
+        <div class="card mb-3">
+            <div class="card-header"><i class="bi bi-funnel"></i> Report Criteria</div>
+            <div class="card-body">
+                <div class="row g-3">
+
+                    @if (def.Modes.Length > 1)
+                    {
+                        <div class="col-md-3">
+                            <label class="form-label">Report Mode</label>
+                            <select asp-for="Input.Mode" class="form-select form-select-sm">
+                                @for (var i = 0; i < def.Modes.Length; i++)
+                                {
+                                    <option value="@(i + 1)">@def.Modes[i]</option>
+                                }
+                            </select>
+                            <div class="form-text">
+                                Legacy reports:
+                                @for (var i = 0; i < def.Modes.Length; i++)
+                                {
+                                    <code>@(def.ModeReports != null && def.ModeReports.Length > i ? def.ModeReports[i] : def.LegacyReport)</code>
+                                    if (i < def.Modes.Length - 1)
+                                    {
+                                        <text>, </text>
+                                    }
+                                }
+                            </div>
+                        </div>
+                    }
+
+                    <div class="col-md-3">
+                        <label class="form-label">Company / Panel</label>
+                        <select asp-for="Input.Company" class="form-select form-select-sm">
+                            <option value="">-- all --</option>
+                            @foreach (var c in Model.Companies)
+                            {
+                                <option value="@c.Id">@c.Id &nbsp; @c.Name</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label">Department</label>
+                        <select asp-for="Input.Dept" class="form-select form-select-sm">
+                            <option value="">-- all --</option>
+                            @foreach (var d in Model.Departments)
+                            {
+                                <option value="@d.Id">@d.Id &nbsp; @d.Name</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="col-md-3">
+                        <label class="form-label">IPD No.</label>
+                        <input asp-for="Input.RegNo" class="form-control form-control-sm" placeholder="e.g. 187038" />
+                    </div>
+
+                    @if (def.Code == "BILLSLIST")
+                    {
+                        <div class="col-md-3">
+                            <label class="form-label">Bill No.</label>
+                            <input asp-for="Input.BillNo" class="form-control form-control-sm" placeholder="e.g. 139187" />
+                        </div>
+                    }
+
+                    <div class="col-md-3">
+                        <div class="form-check mt-md-4">
+                            <input class="form-check-input" type="checkbox" asp-for="Input.UseDates" id="useDates" />
+                            <label class="form-check-label" for="useDates">Apply date range</label>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">From</label>
+                        <input type="date" asp-for="Input.From" class="form-control form-control-sm" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">To</label>
+                        <input type="date" asp-for="Input.To" class="form-control form-control-sm" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Pages</label>
+                        <div class="input-group input-group-sm">
+                            <input type="number" min="1" asp-for="Input.StartPage" class="form-control" />
+                            <span class="input-group-text">-</span>
+                            <input type="number" min="1" asp-for="Input.EndPage" class="form-control" />
+                        </div>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-file-earmark-pdf"></i> Generate
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <div class="card">
+        <div class="card-header"><i class="bi bi-table"></i> Output columns</div>
+        <div class="card-body">
+            <div class="d-flex flex-wrap gap-2">
+                @foreach (var col in def.Columns)
+                {
+                    <span class="badge @(col.Numeric ? "text-bg-light border" : "text-bg-secondary")">@col.Header</span>
+                }
+            </div>
+            @if (def.GroupBy != null)
+            {
+                <div class="form-text mt-2">Rows are grouped by <strong>@def.GroupBy</strong> with a subtotal band per group.</div>
+            }
+        </div>
+    </div>
+}

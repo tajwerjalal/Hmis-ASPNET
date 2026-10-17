@@ -1,0 +1,43 @@
+@model HmisWeb.Pages.Shared.PagerModel
+@{
+    var path = ViewContext.RouteData.Values["page"]?.ToString();
+    var q = Context.Request.Query
+        .Where(kv => !string.Equals(kv.Key, "pg", System.StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(kv.Value.ToString()))
+        .ToDictionary(kv => kv.Key, kv => kv.Value.ToString());
+    Dictionary<string, string> Link(int p)
+    {
+        var d = new Dictionary<string, string>(q);
+        d["pg"] = p.ToString();
+        return d;
+    }
+    var windowStart = System.Math.Max(1, Model.PageIndex - 3);
+    var windowEnd = System.Math.Min(Model.TotalPages, windowStart + 6);
+    windowStart = System.Math.Max(1, windowEnd - 6);
+    var from = Model.TotalCount == 0 ? 0 : ((Model.PageIndex - 1) * Model.PageSize) + 1;
+    var to = System.Math.Min(Model.PageIndex * Model.PageSize, Model.TotalCount);
+}
+@if (Model.TotalCount > 0)
+{
+    <div class="d-flex flex-wrap justify-content-between align-items-center px-3 py-2 border-top bg-white">
+        <div class="text-secondary small">Showing @from&ndash;@to of @Model.TotalCount</div>
+        @if (Model.TotalPages > 1)
+        {
+            <nav aria-label="pagination">
+                <ul class="pagination pagination-sm mb-0">
+                    <li class="page-item @(Model.PageIndex <= 1 ? "disabled" : "")">
+                        <a class="page-link" asp-page="@path" asp-all-route-data="Link(Model.PageIndex - 1)">&laquo;</a>
+                    </li>
+                    @for (var p = windowStart; p <= windowEnd; p++)
+                    {
+                        <li class="page-item @(p == Model.PageIndex ? "active" : "")">
+                            <a class="page-link" asp-page="@path" asp-all-route-data="Link(p)">@p</a>
+                        </li>
+                    }
+                    <li class="page-item @(Model.PageIndex >= Model.TotalPages ? "disabled" : "")">
+                        <a class="page-link" asp-page="@path" asp-all-route-data="Link(Model.PageIndex + 1)">&raquo;</a>
+                    </li>
+                </ul>
+            </nav>
+        }
+    </div>
+}

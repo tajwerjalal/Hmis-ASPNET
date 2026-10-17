@@ -4,12 +4,82 @@
     ViewData["Title"] = "Test Classification Setup";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h4 class="mb-0 fw-bold">Test Classification Setup</h4>
+<div class="d-flex justify-content-between align-items-end mb-3">
+    <div>
+        <h4 class="mb-0 fw-bold"><i class="bi bi-diagram-3 me-2 text-primary"></i>Test Classification Setup</h4>
+        <div class="text-secondary small">Groupings for laboratory tests &middot; mirrors VFP Labsys <code>lb0320</code></div>
+    </div>
+    <a asp-page="/lab/TestClassificationSetup" asp-route-add="1" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>New Classification</a>
 </div>
 
+@if (!string.IsNullOrEmpty(Model.Success))
+{
+    <div class="alert alert-success alert-dismissible fade show py-2"><i class="bi bi-check-circle me-1"></i>@Model.Success<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger alert-dismissible fade show py-2"><i class="bi bi-exclamation-triangle me-1"></i>@Model.ErrorMessage<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+
+@if (Model.Input.ShowForm)
+{
+    <div class="card mb-3 border-primary">
+        <div class="card-header bg-primary-subtle fw-semibold">@(Model.Input.Id > 0 ? "Edit Classification" : "New Classification")</div>
+        <div class="card-body">
+            <form method="post" asp-page-handler="Save">
+                <input type="hidden" asp-for="Input.Id" />
+                <div class="row g-3">
+                    <div class="col-md-2"><label class="form-label small mb-1">Code</label><input asp-for="Input.Code" class="form-control form-control-sm" /></div>
+                    <div class="col-md-4"><label class="form-label small mb-1">Name <span class="text-danger">*</span></label><input asp-for="Input.Name" class="form-control form-control-sm" required /></div>
+                    <div class="col-md-3"><label class="form-label small mb-1">Short Name</label><input asp-for="Input.Sname" class="form-control form-control-sm" /></div>
+                    <div class="col-md-3"><label class="form-label small mb-1">Parent</label><select asp-for="Input.ParentCategoryId" asp-items="Model.ParentList" class="form-select form-select-sm"><option value="">-- None --</option></select></div>
+                    <div class="col-12"><label class="form-label small mb-1">Description</label><input asp-for="Input.Description" class="form-control form-control-sm" /></div>
+                </div>
+                <div class="d-flex gap-2 mt-3">
+                    <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-check2 me-1"></i>Save</button>
+                    <a asp-page="/lab/TestClassificationSetup" class="btn btn-outline-secondary btn-sm">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
 <div class="card">
-    <div class="card-body text-secondary">
-        <i class="bi bi-diagram-3 me-1"></i> To be implemented — mirrors the VFP Labsys form <code>lb0320</code>.
+    <div class="card-body p-0">
+        <table class="table table-sm table-hover mb-0 align-middle">
+            <thead class="table-light">
+                <tr><th>Code</th><th>Name</th><th>Short Name</th><th>Parent</th><th>Status</th><th class="text-end">Actions</th></tr>
+            </thead>
+            <tbody>
+                @if (Model.Items.Any())
+                {
+                    @foreach (var c in Model.Items)
+                    {
+                        <tr>
+                            <td>@c.Code</td>
+                            <td class="fw-semibold">@c.Name</td>
+                            <td>@c.Sname</td>
+                            <td>@(Model.ParentList.FirstOrDefault(p => p.Value == c.ParentCategoryId?.ToString())?.Text)</td>
+                            <td>@if (c.Retired) { <span class="badge bg-secondary">Retired</span> } else { <span class="badge bg-success">Active</span> }</td>
+                            <td class="text-end text-nowrap">
+                                <a asp-page="/lab/TestClassificationSetup" asp-route-edit="@c.Id" class="btn btn-outline-primary btn-sm"><i class="bi bi-pencil"></i></a>
+                                @if (c.Retired)
+                                {
+                                    <form method="post" asp-page-handler="Activate" asp-route-id="@c.Id" class="d-inline"><button class="btn btn-outline-success btn-sm"><i class="bi bi-arrow-counterclockwise"></i></button></form>
+                                }
+                                else
+                                {
+                                    <form method="post" asp-page-handler="Retire" asp-route-id="@c.Id" class="d-inline" onsubmit="return confirm('Retire this classification?');"><button class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></button></form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr><td colspan="6" class="text-center text-muted py-4">No classifications found.</td></tr>
+                }
+            </tbody>
+        </table>
     </div>
 </div>

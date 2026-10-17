@@ -1,0 +1,415 @@
+@page "/billing/SlipEntry"
+@model HmisWeb.Pages.Billing.SlipEntryModel
+@{
+    ViewData["Title"] = "Department Slip Entry";
+    var isInward = Model.IsInward;
+    var i = 0;
+}
+
+<style>
+    .panel-hdr {
+        background: linear-gradient(90deg, #1d4ed8 0%, #4f46e5 55%, #7c3aed 100%);
+        color: #fff;
+        border-bottom: 0;
+    }
+    .panel-hdr .text-secondary { color: rgba(255,255,255,.75) !important; }
+    .panel-hdr i { color: #fff; }
+</style>
+
+<div class="d-flex justify-content-between align-items-end mb-3">
+    <div>
+        <h4 class="mb-0 fw-bold"><i class="bi bi-journal-text me-2 text-primary"></i>Department Slip Entry</h4>
+        <div class="text-secondary small">
+            @(isInward ? "Indoor Patient" : "Outdoor Patient")
+            &middot; mirrors VFP Billsys <code>@(isInward ? "bs0110" : "bs0101")</code>
+        </div>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.Success))
+{
+    <div class="alert alert-success alert-dismissible fade show py-2"><i class="bi bi-check-circle me-1"></i>@Model.Success<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+@if (!string.IsNullOrEmpty(Model.Message))
+{
+    <div class="alert alert-danger alert-dismissible fade show py-2"><i class="bi bi-exclamation-triangle me-1"></i>@Model.Message<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+
+@* ============ 1. FIND PATIENT (top) ============ *@
+<div class="card mb-3 border-primary border-opacity-25">
+    <div class="card-header panel-hdr fw-semibold py-2">
+        <i class="bi bi-person-lines-fill me-1 text-primary"></i>Find Patient / @(isInward ? "Admission (BHT No.)" : "Registration")
+    </div>
+    <div class="card-body">
+        <form method="post" asp-page-handler="SearchPatients" class="row g-2 align-items-end mb-2">
+            <div class="col-md-3 col-lg-2">
+                <label class="form-label small mb-1">Patient Type</label>
+                <select name="Type" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="opd" selected="@(isInward ? null : "selected")">Outdoor (OPD)</option>
+                    <option value="inward" selected="@(isInward ? "selected" : null)">Indoor (IPD)</option>
+                </select>
+            </div>
+            <div class="col-md-7 col-lg-6">
+                <label class="form-label small mb-1">@(isInward ? "BHT No." : "Reg. No.") / name / PHN / NIC</label>
+                <input name="PatientSearch" value="@Model.PatientSearch" class="form-control form-control-sm"
+                       placeholder="@(isInward ? "BHT No. / name / PHN / NIC" : "Reg. No. / name / PHN / NIC")" />
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary btn-sm w-100"><i class="bi bi-search me-1"></i>Search</button>
+            </div>
+        </form>
+
+        @if (Model.EncounterResults.Any())
+        {
+            <table class="table table-sm table-hover align-middle mb-0">
+                <thead class="table-light"><tr><th>@(isInward ? "BHT No." : "Reg. No.")</th><th>Patient</th><th>PHN</th><th>NIC</th><th>Date</th><th style="width:110px"></th></tr></thead>
+                <tbody>
+                    @foreach (var e in Model.EncounterResults)
+                    {
+                        <tr>
+                            <td class="fw-semibold">@(isInward ? e.BhtNo : (e.ReferenceNo ?? e.Id.ToString()))</td>
+                            <td>@(e.Patient?.Person?.NameWithInitials ?? e.Patient?.Person?.Name)</td>
+                            <td>@e.Patient?.Phn</td>
+                            <td>@e.Patient?.Person?.Nic</td>
+                            <td>@((e.DateOfAdmission ?? e.EncounterDate ?? e.CreatedAt)?.ToString("yyyy-MM-dd"))</td>
+                            <td>
+                                <form method="post" asp-page-handler="SelectEncounter">
+                                    <input type="hidden" name="Type" value="@Model.Type" />
+                                    <input type="hidden" name="Dept" value="@Model.Dept" />
+                                    <input type="hidden" name="encounterId" value="@e.Id" />
+                                    <button type="submit" class="btn btn-sm btn-outline-primary w-100">Select</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        else if (!string.IsNullOrEmpty(Model.PatientSearch))
+        {
+            <div class="text-muted small">No matching @(isInward ? "admissions" : "registrations") found.</div>
+        }
+    </div>
+</div>
+
+@if (Model.Encounter == null)
+{
+    <div class="alert alert-light border text-center text-muted py-4 mb-0">
+        <i class="bi bi-hand-index-thumb me-1"></i>Search and select a patient above to see their departments and indents.
+    </div>
+}
+else
+{
+    @* ============ Patient bar ============ *@
+    <div class="card mb-3">
+        <div class="card-body py-2 d-flex flex-wrap align-items-center gap-3">
+            <div><span class="text-secondary small">@(isInward ? "BHT No." : "Reg. No."):</span> <span class="fw-semibold">@(isInward ? Model.Encounter.BhtNo : (Model.Encounter.ReferenceNo ?? Model.Encounter.Id.ToString()))</span></div>
+            <div><span class="text-secondary small">Patient Code:</span> <span class="fw-semibold">@(Model.Encounter.Patient?.Code ?? Model.Encounter.Patient?.Phn)</span></div>
+            <div><span class="text-secondary small">Name:</span> <span class="fw-semibold">@(Model.Encounter.Patient?.Person?.NameWithInitials ?? Model.Encounter.Patient?.Person?.Name)</span></div>
+            @if (!string.IsNullOrEmpty(Model.Encounter.CreditCompany?.Name))
+            {
+                <div><span class="text-secondary small">Company:</span> <span class="fw-semibold">@Model.Encounter.CreditCompany.Name</span></div>
+            }
+            <div class="ms-auto">
+                <a asp-page="/billing/SlipEntry" asp-route-Type="@Model.Type" class="btn btn-outline-secondary btn-sm"><i class="bi bi-x-circle me-1"></i>Clear Patient</a>
+            </div>
+        </div>
+    </div>
+
+    @* ============ 2. DEPARTMENTS GRID (moved down, now with amounts) ============ *@
+    <div class="card mb-3">
+        <div class="card-header panel-hdr d-flex justify-content-between align-items-center py-2">
+            <span class="fw-semibold"><i class="bi bi-diagram-3 me-1 text-primary"></i>Patient Departments</span>
+            <span class="text-secondary small">Select a department to open its indents below</span>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-sm table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width:70px">Code</th>
+                        <th>Department</th>
+                        <th class="text-end" style="width:110px">Total Slips</th>
+                        <th class="text-end" style="width:140px">Net Amount</th>
+                        <th style="width:90px"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var d in Model.DeptSummaries)
+                    {
+                        var active = d.Code == Model.Dept;
+                        <tr class="@(active ? "table-active" : "")">
+                            <td class="fw-semibold">@d.Code</td>
+                            <td>
+                                @d.Name
+                                @if (d.HasSlips) { <span class="badge bg-info text-dark ms-1">@d.SlipCount</span> }
+                            </td>
+                            <td class="text-end">@d.SlipCount</td>
+                            <td class="text-end fw-semibold">@d.Amount.ToString("N2")</td>
+                            <td class="text-end">
+                                <a asp-page="/billing/SlipEntry" asp-route-Type="@Model.Type" asp-route-EncounterId="@Model.EncounterId" asp-route-Dept="@d.Code"
+                                   class="btn btn-sm @(active ? "btn-primary" : "btn-outline-primary") w-100">
+                                    @(active ? "Open" : "Select")
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot class="table-light">
+                    <tr>
+                        <th></th>
+                        <th>Total</th>
+                        <th class="text-end">@Model.DeptSummaries.Sum(d => d.SlipCount)</th>
+                        <th class="text-end">@Model.DeptSummaries.Sum(d => d.Amount).ToString("N2")</th>
+                        <th></th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    @* ============ 3. DEPARTMENT DETAIL (indents) ============ *@
+    <div class="card mb-3">
+        <div class="card-header panel-hdr d-flex justify-content-between align-items-center py-2">
+            <span class="fw-semibold"><i class="bi bi-list-ul me-1 text-primary"></i>@Model.DeptName &mdash; Slips / Indents</span>
+            <form method="post" asp-page-handler="New">
+                <input type="hidden" name="Type" value="@Model.Type" />
+                <input type="hidden" name="Dept" value="@Model.Dept" />
+                <input type="hidden" name="EncounterId" value="@Model.EncounterId" />
+                <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-plus-lg me-1"></i>New Slip</button>
+            </form>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-sm table-hover align-middle mb-0">
+                <thead class="table-light"><tr><th>Slip No.</th><th>Slip Date</th><th>Type</th><th class="text-end">Net Amount</th><th>Status</th><th style="width:160px"></th></tr></thead>
+                <tbody>
+                    @if (Model.SlipList.Any())
+                    {
+                        foreach (var s in Model.SlipList)
+                        {
+                            var isReturn = s.BillType == HmisWeb.Data.Enums.BillType.OpdReturn || s.BillType == HmisWeb.Data.Enums.BillType.InwardReturn;
+                            <tr class="@(Model.EditingBill?.Id == s.Id ? "table-active" : "")">
+                                <td class="fw-semibold">@s.ReferenceNumber</td>
+                                <td>@s.BillDate?.ToString("yyyy-MM-dd")</td>
+                                <td>@(isReturn ? "Return" : "Accept")</td>
+                                <td class="text-end">@s.NetTotal.ToString("N2")</td>
+                                <td>
+                                    @if (s.BilledBillId != null) { <span class="badge bg-secondary">Billed</span> }
+                                    else { <span class="badge bg-info text-dark">Pending</span> }
+                                </td>
+                                <td class="text-end">
+                                    <form method="post" asp-page-handler="Edit" class="d-inline">
+                                        <input type="hidden" name="Type" value="@Model.Type" />
+                                        <input type="hidden" name="Dept" value="@Model.Dept" />
+                                        <input type="hidden" name="EncounterId" value="@Model.EncounterId" />
+                                        <input type="hidden" name="slipId" value="@s.Id" />
+                                        <button type="submit" class="btn btn-sm btn-outline-primary" title="Modify"><i class="bi bi-pencil"></i> Modify</button>
+                                    </form>
+                                    <form method="post" asp-page-handler="Delete" class="d-inline" onsubmit="return confirm('Delete slip @s.ReferenceNumber?');">
+                                        <input type="hidden" name="Type" value="@Model.Type" />
+                                        <input type="hidden" name="Dept" value="@Model.Dept" />
+                                        <input type="hidden" name="EncounterId" value="@Model.EncounterId" />
+                                        <input type="hidden" name="slipId" value="@s.Id" />
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i class="bi bi-trash"></i></button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr><td colspan="6" class="text-center text-muted py-3">No slips yet for @Model.DeptName. Click <strong>New Slip</strong> to add one.</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <form method="post" asp-page-handler="Save">
+        <input type="hidden" name="Type" value="@Model.Type" />
+        <input type="hidden" name="Dept" value="@Model.Dept" />
+        <input type="hidden" name="EncounterId" value="@Model.EncounterId" />
+        <div class="card">
+            <div class="card-header panel-hdr d-flex justify-content-between align-items-center py-2">
+                <span class="fw-semibold">
+                    <i class="bi bi-pencil-square me-1"></i>
+                    @(Model.EditingBill != null ? $"Modify Slip {Model.EditingBill.ReferenceNumber}" : $"New {Model.DeptName} Slip")
+                </span>
+                @if (Model.EditingBill != null)
+                {
+                    <span class="badge bg-warning text-dark">Modification mode</span>
+                }
+            </div>
+            <div class="card-body">
+                <div class="row g-2 mb-3">
+                    <div class="col-md-3">
+                        <label class="form-label small mb-1">Slip No.</label>
+                        <input name="SlipNo" value="@Model.SlipNo" class="form-control form-control-sm" maxlength="20" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small mb-1">Slip Date</label>
+                        <input type="date" name="SlipDate" value="@Model.SlipDate?.ToString("yyyy-MM-dd")" class="form-control form-control-sm" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small mb-1">Type</label>
+                        <select name="SlipType" class="form-select form-select-sm">
+                            <option value="A" selected="@(Model.SlipType != "R" ? "selected" : null)">Accept</option>
+                            <option value="R" selected="@(Model.SlipType == "R" ? "selected" : null)">Return</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small mb-1">Remarks</label>
+                        <input name="Comments" value="@Model.Comments" class="form-control form-control-sm" maxlength="100" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small mb-1">Net Amount</label>
+                        <input value="@Model.NetAmount.ToString("N2")" class="form-control form-control-sm text-end fw-semibold" readonly />
+                    </div>
+                </div>
+
+                <div class="table-responsive mb-2">
+                    <table class="table table-sm table-bordered align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:110px">Code</th>
+                                <th>Description</th>
+                                @if (!Model.IsPharmacy)
+                                {
+                                    <th style="width:150px">Resource</th>
+                                }
+                                <th class="text-end" style="width:100px">Quantity</th>
+                                <th class="text-end" style="width:110px">Rate</th>
+                                <th class="text-end" style="width:120px">Amount</th>
+                                <th style="width:50px"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.Lines.Any())
+                            {
+                                i = 0;
+                                foreach (var l in Model.Lines)
+                                {
+                                    var fid = "ln" + i;
+                                    var amount = l.Qty * l.Rate;
+                                    <tr>
+                                        <td class="fw-semibold">@l.Code</td>
+                                        <td>@l.ItemName</td>
+                                        @if (!Model.IsPharmacy)
+                                        {
+                                            <td>@l.ResourceName</td>
+                                        }
+                                        <td>
+                                            <input form="@fid" name="qty" value="@l.Qty" type="number" step="1" min="1" class="form-control form-control-sm text-end" />
+                                        </td>
+                                        <td>
+                                            <input form="@fid" name="rate" value="@l.Rate" type="number" step="0.01" min="0" class="form-control form-control-sm text-end" />
+                                        </td>
+                                        <td class="text-end">@amount.ToString("N2")</td>
+                                        <td class="text-end">
+                                            <input form="@fid" type="hidden" name="itemId" value="@l.ItemId" />
+                                            <input form="@fid" type="hidden" name="resourceId" value="@l.ResourceId" />
+                                            <input form="@fid" type="hidden" name="Type" value="@Model.Type" />
+                                            <input form="@fid" type="hidden" name="Dept" value="@Model.Dept" />
+                                            <input form="@fid" type="hidden" name="EncounterId" value="@Model.EncounterId" />
+                                            <button form="@fid" type="submit" class="btn btn-sm btn-outline-primary py-0" title="Update line"><i class="bi bi-check2"></i></button>
+                                            <button form="rm@i" type="submit" class="btn btn-sm btn-outline-danger py-0" title="Remove line"><i class="bi bi-x-lg"></i></button>
+                                        </td>
+                                    </tr>
+                                    i++;
+                                }
+                            }
+                            else
+                            {
+                                <tr><td colspan="@(Model.IsPharmacy ? 6 : 7)" class="text-center text-muted py-3">No lines. Search and add items below.</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <div class="input-group input-group-sm">
+                            <input name="ItemSearch" value="@Model.ItemSearch" class="form-control" placeholder="Search @Model.DeptName items by code / name" />
+                            <button type="submit" asp-page-handler="SearchItems" class="btn btn-outline-primary"><i class="bi bi-search me-1"></i>Search</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer bg-white d-flex justify-content-between align-items-center">
+                <span class="text-secondary small">Net Amount: <strong class="text-dark">@Model.NetAmount.ToString("N2")</strong></span>
+                <div class="d-flex gap-2">
+                    <a asp-page="/billing/SlipEntry" asp-route-Type="@Model.Type" asp-route-Dept="@Model.Dept" asp-route-EncounterId="@Model.EncounterId" class="btn btn-outline-secondary btn-sm">Cancel</a>
+                    <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-save me-1"></i>@(Model.EditingBill != null ? "Update Slip" : "Save Slip")</button>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    @if (Model.ItemResults.Any())
+    {
+        <div class="card mt-3">
+            <div class="card-header panel-hdr fw-semibold py-2"><i class="bi bi-search me-1"></i>Item Results</div>
+            <div class="list-group list-group-flush">
+                @foreach (var it in Model.ItemResults)
+                {
+                    <form method="post" asp-page-handler="AddItem" class="list-group-item d-flex align-items-center gap-2">
+                        <input type="hidden" name="Type" value="@Model.Type" />
+                        <input type="hidden" name="Dept" value="@Model.Dept" />
+                        <input type="hidden" name="EncounterId" value="@Model.EncounterId" />
+                        <input type="hidden" name="ItemSearch" value="@Model.ItemSearch" />
+                        <input type="hidden" name="SlipNo" value="@Model.SlipNo" />
+                        <input type="hidden" name="SlipDate" value="@Model.SlipDate?.ToString("yyyy-MM-dd")" />
+                        <input type="hidden" name="SlipType" value="@Model.SlipType" />
+                        <input type="hidden" name="Comments" value="@Model.Comments" />
+                        <input type="hidden" name="AddItemId" value="@it.Id" />
+                        <div class="flex-grow-1">
+                            <div class="fw-semibold">@it.Name</div>
+                            <div class="text-secondary small">@it.Code</div>
+                        </div>
+                        @if (!Model.IsPharmacy && Model.Resources.Any())
+                        {
+                            <select name="AddResourceId" class="form-select form-select-sm" style="max-width:200px">
+                                <option value="">Resource: none</option>
+                                @foreach (var r in Model.Resources)
+                                {
+                                    <option value="@r.Id">@r.Name</option>
+                                }
+                            </select>
+                        }
+                        <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-plus-lg me-1"></i>Add</button>
+                    </form>
+                }
+            </div>
+        </div>
+    }
+
+    @if (Model.Lines.Any())
+    {
+        i = 0;
+        foreach (var l in Model.Lines)
+        {
+            var fid = "ln" + i;
+            var rid = "rm" + i;
+            <form method="post" asp-page-handler="UpdateLine" id="@fid" class="d-none">
+                <input type="hidden" name="Type" value="@Model.Type" />
+                <input type="hidden" name="Dept" value="@Model.Dept" />
+                <input type="hidden" name="EncounterId" value="@Model.EncounterId" />
+                <input type="hidden" name="SlipNo" value="@Model.SlipNo" />
+                <input type="hidden" name="SlipDate" value="@Model.SlipDate?.ToString("yyyy-MM-dd")" />
+                <input type="hidden" name="SlipType" value="@Model.SlipType" />
+                <input type="hidden" name="Comments" value="@Model.Comments" />
+            </form>
+            <form method="post" asp-page-handler="RemoveLine" id="@rid" class="d-none">
+                <input type="hidden" name="Type" value="@Model.Type" />
+                <input type="hidden" name="Dept" value="@Model.Dept" />
+                <input type="hidden" name="EncounterId" value="@Model.EncounterId" />
+                <input type="hidden" name="SlipNo" value="@Model.SlipNo" />
+                <input type="hidden" name="SlipDate" value="@Model.SlipDate?.ToString("yyyy-MM-dd")" />
+                <input type="hidden" name="SlipType" value="@Model.SlipType" />
+                <input type="hidden" name="Comments" value="@Model.Comments" />
+                <input type="hidden" name="itemId" value="@l.ItemId" />
+                <input type="hidden" name="resourceId" value="@l.ResourceId" />
+            </form>
+            i++;
+        }
+    }
+}

@@ -50,7 +50,7 @@ namespace HmisWeb.Pages.Lab
         [BindProperty]
         public Sex? NewSex { get; set; }
 
-        [BindProperty]
+        [BindProperty(SupportsGet = true)]
         public long? SelectedPatientId { get; set; }
 
         [BindProperty]
@@ -120,6 +120,17 @@ namespace HmisWeb.Pages.Lab
 
         public async Task OnGetAsync()
         {
+            if (SelectedPatientId.HasValue)
+            {
+                var patient = await _db.Patients.FirstOrDefaultAsync(p => p.Id == SelectedPatientId.Value && !p.Retired);
+                if (patient != null)
+                {
+                    var current = GetSelectedPatientId();
+                    if (current != patient.Id)
+                        HttpContext.Session.Remove(CartKey);
+                    HttpContext.Session.SetString(PatientKey, patient.Id.ToString());
+                }
+            }
             await LoadStateAsync();
             if (TempData["IndentSuccess"] != null)
                 Success = TempData["IndentSuccess"].ToString();

@@ -33,8 +33,9 @@ namespace HmisWeb.Services
 
             await SeedItemsAsync("RA-", new[]
             {
-                "Sinhalese", "Sri Lankan Tamil", "Indian Tamil", "Sri Lankan Moor",
-                "Burgher", "Malay", "Other"
+                "Punjabi", "Sindhi", "Pashtun", "Baloch", "Kashmiri", "Muhajir",
+                "Saraiki", "Hindko", "Balti", "Shina", "Burushaski", "Hazara",
+                "Chitrali", "Gujar", "Pathan", "Other"
             });
 
             await SeedItemsAsync("RL-", new[]

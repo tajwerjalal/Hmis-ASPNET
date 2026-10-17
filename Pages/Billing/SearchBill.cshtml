@@ -1,0 +1,100 @@
+@page "/billing/SearchBill"
+@model HmisWeb.Pages.Billing.SearchBillModel
+@{
+    ViewData["Title"] = "Search " + Model.TypeLabel + " Bill No.";
+}
+
+<div class="d-flex justify-content-between align-items-end mb-3">
+    <div>
+        <h4 class="mb-0 fw-bold"><i class="bi bi-search me-2 text-primary"></i>Search @Model.TypeLabel Bill No.</h4>
+        <div class="text-secondary small">@(Model.IsInward ? "isrchbil" : "osrchbil") &middot; find a bill and view its patient &amp; charges</div>
+    </div>
+    <div class="btn-group btn-group-sm">
+        <a asp-page="/billing/SearchBill" asp-route-Type="opd" class="btn @(Model.IsInward ? "btn-outline-primary" : "btn-primary")">OPD</a>
+        <a asp-page="/billing/SearchBill" asp-route-Type="inward" class="btn @(Model.IsInward ? "btn-primary" : "btn-outline-primary")">IPD</a>
+    </div>
+</div>
+
+@if (Model.Selected != null)
+{
+    var b = Model.Selected;
+    <div class="card mb-3 border-primary">
+        <div class="card-header bg-primary-subtle d-flex justify-content-between">
+            <span class="fw-semibold">Bill #@b.Id &middot; @b.BillTypeAtomic</span>
+            <span>@b.CreatedAt?.ToString("yyyy-MM-dd HH:mm")</span>
+        </div>
+        <div class="card-body">
+            <div class="row mb-2">
+                <div class="col-md-4"><span class="text-secondary small">Patient</span><div class="fw-semibold">@b.Patient?.Person?.Name</div></div>
+                <div class="col-md-2"><span class="text-secondary small">PHN</span><div>@b.Patient?.Phn</div></div>
+                <div class="col-md-2"><span class="text-secondary small">Company</span><div>@b.Institution?.Name</div></div>
+                <div class="col-md-2"><span class="text-secondary small">Total</span><div class="fw-semibold">@b.Total.ToString("N2")</div></div>
+                <div class="col-md-2"><span class="text-secondary small">Balance</span><div class="fw-semibold">@b.Balance.ToString("N2")</div></div>
+            </div>
+            <table class="table table-sm mb-0">
+                <thead class="table-light"><tr><th>#</th><th>Item</th><th class="text-end">Qty</th><th class="text-end">Rate</th><th class="text-end">Net</th></tr></thead>
+                <tbody>
+                    @if (Model.SelectedItems.Any())
+                    {
+                        foreach (var it in Model.SelectedItems)
+                        {
+                            <tr>
+                                <td>@it.SearialNo</td>
+                                <td>@(it.Item?.Name ?? it.Descreption)</td>
+                                <td class="text-end">@it.Qty?.ToString("N2")</td>
+                                <td class="text-end">@it.Rate.ToString("N2")</td>
+                                <td class="text-end">@it.NetValue.ToString("N2")</td>
+                            </tr>
+                        }
+                    }
+                    else { <tr><td colspan="5" class="text-center text-muted py-3">No line items.</td></tr> }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+<form method="get" class="card mb-3">
+    <input type="hidden" name="Type" value="@Model.Type" />
+    <div class="card-body py-2">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-2"><label class="form-label small mb-1">Bill No.</label><input name="BillNo" value="@Model.BillNo" class="form-control form-control-sm" /></div>
+            <div class="col-md-3"><label class="form-label small mb-1">Patient</label><input name="PatientSearch" value="@Model.PatientSearch" class="form-control form-control-sm" placeholder="name / PHN" /></div>
+            <div class="col-md-2"><label class="form-label small mb-1">From</label><input name="FromDate" value="@Model.FromDate?.ToString("yyyy-MM-dd")" type="date" class="form-control form-control-sm" /></div>
+            <div class="col-md-2"><label class="form-label small mb-1">To</label><input name="ToDate" value="@Model.ToDate?.ToString("yyyy-MM-dd")" type="date" class="form-control form-control-sm" /></div>
+            <div class="col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search me-1"></i>Find</button>
+                <a asp-page="/billing/SearchBill" asp-page-handler="Export" asp-route-Type="@Model.Type" asp-route-BillNo="@Model.BillNo" asp-route-PatientSearch="@Model.PatientSearch" asp-route-FromDate="@Model.FromDate?.ToString("yyyy-MM-dd")" asp-route-ToDate="@Model.ToDate?.ToString("yyyy-MM-dd")" class="btn btn-outline-success btn-sm"><i class="bi bi-filetype-csv me-1"></i>CSV</a>
+                <a asp-page="/billing/SearchBill" asp-route-Type="@Model.Type" class="btn btn-outline-secondary btn-sm">Reset</a>
+            </div>
+        </div>
+    </div>
+</form>
+
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-sm table-hover mb-0 align-middle">
+            <thead class="table-light"><tr><th>Bill No.</th><th>Date</th><th>Patient</th><th>Type</th><th class="text-end">Total</th><th class="text-end">Paid</th><th class="text-end">Balance</th><th></th></tr></thead>
+            <tbody>
+                @if (Model.Bills.Any())
+                {
+                    foreach (var bill in Model.Bills)
+                    {
+                        <tr>
+                            <td>@bill.Id</td>
+                            <td>@bill.CreatedAt?.ToString("yyyy-MM-dd HH:mm")</td>
+                            <td>@bill.Patient?.Person?.Name</td>
+                            <td>@bill.BillTypeAtomic</td>
+                            <td class="text-end">@bill.Total.ToString("N2")</td>
+                            <td class="text-end">@bill.PaidAmount.ToString("N2")</td>
+                            <td class="text-end">@bill.Balance.ToString("N2")</td>
+                            <td class="text-end"><a asp-page="/billing/SearchBill" asp-route-Type="@Model.Type" asp-route-id="@bill.Id" class="btn btn-outline-primary btn-sm"><i class="bi bi-eye"></i></a></td>
+                        </tr>
+                    }
+                }
+                else { <tr><td colspan="8" class="text-center text-muted py-4">No bills found.</td></tr> }
+            </tbody>
+        </table>
+        <partial name="_Pager" model="Model.Pager" />
+    </div>
+</div>

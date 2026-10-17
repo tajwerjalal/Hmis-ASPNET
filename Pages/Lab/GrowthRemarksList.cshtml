@@ -3,13 +3,27 @@
 @{
     ViewData["Title"] = "Growth Remarks List";
 }
-
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h4 class="mb-0 fw-bold">Growth Remarks List</h4>
+<div class="d-flex justify-content-between align-items-end mb-3">
+    <div>
+        <h4 class="mb-0 fw-bold"><i class="bi bi-bacteria me-2 text-primary"></i>Growth Remarks List</h4>
+        <div class="text-secondary small">Culture growth descriptions</div>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-page="/lab/GrowthRemarksList" asp-page-handler="Export" class="btn btn-outline-success btn-sm"><i class="bi bi-filetype-csv me-1"></i>CSV</a>
+        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.print()"><i class="bi bi-printer me-1"></i>Print</button>
+    </div>
 </div>
-
 <div class="card">
-    <div class="card-body text-secondary">
-        <i class="bi bi-bacteria me-1"></i> To be implemented — mirrors the VFP Labsys report <code>lb0336l</code>.
+    <div class="card-body p-0">
+        <table class="table table-sm table-hover mb-0 align-middle">
+            <thead class="table-light"><tr><th>Code</th><th>Description</th></tr></thead>
+            <tbody>
+                @if (Model.Items.Any())
+                {
+                    @foreach (var g in Model.Items) { <tr><td>@g.Code</td><td>@g.Description</td></tr> }
+                }
+                else { <tr><td colspan="2" class="text-center text-muted py-4">No growth descriptions found.</td></tr> }
+            </tbody>
+        </table>
     </div>
 </div>

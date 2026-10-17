@@ -1,0 +1,52 @@
+﻿Here is a ready-to-use prompt. Replace the bracketed placeholders before sending it.
+
+```
+ROLE
+You are a senior software developer. Migrate my legacy "Indoor Patient (IPD Bill)" form (screenshot attached) to [TARGET STACK, e.g. C# WinForms + SQL Server / Web / etc.], keeping every existing field and improving the bottom section as described.
+
+STANDING RULES (apply to every file in the project)
+1. Document everything: each form, page, class, method and function gets a descriptive header comment covering purpose, parameters, return value, business rules and side effects.
+2. Every header comment must include: Developer: [Tajwer Jalal] | Date: [DD-MMM-YYYY] | Time: [HH:MM]. Update the date/time whenever a file is modified.
+3. Never use the C: drive. Create the workspace, source, database, logs, backups and temp folders inside the project directory (e.g. <ProjectRoot>/workspace, /db, /logs, /backup). Use relative paths only.
+
+EXISTING FORM (keep all fields)
+Tabs: "Update" and "List" (searchable list of all IPD bills with status filter).
+Header: Registration No, Date, Time, Patient Code, Name, Age, Sex, Relation, Company ID, Employee Code (with names), Bed No, Ref No, Valid Upto, Card No, Consultant Code/Name, Diagnosis.
+Discharge/billing: Discharge Date/Time, Status, Bill No, Bill Date, Billed Amount, Used Amount, Receipts, Payment, Discount, Amount Due, Settlement.
+Use combo boxes for Sex, Relation, Status and patient type, and lookups for Patient, Company, Employee and Consultant codes.
+
+CHANGE REQUIRED
+Remove the 8 department buttons (Pharmacy, X-Ray, Dental, O.T., Laboratory, Ultra-Sound, Procedures, Hospital). Replace them with:
+- Department Summary Grid: Department | Total Amount (auto-calculated from its indents), plus a grand total row.
+- Detail Grid: selecting a department shows its indent/bill lines (Indent No, Date, Item/Service, Qty, Rate, Amount, Remarks). While the bill is Open, the billing executive can edit lines, add new indents, or delete lines. Totals refresh instantly and every change is audit-logged.
+
+BILLING WORKFLOW (strict status lifecycle)
+Admitted -> Discharged -> Bill Updating -> Bill Generated -> Settled
+1. Discharge: the file is sent to the Billing Department (status "Discharged").
+2. Billing Executive: opens the file, compares the indents/bills on screen with the patient file, then adds, edits or deletes lines. Role: Executive. Allowed only while the status is Discharged/Bill Updating.
+3. Authorized Officer: after verification, generates the bill (bill number and date assigned, totals frozen). Role: Officer.
+4. A generated bill is LOCKED: no edits to lines, discount or totals. Only an Authorized Officer can "Reverse" it, which requires a reason; the bill returns to Bill Updating and the reversal is logged.
+5. Cashier: records receipts/payments against the generated bill, applies the settlement and marks it "Settled". Role: Cashier.
+6. A settled bill is LOCKED: it cannot be modified or deleted. Only an Authorized Officer can "Unsettle" it, with a mandatory reason, and it is logged.
+7. Amount Due = Billed Amount - Receipts - Discount (validate that payments never exceed the amount due).
+
+SECURITY AND DATA
+- Role-based access (Executive, Officer, Cashier, Admin), with buttons enabled or disabled according to role and status.
+- Audit table: who, what, old value, new value, date and time, and reason for every edit, generate, reverse, settle and unsettle action.
+- Use transactions, never hard-delete bills, and validate all inputs.
+
+DELIVERABLES
+1. Database schema (tables, keys, indexes) and migration script.
+2. Forms/pages with both grids and the workflow buttons (Generate, Reverse, Settle, Unsettle, Print).
+3. Business-logic layer with documented methods.
+4. Bill print layout.
+5. A short test checklist covering each status transition and role restriction.
+
+Start by proposing the project folder structure and the database design, then wait for my approval before writing the code.
+```
+
+You need to fill in a few things:
+- **Target stack:** your language, framework and database.
+- **Developer name, date and time:** the prompt asks the AI to stamp these on every file, so give it your real name.
+- **Department list:** if departments will change, add a `Departments` master table so no new buttons or code are needed.
+

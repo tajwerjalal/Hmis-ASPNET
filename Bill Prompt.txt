@@ -1,0 +1,151 @@
+# Task: Redesign HMIS IPD Running Bill PDF to a Premium Professional Standard
+
+Analyze the existing HMIS application and completely redesign the **IPD Running Bill PDF report** shown in the reference screenshot. The current bill has overlapping patient information, poorly aligned headings, inconsistent spacing, weak typography, excessive empty space, and an unprofessional financial summary.
+
+## 1. Design Objective
+
+Create a modern, premium-quality hospital invoice suitable for a professional hospital management information system (HMIS).
+
+Use a clean, print-first design inspired by enterprise hospital billing software. The document must look organized, trustworthy, easy to read, and suitable for patients, insurance companies, corporate clients, and hospital recordkeeping.
+
+**Design style:** Modern medical corporate, white background, dark navy headings, subtle teal accents, light grey section backgrounds, thin borders, and professional typography. Avoid excessive colors, decorative graphics, and unnecessary visual elements.
+
+## 2. Header and Hospital Identity
+
+- Display the existing hospital name, **HMIS Hospital**, prominently at the top.
+- Add the hospital logo only if one already exists in the application.
+- Display the document title as **IPD RUNNING BILL** in a clearly distinguishable title area.
+- Add the bill number, admission date/time, bill generation date/time, and page number if the corresponding data already exists.
+- Use a clean header with consistent margins and a subtle separator line.
+- Never invent hospital registration details, contact information, addresses, or other business information.
+
+## 3. Patient and Admission Information
+
+Replace the current overlapping text layout with a properly aligned two-column or three-column information panel.
+
+Include the available fields:
+- Patient Name
+- MR Number / Patient ID
+- Age and Sex
+- Company / Panel
+- Employee ID
+- Employee Name
+- Relation
+- Guarantor
+- Consultant
+- Admission Date and Time
+- Address
+- Diagnosis
+
+Use bold, consistent field labels and clearly readable values. Long names, addresses, and diagnoses must wrap correctly without overlapping adjacent fields.
+
+Do not display empty labels, duplicate information, or unnecessary blank rows.
+
+## 4. Itemized Billing Table
+
+Redesign the billing section as a structured, professional table with the following columns where supported by the existing data:
+
+- Service / Item Code
+- Service Description
+- Consultant / Remarks
+- Quantity
+- Rate
+- Amount
+
+Requirements:
+- Align descriptions to the left and numeric values to the right.
+- Use consistent column widths and spacing.
+- Format monetary values uniformly with two decimal places and thousands separators.
+- Group services logically under existing categories, such as Laboratory Services, Ultrasound, X-Ray / CT Scan Services, Pharmacy, Procedures, and other categories already supported by the application.
+- Display category headings distinctly from individual billable items.
+- Show category subtotals in a consistent format.
+- Use light table-header shading, thin separators, and subtle alternating row backgrounds where appropriate.
+- Prevent descriptions from colliding with quantities, rates, and amounts.
+- Repeat table column headings automatically on subsequent pages.
+- Keep category headings with their first detail row whenever possible.
+- Never truncate long descriptions or omit billable items.
+
+## 5. Financial Summary
+
+Create a clearly separated financial summary panel, preferably aligned to the lower-right side of the page.
+
+Display the existing financial fields, as applicable:
+
+- Total Charges
+- Discount / Adjustment
+- Amount Deposited
+- Amount Refunded
+- Net Amount Deposited
+- Outstanding Balance / Refund Amount
+
+Use the application's existing business rules and terminology. Do not introduce duplicate totals or change the meaning of existing fields.
+
+Make the final payable balance, outstanding balance, or refund amount visually prominent using bold typography and a subtle highlighted row.
+
+**Critical:** Verify the existing calculation logic before changing any financial labels or presentation. A presentation redesign must never change the calculated bill amount.
+
+## 6. Authorization and Signatures
+
+At the end of the bill, create a clean signature section with adequate writing space for:
+
+- Issued By
+- Prepared By, if supported
+- Checked / Verified By
+- Patient / Attendant Signature, if required by the existing workflow
+
+Use consistent signature lines and labels. Do not invent approval requirements or authorized officers.
+
+## 7. Page Layout and Printing
+
+- Use A4 portrait orientation as the default unless the existing reporting framework requires another format.
+- Apply consistent page margins and a professional grid.
+- Use a readable font such as Arial, Helvetica, or another font already supported by the PDF library.
+- Ensure all content stays within printable page boundaries.
+- Use a compact, readable layout that avoids excessive blank space without making the bill crowded.
+- Dynamically handle short and long bills.
+- Automatically create additional pages when necessary.
+- Repeat the hospital header or a compact report header and table column headings on continuation pages.
+- Keep the financial summary and signature section together where possible.
+- Add page numbers in the format "Page X of Y" if supported.
+- Ensure the PDF prints correctly in black and white as well as color.
+- Do not depend on screen-only CSS, browser-specific rendering, or unsupported PDF features.
+
+## 8. Technical Requirements
+
+Before implementation:
+
+1. Identify the exact page, controller, service, report class, SQL query, stored procedure, and PDF-generation library responsible for producing the current IPD Running Bill.
+2. Review the existing report data source and the calculation logic for service totals, deposits, refunds, and balances.
+3. Determine whether the report uses HTML-to-PDF, a reporting engine, a PDF library, RDLC, Crystal Reports, or another existing technology.
+
+Then:
+
+- Modify the existing report implementation rather than creating an unrelated report.
+- Reuse the existing data models, queries, and calculations.
+- Preserve all existing billing features and report parameters.
+- Do not change database schemas or billing transactions unless absolutely necessary and separately justified.
+- Do not replace working functionality with mock data, sample values, or placeholders.
+- Do not remove any existing billable categories or fields.
+- Preserve compatibility with the application's existing framework and installed packages.
+- Follow the current project's architecture and coding conventions.
+
+## 9. Validation and Acceptance Criteria
+
+Test the redesigned report using actual application data and verify:
+
+1. Patient and admission information never overlaps.
+2. All service descriptions, quantities, rates, amounts, and category totals align correctly.
+3. Financial totals match the existing application exactly.
+4. Long bills paginate correctly without missing or duplicated rows.
+5. Column headings repeat on continuation pages.
+6. The financial summary and signature lines do not overlap the billing table.
+7. Long patient names, addresses, and consultant names render correctly.
+8. The PDF opens successfully and prints correctly on A4 paper.
+9. Existing bill generation and other reports continue to work.
+10. No existing calculation, database operation, or billing workflow is broken.
+
+Finally, provide a concise summary of the files changed, the layout improvements made, and the tests performed.
+
+**Expected result:** A polished, enterprise-grade IPD Running Bill PDF with a professional hospital header, structured
+patient information, a well-aligned itemized billing table, a clear financial summary, and properly spaced authorization fields. 
+The result must be implemented in the actual application, not merely demonstrated in a mockup.

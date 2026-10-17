@@ -4,12 +4,69 @@
     ViewData["Title"] = "Test Remarks Setup";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h4 class="mb-0 fw-bold">Test Remarks Setup</h4>
+<div class="d-flex justify-content-between align-items-end mb-3">
+    <div>
+        <h4 class="mb-0 fw-bold"><i class="bi bi-chat-quote me-2 text-primary"></i>Test Remarks Setup</h4>
+        <div class="text-secondary small">Canned report remarks &middot; mirrors VFP Labsys <code>lb0333</code></div>
+    </div>
+    <a asp-page="/lab/TestRemarksSetup" asp-route-add="1" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>New Remark</a>
 </div>
 
+@if (!string.IsNullOrEmpty(Model.Success))
+{
+    <div class="alert alert-success alert-dismissible fade show py-2"><i class="bi bi-check-circle me-1"></i>@Model.Success<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger alert-dismissible fade show py-2"><i class="bi bi-exclamation-triangle me-1"></i>@Model.ErrorMessage<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+
+@if (Model.Input.ShowForm)
+{
+    <div class="card mb-3 border-primary">
+        <div class="card-header bg-primary-subtle fw-semibold">@(Model.Input.Id > 0 ? "Edit Remark" : "New Remark")</div>
+        <div class="card-body">
+            <form method="post" asp-page-handler="Save">
+                <input type="hidden" asp-for="Input.Id" />
+                <div class="row g-3">
+                    <div class="col-md-5"><label class="form-label small mb-1">Test</label><select asp-for="Input.ItemId" asp-items="Model.TestList" class="form-select form-select-sm"><option value="">-- Any test --</option></select></div>
+                    <div class="col-12"><label class="form-label small mb-1">Remarks <span class="text-danger">*</span></label><textarea asp-for="Input.Remarks" class="form-control form-control-sm" rows="3" required></textarea></div>
+                </div>
+                <div class="d-flex gap-2 mt-3">
+                    <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-check2 me-1"></i>Save</button>
+                    <a asp-page="/lab/TestRemarksSetup" class="btn btn-outline-secondary btn-sm">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
 <div class="card">
-    <div class="card-body text-secondary">
-        <i class="bi bi-chat-quote me-1"></i> To be implemented — mirrors the VFP Labsys form <code>lb0333</code>.
+    <div class="card-body p-0">
+        <table class="table table-sm table-hover mb-0 align-middle">
+            <thead class="table-light">
+                <tr><th>Test</th><th>Remarks</th><th class="text-end">Actions</th></tr>
+            </thead>
+            <tbody>
+                @if (Model.Items.Any())
+                {
+                    @foreach (var r in Model.Items)
+                    {
+                        <tr>
+                            <td>@(r.Item != null ? ((r.Item.Code ?? "") + " " + r.Item.Name).Trim() : "(any)")</td>
+                            <td>@r.Remarks</td>
+                            <td class="text-end text-nowrap">
+                                <a asp-page="/lab/TestRemarksSetup" asp-route-edit="@r.Id" class="btn btn-outline-primary btn-sm"><i class="bi bi-pencil"></i></a>
+                                <form method="post" asp-page-handler="Retire" asp-route-id="@r.Id" class="d-inline" onsubmit="return confirm('Retire this remark?');"><button class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></button></form>
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr><td colspan="3" class="text-center text-muted py-4">No remarks found.</td></tr>
+                }
+            </tbody>
+        </table>
     </div>
 </div>

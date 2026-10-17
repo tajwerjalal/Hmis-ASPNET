@@ -3,13 +3,38 @@
 @{
     ViewData["Title"] = "Medicine List";
 }
-
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h4 class="mb-0 fw-bold">Medicine List</h4>
+<div class="d-flex justify-content-between align-items-end mb-3">
+    <div>
+        <h4 class="mb-0 fw-bold"><i class="bi bi-capsule me-2 text-primary"></i>Medicine List</h4>
+        <div class="text-secondary small">Medicine master list</div>
+    </div>
 </div>
-
+<form method="get" class="card mb-3">
+    <div class="card-body py-2">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-5"><label class="form-label small mb-1">Search</label><input name="SearchTerm" value="@Model.SearchTerm" class="form-control form-control-sm" placeholder="code / name / generic" /></div>
+            <div class="col-md-5 d-flex gap-2">
+                <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search me-1"></i>View</button>
+                <a asp-page="/lab/MedicineList" asp-page-handler="Export" asp-route-SearchTerm="@Model.SearchTerm" class="btn btn-outline-success btn-sm"><i class="bi bi-filetype-csv me-1"></i>CSV</a>
+                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.print()"><i class="bi bi-printer me-1"></i>Print</button>
+            </div>
+        </div>
+    </div>
+</form>
 <div class="card">
-    <div class="card-body text-secondary">
-        <i class="bi bi-capsule me-1"></i> To be implemented — mirrors the VFP Labsys report <code>lb0330l</code>.
+    <div class="card-body p-0">
+        <table class="table table-sm table-hover mb-0 align-middle">
+            <thead class="table-light"><tr><th>Code</th><th>Name</th><th>Generic</th><th>Classification</th><th class="text-end">Price</th></tr></thead>
+            <tbody>
+                @if (Model.Items.Any())
+                {
+                    @foreach (var m in Model.Items)
+                    {
+                        <tr><td>@m.Code</td><td class="fw-semibold">@m.Name</td><td>@m.Sname</td><td>@m.Category?.Name</td><td class="text-end">@m.Total?.ToString("N2")</td></tr>
+                    }
+                }
+                else { <tr><td colspan="5" class="text-center text-muted py-4">No medicines found.</td></tr> }
+            </tbody>
+        </table>
     </div>
 </div>

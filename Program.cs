@@ -23,6 +23,13 @@ builder.Services.AddScoped<IUsBillingMirrorService, UsBillingMirrorService>();
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<ILookupSeedService, LookupSeedService>();
 
+// Indoor Patient (IPD Bill) form - VFP BS0110 replacement
+builder.Services.AddScoped<HmisWeb.Services.Billing.IpdBillReportService>();
+builder.Services.AddScoped<HmisWeb.Services.Billing.BillingReportService>();
+builder.Services.AddScoped<HmisWeb.Services.Billing.IpdBillQueryService>();
+builder.Services.AddScoped<HmisWeb.Services.Billing.IpdBillLineService>();
+builder.Services.AddScoped<HmisWeb.Services.Billing.IpdBillWorkflowService>();
+
 builder.Services.AddAuthentication("HmisAuth")
     .AddCookie("HmisAuth", options =>
     {

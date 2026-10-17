@@ -1,0 +1,174 @@
+@page "/billing/ReverseSettlement"
+@model HmisWeb.Pages.Billing.ReverseSettlementModel
+@{
+    ViewData["Title"] = "Reverse Settlement";
+}
+
+<div class="d-flex justify-content-between align-items-end mb-3">
+    <div>
+        <h4 class="mb-0 fw-bold"><i class="bi bi-arrow-counterclockwise me-2 text-primary"></i>Reverse Settlement</h4>
+        <div class="text-secondary small">Private patient settlement reversal / discount change &middot; mirrors VFP Billsys <code>unsettle</code></div>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.Success))
+{
+    <div class="alert alert-success alert-dismissible fade show py-2"><i class="bi bi-check-circle me-1"></i>@Model.Success<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger alert-dismissible fade show py-2"><i class="bi bi-exclamation-triangle me-1"></i>@Model.ErrorMessage<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+
+@if (Model.Selected == null)
+{
+    <form method="get" class="card mb-3">
+        <div class="card-body py-2">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-7">
+                    <label class="form-label small mb-1">Find settled private registration</label>
+                    <input name="PatientSearch" value="@Model.PatientSearch" class="form-control form-control-sm" placeholder="BHT / Reg. No. / name / PHN" />
+                </div>
+                <div class="col-md-5 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search me-1"></i>Find</button>
+                    <a asp-page="/billing/ReverseSettlement" class="btn btn-outline-secondary btn-sm">Reset</a>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <div class="card">
+        <div class="card-header bg-white fw-semibold py-2"><i class="bi bi-person-lines-fill me-1"></i>Settled registrations</div>
+        <div class="card-body p-0">
+            <table class="table table-sm table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr><th>Reg. No.</th><th>Patient</th><th>PHN</th><th>Encounter</th><th>Billing Type</th><th style="width:110px"></th></tr>
+                </thead>
+                <tbody>
+                    @if (Model.Encounters.Any())
+                    {
+                        foreach (var e in Model.Encounters)
+                        {
+                            var isPrivate = !e.CreditCompanyId.HasValue;
+                            <tr>
+                                <td class="fw-semibold">@(e.BhtNo ?? e.ReferenceNo ?? e.Id.ToString())</td>
+                                <td>@e.Patient?.Person?.Name</td>
+                                <td>@e.Patient?.Phn</td>
+                                <td><span class="badge @(e.EncounterType == EncounterType.Inward ? "bg-primary" : "bg-info text-dark")">@(e.EncounterType == EncounterType.Inward ? "IPD" : "OPD")</span></td>
+                                <td>
+                                    @if (isPrivate) { <span class="badge bg-secondary">Private</span> }
+                                    else { <span class="badge bg-warning text-dark">@e.CreditCompany?.Name</span> }
+                                </td>
+                                <td class="text-end">
+                                    <form method="post" asp-page-handler="Load" class="d-inline">
+                                        <input type="hidden" name="EncounterId" value="@e.Id" />
+                                        <button type="submit" class="btn btn-sm btn-outline-primary w-100">Select</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr><td colspan="6" class="text-center text-muted py-4">No settled registrations found.</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+else
+{
+    <div class="card mb-3">
+        <div class="card-body py-2 d-flex flex-wrap align-items-center gap-3">
+            <div><span class="text-secondary small">Reg. No.:</span> <span class="fw-semibold">@Model.SelectedRegno</span></div>
+            <div><span class="text-secondary small">Patient:</span> <span class="fw-semibold">@Model.SelectedPatientName</span></div>
+            <div>
+                @if (Model.SelectedIsPrivate) { <span class="badge bg-secondary">Private</span> }
+                else { <span class="badge bg-warning text-dark">Corporate &mdash; not allowed</span> }
+            </div>
+            <div>
+                @if (Model.SelectedSettled) { <span class="badge bg-success">Settled</span> }
+                else { <span class="badge bg-danger">Not settled</span> }
+            </div>
+            <div class="ms-auto">
+                <a asp-page="/billing/ReverseSettlement" class="btn btn-outline-secondary btn-sm"><i class="bi bi-x-circle me-1"></i>Back</a>
+            </div>
+        </div>
+    </div>
+
+    <form method="post" asp-page-handler="Submit" class="card mb-3">
+        <input type="hidden" name="EncounterId" value="@Model.EncounterId" />
+        <div class="card-header bg-white fw-semibold py-2"><i class="bi bi-pencil-square me-1"></i>Reverse / Change</div>
+        <div class="card-body">
+            <div class="row g-2 mb-3">
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">Change type</label>
+                    <select name="ChgType" class="form-select form-select-sm">
+                        <option value="1" selected="@(Model.ChgType == 1 ? "selected" : null)">Reverse settlement</option>
+                        <option value="2" selected="@(Model.ChgType == 2 ? "selected" : null)">Change discount</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small mb-1">Bill</label>
+                    <select name="BillId" class="form-select form-select-sm">
+                        <option value="">-- none --</option>
+                        @foreach (var b in Model.CandidateBills)
+                        {
+                            <option value="@b.Id">@b.ReferenceNumber &mdash; @b.NetTotal.ToString("N2")</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1">New discount</label>
+                    <input type="number" step="0.01" min="0" name="NewDiscAmt" value="@Model.NewDiscAmt" class="form-control form-control-sm text-end" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">Remarks</label>
+                    <input name="Remarks" value="@Model.Remarks" class="form-control form-control-sm" maxlength="100" />
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm"
+                    onclick="return confirm('Process reverse settlement for @Model.SelectedRegno?');">
+                <i class="bi bi-check2-circle me-1"></i>Process
+            </button>
+        </div>
+    </form>
+}
+
+<div class="card mt-3">
+    <div class="card-header bg-white fw-semibold py-2"><i class="bi bi-clock-history me-1"></i>Recent requests</div>
+    <div class="card-body p-0">
+        <table class="table table-sm table-hover mb-0 align-middle">
+            <thead class="table-light">
+                <tr><th>Request No.</th><th>Date</th><th>Reg. No.</th><th>Type</th><th class="text-end">Old Amt</th><th class="text-end">New Disc.</th><th>Status</th></tr>
+            </thead>
+            <tbody>
+                @if (Model.History.Any())
+                {
+                    foreach (var u in Model.History)
+                    {
+                        <tr>
+                            <td class="fw-semibold">@u.ReqNo</td>
+                            <td>@u.ReqDate?.ToString("yyyy-MM-dd")</td>
+                            <td>@u.Regno</td>
+                            <td>@(u.ChgType == 2 ? "Discount change" : "Reverse")</td>
+                            <td class="text-end">@(u.OldBillAmt?.ToString("N2") ?? "-")</td>
+                            <td class="text-end">@(u.NewDiscAmt?.ToString("N2") ?? "-")</td>
+                            <td>
+                                @if (u.ChgType == 1)
+                                { <span class="badge bg-warning text-dark">Reversed</span> }
+                                else
+                                { <span class="badge bg-info text-dark">Discount</span> }
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr><td colspan="7" class="text-center text-muted py-4">No requests.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

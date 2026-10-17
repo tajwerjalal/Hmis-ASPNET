@@ -1,393 +1,816 @@
 @page "/inward/Billing"
 @model HmisWeb.Pages.Inward.BillingModel
+@*
+ * Page/Method : Indoor Patient (IPD Bill) - /inward/Billing
+ * Purpose     : Redesigned IPD bill entry screen. Retains every original route,
+ *               model binding and POST handler (AddLine / EditLine / RetireLine /
+ *               Generate / Reverse / Settle / Unsettle) and the DeptServices JSON
+ *               lookup; only the layout, styling and client-side behaviour change.
+ * Notes       :  * Department Summary and the Indents grid are stacked vertically,
+ *                  each full width; Audit Trail is full width at the bottom.
+ *                * A summary row is clickable and selects that department in the
+ *                  Indents grid (highlighted with .selected).
+ *                * Row actions are icon-only Font Awesome buttons with tooltips.
+ *                * The inline entry row is hidden until "Add new row" (or Edit) is
+ *                  used; it supports live Amount, Enter=save, Esc=cancel and inline
+ *                  validation (Date required, Qty > 0, Rate >= 0).
+ *                * Audit Trail is collapsible and collapsed by default.
+ * Developer   : Tajwer Jalal
+ * Date/Time   : 15-Oct-2026 15:05
+ *@
 @{
-    ViewData["Title"] = "Inward Billing";
-}
-
-@if (Model.BatchMode)
-{
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <div>
-            <h4 class="mb-0 fw-bold">Generate IPD Bill</h4>
-            <div class="text-muted small">Batch-generate Inward Final bills from PreBill / outstanding slips for patients discharged within a period.</div>
-        </div>
-    </div>
-
-    @if (TempData["Success"] != null)
+    ViewData["Title"] = "Indoor Patient (IPD Bill)";
+    var st = Model.Status;
+    var statusBadge = st switch
     {
-        <div class="alert alert-success py-2"><i class="bi bi-check-circle me-1"></i>@TempData["Success"]</div>
+        HmisWeb.Models.Legacy.IpdBillStatus.Admitted => ("Admitted", "bg-secondary"),
+        HmisWeb.Models.Legacy.IpdBillStatus.Discharged => ("Discharged", "bg-info"),
+        HmisWeb.Models.Legacy.IpdBillStatus.BillUpdating => ("Bill Updating", "bg-warning text-dark"),
+        HmisWeb.Models.Legacy.IpdBillStatus.BillGenerated => ("Bill Generated", "bg-primary"),
+        HmisWeb.Models.Legacy.IpdBillStatus.Settled => ("Settled", "bg-success"),
+        _ => ("-", "bg-light text-dark")
+    };
+}
+
+@*
+ * Style block : IPD bill page skin (scoped to .ipd-page so no other screen is affected).
+ * Purpose     : Cards, gradient headers, sticky/zebra tables, entry-row highlight,
+ *               icon action buttons, focus states, loader and toast styling.
+ * Developer   : Tajwer Jalal
+ * Date/Time   : 15-Oct-2026 15:05
+ *@
+<style>
+    .ipd-page { --ipd-radius: .65rem; --ipd-shadow: 0 2px 12px rgba(16,24,40,.07); --ipd-indigo:#4f46e5; }
+    .ipd-page .ipd-card { border: 0; border-radius: var(--ipd-radius); box-shadow: var(--ipd-shadow); overflow: hidden; background:#fff; }
+    .ipd-page .ipd-card + .ipd-card, .ipd-page .ipd-card.mb-stack { margin-top: 1rem; }
+    .ipd-page .ipd-card-header {
+        background: linear-gradient(90deg,#1d4ed8 0%,#4f46e5 55%,#7c3aed 100%);
+        color: #fff; display: flex; align-items: center; justify-content: space-between;
+        gap: .5rem; padding: .55rem .9rem; flex-wrap: wrap;
     }
-    @if (!string.IsNullOrEmpty(Model.Message))
+    .ipd-page .ipd-card-header .ipd-title { font-weight: 600; font-size: .95rem; display: inline-flex; align-items: center; gap: .5rem; }
+    .ipd-page .ipd-card-header i { color: #fff; }
+    .ipd-page .ipd-card-header .ipd-chevron { transition: transform .2s ease; }
+    .ipd-page .ipd-card-header[aria-expanded="true"] .ipd-chevron { transform: rotate(180deg); }
+    .ipd-page .ipd-header-link { cursor: pointer; }
+
+    /* Sticky, scrollable tables */
+    .ipd-page .ipd-table-wrap { max-height: 460px; overflow: auto; }
+    .ipd-page .ipd-table { margin-bottom: 0; font-size: .875rem; }
+    .ipd-page .ipd-table thead th {
+        position: sticky; top: 0; z-index: 3; background: #eef2ff; color: #4338ca;
+        font-size: .72rem; text-transform: uppercase; letter-spacing: .04em;
+        border-bottom: 1px solid #c7d2fe; white-space: nowrap;
+    }
+    .ipd-page .ipd-table tbody tr { transition: background-color .12s ease; }
+    .ipd-page .ipd-table tbody tr:nth-child(even) { background: #fafbff; }
+    .ipd-page .ipd-table.table-hover tbody tr:hover { background: #eef2ff; }
+    .ipd-page .ipd-table td { vertical-align: middle; }
+
+    /* Department summary */
+    .ipd-page .ipd-dept-row { cursor: pointer; }
+    .ipd-page .ipd-dept-row.selected { background: #e0e7ff !important; box-shadow: inset 4px 0 0 var(--ipd-indigo); font-weight: 600; }
+    .ipd-page .ipd-dept-row:focus-visible { outline: 2px solid var(--ipd-indigo); outline-offset: -2px; }
+
+    /* Inline entry / edit row */
+    .ipd-page .ipd-entry-row { background: #fff7e6 !important; }
+    .ipd-page .ipd-entry-row td { border-top: 2px solid #f59e0b; }
+    .ipd-page .ipd-amount { font-weight: 600; color: #0f766e; }
+
+    /* Icon action buttons */
+    .ipd-page .ipd-act {
+        width: 30px; height: 30px; padding: 0; display: inline-flex; align-items: center;
+        justify-content: center; border-radius: .45rem; border: 1px solid transparent;
+        background: transparent; line-height: 1; font-size: .85rem;
+    }
+    .ipd-page .ipd-act:focus-visible { outline: 2px solid var(--ipd-indigo); outline-offset: 1px; }
+    .ipd-page .ipd-act-edit { color: #2563eb; }
+    .ipd-page .ipd-act-edit:hover { background: #dbeafe; }
+    .ipd-page .ipd-act-del { color: #dc2626; }
+    .ipd-page .ipd-act-del:hover { background: #fee2e2; }
+    .ipd-page .ipd-act-save { color: #16a34a; }
+    .ipd-page .ipd-act-save:hover { background: #dcfce7; }
+    .ipd-page .ipd-act-cancel { color: #6b7280; }
+    .ipd-page .ipd-act-cancel:hover { background: #e5e7eb; }
+    .ipd-page .ipd-act-search { color: #4f46e5; }
+
+    /* Hide number spinners on Qty / Rate */
+    .ipd-page input.ipd-num::-webkit-outer-spin-button,
+    .ipd-page input.ipd-num::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .ipd-page input.ipd-num { -moz-appearance: textfield; appearance: textfield; }
+
+    /* Inline validation */
+    .ipd-page .ipd-errors { background:#fef2f2; color:#b91c1c; border:1px solid #fecaca;
+        border-radius:.5rem; padding:.4rem .6rem; font-size:.8rem; margin:.5rem .9rem; }
+    .ipd-page .ipd-errors[hidden] { display:none; }
+    .ipd-page .ipd-field-invalid { border-color:#dc2626 !important; box-shadow:0 0 0 .15rem rgba(220,38,38,.15) !important; }
+
+    /* Loader overlay */
+    .ipd-loader { position: fixed; inset: 0; background: rgba(15,23,42,.35); display: flex;
+        align-items: center; justify-content: center; z-index: 2050; }
+    .ipd-loader[hidden] { display: none; }
+
+    /* Small helpers */
+    .ipd-page .ipd-money { font-variant-numeric: tabular-nums; }
+    .ipd-page .ipd-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .03em; color: #6b7280; }
+    .ipd-page .ipd-kv { font-weight: 600; }
+    .ipd-page .form-select-sm.ipd-dept-select { width: auto; min-width: 12rem; }
+    .ipd-page .ipd-empty { text-align: center; color: #9ca3af; padding: 1.25rem; }
+</style>
+
+<div class="container-fluid ipd-page py-3">
+
+    @* ============ HEADER BAR ============ *@
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <h4 class="mb-0"><i class="fa-solid fa-hospital me-2"></i>Indoor Patient &mdash; IPD Bill</h4>
+        <ul class="nav nav-pills nav-sm">
+            <li class="nav-item"><a class="nav-link py-1 px-3 @(Model.Tab!="list"?"active":"")" href="?Tab=update">Update</a></li>
+            <li class="nav-item"><a class="nav-link py-1 px-3 @(Model.Tab=="list"?"active":"")" href="?Tab=list">List</a></li>
+        </ul>
+    </div>
+
+    @* ============ LIST TAB ============ *@
+    @if (string.Equals(Model.Tab, "list", StringComparison.OrdinalIgnoreCase))
     {
-        <div class="alert alert-warning py-2"><i class="bi bi-exclamation-triangle me-1"></i>@Model.Message</div>
-    }
-
-    <form method="post">
-        <div class="card mb-3">
-            <div class="card-body">
-                <div class="row g-3 align-items-end">
-                    <div class="col-auto">
-                        <label class="form-label mb-1 small fw-bold">Bill Date</label>
-                        <input asp-for="BillDate" type="date" class="form-control form-control-sm" style="width:140px;" />
-                    </div>
-                    <div class="col-auto">
-                        <label class="form-label mb-1 small fw-bold">Discharge Period</label>
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text">From :</span>
-                            <input asp-for="FromDate" type="date" class="form-control" style="width:135px;" />
-                        </div>
-                    </div>
-                    <div class="col-auto">
-                        <label class="form-label mb-1 small fw-bold" style="visibility:hidden">To</label>
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text">To :</span>
-                            <input asp-for="ToDate" type="date" class="form-control" style="width:135px;" />
-                        </div>
-                    </div>
-                    <div class="col-auto">
-                        <div class="form-check mb-1">
-                            <input asp-for="FilterByCompany" class="form-check-input" type="checkbox" id="chkcid" />
-                            <label class="form-check-label small" for="chkcid">Company</label>
-                        </div>
-                        <select asp-for="CompanyId" class="form-select form-select-sm" style="width:220px;">
-                            <option value="">-- All Companies --</option>
-                            @foreach (var c in Model.CompanyList)
-                            {
-                                <option value="@c.Value">@c.Text</option>
-                            }
-                        </select>
-                    </div>
-                    <div class="col-auto ms-auto">
-                        <button type="submit" asp-page-handler="UpdateList" class="btn btn-primary">
-                            <i class="bi bi-arrow-clockwise me-1"></i>Update List
-                        </button>
-                    </div>
-                </div>
+        <form method="post" asp-page-handler="List" class="ipd-card mb-3">
+            <div class="ipd-card-header"><span class="ipd-title"><i class="fa-solid fa-list-ul"></i> Inpatient Files</span></div>
+            <div class="card-body py-2 d-flex gap-2 flex-wrap">
+                <input asp-for="SearchTerm" class="form-control form-control-sm" style="max-width:280px" placeholder="Reg No / Patient / Company" />
+                <select asp-for="StatusFilter" class="form-select form-select-sm" style="max-width:180px">
+                    <option value="">All statuses</option>
+                    <option value="1">Discharged</option>
+                    <option value="2">Bill Updating</option>
+                    <option value="3">Bill Generated</option>
+                    <option value="4">Settled</option>
+                </select>
+                @* Any filter change restarts at page 1. *@
+                <input type="hidden" name="ListPageIndex" value="1" />
+                <button class="btn btn-sm btn-primary"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
             </div>
-        </div>
+        </form>
 
-        <div class="row g-3">
-            <div class="col-lg-11">
-                <div class="card">
-                    <div class="card-body p-0">
-                        @if (Model.Rows.Any())
-                        {
-                            <div class="table-responsive">
-                                <table class="table table-hover align-middle mb-0" id="billGrid">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th>Reg. No.</th>
-                                            <th>Patient Name</th>
-                                            <th>Company</th>
-                                            <th class="text-end">Net Amount</th>
-                                            <th class="text-center">Selected</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @for (int i = 0; i < Model.Rows.Count; i++)
-                                        {
-                                            var r = Model.Rows[i];
-                                            <tr>
-                                                <td class="fw-semibold">@r.RegNo</td>
-                                                <td>@r.PatientName</td>
-                                                <td>@r.CompanyName</td>
-                                                <td class="text-end fw-semibold">@r.NetAmount.ToString("N2")</td>
-                                                <td class="text-center">
-                                                    <input class="form-check-input row-check" type="checkbox"
-                                                           name="SelectedIds" value="@r.EncounterId" checked="checked" />
-                                                </td>
-                                            </tr>
-                                        }
-                                    </tbody>
-                                </table>
-                            </div>
-                            <div class="card-footer bg-light d-flex justify-content-between align-items-center">
-                                <span class="text-secondary small">
-                                    @Model.Rows.Count patient(s) listed. Check/uncheck rows or use the buttons on the right.
-                                </span>
-                                <span class="fw-bold">Total: @Model.Rows.Sum(r => r.NetAmount).ToString("N2")</span>
-                            </div>
-                        }
-                        else
-                        {
-                            <div class="text-center py-5">
-                                <i class="bi bi-inbox text-secondary" style="font-size:2.2rem;"></i>
-                                <p class="text-secondary mt-2 mb-0">No unbilled slips for discharged inpatients in the selected period. Set dates and click Update List.</p>
-                            </div>
-                        }
-                    </div>
-                </div>
+        <div class="ipd-card mb-3">
+            <div class="ipd-card-header">
+                <span class="ipd-title">
+                    <i class="fa-solid fa-list-ul"></i>Inpatient files (@Model.ListTotalRows)
+                    @if (Model.ListTotalRows > 0)
+                    {
+                        <span class="fw-normal small opacity-75">&mdash; rows @Model.ListFirstRow&ndash;@Model.ListLastRow of @Model.ListTotalRows</span>
+                    }
+                </span>
             </div>
-
-            <div class="col-lg-1">
-                <div class="card">
-                    <div class="card-body p-2 d-flex flex-column gap-2">
-                        <button type="button" class="btn btn-outline-success btn-sm" onclick="selectActive()">Select</button>
-                        <button type="button" class="btn btn-outline-warning btn-sm" onclick="deselectActive()">De-Select</button>
-                        <button type="button" class="btn btn-outline-success btn-sm" onclick="selectAll()">Select All</button>
-                        <button type="button" class="btn btn-outline-warning btn-sm" onclick="deselectAll()">De-Select All</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="d-flex justify-content-center gap-3 mt-3">
-            <button type="submit" asp-page-handler="Generate" class="btn btn-success px-4">
-                <i class="bi bi-cash-coin me-1"></i>Generate
-            </button>
-            <a asp-page="/inward/Billing" class="btn btn-outline-secondary px-4">Cancel</a>
-        </div>
-    </form>
-
-    <div class="mt-3">
-        <a asp-page="/Inward/PatientList" class="btn btn-outline-primary btn-sm">
-            <i class="bi bi-arrow-left me-1"></i>Per-Patient Billing
-        </a>
-    </div>
-
-    @section Scripts {
-        <script>
-            var grid = document.getElementById('billGrid');
-            var activeRow = null;
-
-            if (grid) {
-                grid.querySelectorAll('tbody tr').forEach(function (tr) {
-                    tr.addEventListener('click', function () {
-                        if (grid.querySelector('tr.row-active')) {
-                            grid.querySelector('tr.row-active').classList.remove('row-active');
-                        }
-                        tr.classList.add('row-active');
-                        activeRow = tr;
-                    });
-                });
-            }
-
-            function rowCheck(r) {
-                return r ? r.querySelector('.row-check') : null;
-            }
-
-            function selectAll() {
-                if (grid) grid.querySelectorAll('.row-check').forEach(function (c) { c.checked = true; });
-            }
-
-            function deselectAll() {
-                if (grid) grid.querySelectorAll('.row-check').forEach(function (c) { c.checked = false; });
-            }
-
-            function selectActive() {
-                var c = rowCheck(activeRow);
-                if (c) c.checked = true;
-            }
-
-            function deselectActive() {
-                var c = rowCheck(activeRow);
-                if (c) c.checked = false;
-            }
-        </script>
-    }
-    return;
-}
-
-@if (Model.Encounter == null)
-{
-    <div class="alert alert-danger">
-        <i class="bi bi-x-circle me-1"></i>Active inpatient encounter not found.
-        <a asp-page="/Inward/PatientList" class="alert-link">Back to list</a>
-    </div>
-    return;
-}
-
-<div class="mb-3">
-    <h4 class="mb-0 fw-bold">Inward Billing</h4>
-</div>
-
-<div class="card mb-4">
-    <div class="card-body py-3">
-        <div class="row g-3">
-            <div class="col-md-3">
-                <div class="text-secondary small fw-bold text-uppercase">Patient</div>
-                <div class="fw-semibold">@(Model.Encounter.Patient?.Person?.NameWithInitials ?? "Unnamed")</div>
-                <small class="text-secondary">PHN: @(Model.Encounter.Patient?.Phn ?? "-")</small>
-            </div>
-            <div class="col-md-3">
-                <div class="text-secondary small fw-bold text-uppercase">Admission Date</div>
-                <div class="fw-semibold">@(Model.Encounter.DateOfAdmission?.ToString("dd MMM yyyy") ?? "-")</div>
-            </div>
-            <div class="col-md-3">
-                <div class="text-secondary small fw-bold text-uppercase">Department</div>
-                <div class="fw-semibold">@(Model.Encounter.Department?.Name ?? "-")</div>
-            </div>
-            <div class="col-md-3">
-                <div class="text-secondary small fw-bold text-uppercase">Encounter #</div>
-                <div class="fw-semibold">@Model.Encounter.Id</div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="card mb-4">
-    <div class="card-header bg-white fw-semibold"><i class="bi bi-hourglass-split me-1 text-warning"></i>Pending Bills — Outstanding @Model.PendingTotal.ToString("N2")</div>
-    <div class="card-body p-0">
-        @if (Model.PendingBills.Any())
-        {
-            <div class="table-responsive">
-                <table class="table align-middle mb-0">
-                    <thead class="table-light">
-                        <tr><th>Bill #</th><th>Date</th><th>Type</th><th class="text-end">Total</th><th class="text-end">Balance</th></tr>
-                    </thead>
+            <div class="ipd-table-wrap">
+                <table class="table table-sm table-hover ipd-table mb-0">
+                    <thead><tr>
+                        <th>Reg No</th><th>Patient Code</th><th>Reg Date</th><th>Discharge</th>
+                        <th>Status</th><th>Bill No</th><th class="text-end">Billed</th><th class="text-end">Due</th><th></th>
+                    </tr></thead>
                     <tbody>
-                        @foreach (var b in Model.PendingBills)
-                        {
-                            <tr>
-                                <td class="fw-semibold">@b.Id</td>
-                                <td><small>@(b.BillDate?.ToString("dd MMM yyyy") ?? b.CreatedAt?.ToString("dd MMM yyyy") ?? "")</small></td>
-                                <td><small>@b.BillType</small></td>
-                                <td class="text-end">@b.NetTotal.ToString("N2")</td>
-                                <td class="text-end fw-semibold text-warning">@b.Balance.ToString("N2")</td>
-                            </tr>
-                        }
+                    @foreach (var f in Model.Files)
+                    {
+                        <tr>
+                            <td class="fw-semibold">@f.RegNo</td>
+                            <td>@f.PCode</td>
+                            <td>@f.RDate?.ToString("dd-MMM-yyyy")</td>
+                            <td>@f.DDate?.ToString("dd-MMM-yyyy")</td>
+                            <td><span class="badge @(f.BillStatus==4?"bg-success":f.BillStatus==3?"bg-primary":f.BillStatus==2?"bg-warning text-dark":f.BillStatus==1?"bg-info":"bg-secondary")">
+                                @(((HmisWeb.Models.Legacy.IpdBillStatus?)f.BillStatus)?.ToString() ?? "-")</span></td>
+                            <td>@(f.BillNo?.ToString() ?? "-")</td>
+                            <td class="text-end ipd-money">@((f.BillAmt ?? 0).ToString("N2"))</td>
+                            <td class="text-end ipd-money">@f.Due.ToString("N2")</td>
+                            <td><a class="btn btn-sm btn-outline-primary" href="?Tab=update&RegNo=@f.RegNo">Open</a></td>
+                        </tr>
+                    }
+                    @if (!Model.Files.Any())
+                    {
+                        <tr><td colspan="9" class="ipd-empty">No inpatient files match the filter.</td></tr>
+                    }
                     </tbody>
                 </table>
             </div>
-        }
-        else
+            @if (Model.ListTotalPages > 1)
+            {
+                var listBase = "?Tab=list&SearchTerm=" + Uri.EscapeDataString(Model.SearchTerm ?? "") +
+                               "&StatusFilter=" + (Model.StatusFilter?.ToString() ?? "");
+                <div class="card-footer bg-white d-flex justify-content-between align-items-center">
+                    <span class="text-secondary small">Page @Model.ListPageIndex of @Model.ListTotalPages</span>
+                    <nav aria-label="Inpatient file pages">
+                        <ul class="pagination pagination-sm mb-0">
+                            <li class="page-item @(Model.ListPageIndex <= 1 ? "disabled" : "")">
+                                <a class="page-link" href="@(listBase)&ListPageIndex=@(Model.ListPageIndex - 1)">&laquo; Prev</a>
+                            </li>
+                            @for (var p = Math.Max(1, Model.ListPageIndex - 3); p <= Math.Min(Model.ListTotalPages, Model.ListPageIndex + 3); p++)
+                            {
+                                <li class="page-item @(p == Model.ListPageIndex ? "active" : "")">
+                                    <a class="page-link" href="@(listBase)&ListPageIndex=@p">@p</a>
+                                </li>
+                            }
+                            <li class="page-item @(Model.ListPageIndex >= Model.ListTotalPages ? "disabled" : "")">
+                                <a class="page-link" href="@(listBase)&ListPageIndex=@(Model.ListPageIndex + 1)">Next &raquo;</a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        @* ============ UPDATE TAB ============ *@
+        @* ---- patient search ---- *@
+        <form method="get" class="ipd-card mb-3">
+            <div class="ipd-card-header"><span class="ipd-title"><i class="fa-solid fa-magnifying-glass"></i>Find Patient</span></div>
+            <div class="card-body py-2 d-flex gap-2 flex-wrap">
+                <input name="RegNo" value="@Model.RegNo" class="form-control form-control-sm" style="max-width:220px" placeholder="Registration No." />
+                <input type="hidden" name="Tab" value="update" />
+                <button class="btn btn-sm btn-primary"><i class="fa-solid fa-arrow-right-to-bracket"></i> Open File</button>
+                <a class="btn btn-sm btn-outline-secondary" href="?Tab=list"><i class="fa-solid fa-list"></i> Browse all</a>
+            </div>
+        </form>
+
+        @if (Model.Header != null)
         {
-            <div class="text-center text-secondary small py-3"><i class="bi bi-check-circle me-1 text-success"></i>No pending bills. All previous charges are settled or none exist.</div>
-        }
-    </div>
-</div>
-
-<div class="row g-4">
-    <div class="col-lg-5">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title fw-semibold mb-3">Charge Items</h5>
-
-                <form method="post" asp-page="/Inward/Billing" asp-page-handler="Search">
-                    <div class="input-group">
-                        <input asp-for="SearchTerm" class="form-control" placeholder="Search services / investigations / medicines..." />
-                        <button type="submit" class="btn btn-primary"><i class="bi bi-search me-1"></i>Search</button>
+            @* ---- patient info card ---- *@
+            <div class="ipd-card mb-3">
+                <div class="ipd-card-header">
+                    <span class="ipd-title"><i class="fa-solid fa-id-card-clip"></i>Patient File</span>
+                    <span class="badge @statusBadge.Item2">@statusBadge.Item1</span>
+                </div>
+                <div class="card-body py-3">
+                    <div class="row g-3 small">
+                        <div class="col-6 col-md-3"><div class="ipd-label">Registration No.</div><div class="ipd-kv">@Model.Header.RegNo</div></div>
+                        <div class="col-6 col-md-3"><div class="ipd-label">Patient Code</div><div class="ipd-kv">@Model.Header.PCode</div></div>
+                        <div class="col-6 col-md-3"><div class="ipd-label">Name</div><div class="ipd-kv">@(Model.PatientName ?? "-")</div></div>
+                        <div class="col-6 col-md-3"><div class="ipd-label">Diagnosis</div><div>@(Model.Header.Diagnose ?? "-")</div></div>
+                        <div class="col-6 col-md-2"><div class="ipd-label">Reg Date</div><div>@Model.Header.RDate?.ToString("dd-MMM-yyyy") @Model.Header.RTime</div></div>
+                        <div class="col-6 col-md-2"><div class="ipd-label">Discharge Date</div><div>@Model.Header.DDate?.ToString("dd-MMM-yyyy") @Model.Header.DTime</div></div>
+                        <div class="col-6 col-md-2"><div class="ipd-label">Bed No.</div><div>@(Model.Header.BedNo ?? "-")</div></div>
+                        <div class="col-6 col-md-2"><div class="ipd-label">Consultant</div><div>@(Model.Header.ConCode ?? "-")</div></div>
+                        <div class="col-6 col-md-2"><div class="ipd-label">Company ID</div><div>@(Model.Header.Cid ?? "-")</div></div>
+                        <div class="col-6 col-md-2"><div class="ipd-label">Employee Code</div><div>@(Model.Header.ECode ?? "-")</div></div>
+                        <div class="col-6 col-md-2"><div class="ipd-label">Relation</div><div>@(Model.Header.GRelation ?? "-")</div></div>
+                        <div class="col-6 col-md-2"><div class="ipd-label">Ref No</div><div>@(Model.Header.RefNo ?? "-")</div></div>
+                        <div class="col-6 col-md-2"><div class="ipd-label">Valid Upto</div><div>@(Model.Header.RefValid ?? "-")</div></div>
+                        <div class="col-6 col-md-2"><div class="ipd-label">Card No</div><div>@(Model.Header.CardNo ?? "-")</div></div>
+                        <div class="col-6 col-md-2"><div class="ipd-label">Status (company)</div><div>@(Model.Header.CStat ?? "-")</div></div>
                     </div>
-                </form>
+                    <hr class="my-3" />
+                    <div class="row g-3 small">
+                        <div class="col-6 col-md-2"><div class="ipd-label">Used Amount</div><div class="ipd-kv ipd-money">@(Model.IndentDetailMissing ? "-" : Model.UsedAmount.ToString("N2"))</div></div>
+                        <div class="col-6 col-md-2"><div class="ipd-label">Billed Amount</div><div class="ipd-kv ipd-money">@Model.BilledAmount.ToString("N2")</div></div>
+                        <div class="col-6 col-md-2"><div class="ipd-label">Receipts</div><div class="ipd-money">@Model.Receipts.ToString("N2")</div></div>
+                        <div class="col-6 col-md-2"><div class="ipd-label">Payment</div><div class="ipd-money">@Model.Payments.ToString("N2")</div></div>
+                        <div class="col-6 col-md-2"><div class="ipd-label">Discount</div><div class="ipd-money">@Model.Discount.ToString("N2") @(Model.Header.DiscBy!=null? "("+Model.Header.DiscBy+")":"")</div></div>
+                        @* Amt. Due is emphasised in red only when something is actually owed. *@
+                        <div class="col-6 col-md-2"><div class="ipd-label">Amt. Due</div>
+                            <div class="fw-bold ipd-money @(Model.AmountDue > 0 ? "text-danger" : "")">@Model.AmountDue.ToString("N2")</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-                @if (Model.ItemResults.Any())
-                {
-                    <div class="mt-3">
-                        @foreach (var item in Model.ItemResults)
+            @* ---- workflow actions (Generate / Reverse / Unsettle / Settle) ---- *@
+            @if (Model.CanGenerate || Model.CanReverse || Model.CanUnsettle || Model.CanSettle)
+            {
+                <div class="ipd-card mb-3">
+                    <div class="ipd-card-header"><span class="ipd-title"><i class="fa-solid fa-gears"></i>Bill Actions</span></div>
+                    <div class="card-body py-2 d-flex gap-2 flex-wrap align-items-end">
+                        @if (Model.CanGenerate)
                         {
-                            <form method="post" asp-page="/Inward/Billing" asp-page-handler="Add" class="mb-2">
-                                <input type="hidden" asp-for="SearchTerm" />
-                                <input type="hidden" name="AddItemId" value="@item.Id" />
-                                <div class="d-flex justify-content-between align-items-center border rounded p-2">
-                                    <div class="d-flex align-items-center gap-2">
-                                        <span class="badge bg-@(item.ItemType==ItemType.Investigation?"info":(item.ItemType==ItemType.Medicine?"warning":"success")) text-white" style="font-size:.65rem;">
-                                            @(item.ItemType==ItemType.Investigation?"INV":(item.ItemType==ItemType.Medicine?"MED":"SVC"))
-                                        </span>
-                                        <div>
-                                            <div class="fw-semibold small">@item.Name</div>
-                                            <small class="text-secondary">Rate: @((item.Total ?? 100).ToString("N2"))</small>
-                                        </div>
-                                    </div>
-                                    <button type="submit" class="btn btn-sm btn-outline-success"><i class="bi bi-plus-lg"></i> Add</button>
-                                </div>
+                            <form method="post" asp-page-handler="Generate" class="d-flex gap-2 align-items-end flex-wrap">
+                                <input type="hidden" name="RegNo" value="@Model.RegNo" />
+                                <div><label class="ipd-label d-block">Bill Date</label><input asp-for="BillDate" type="date" class="form-control form-control-sm" /></div>
+                                <div><label class="ipd-label d-block">From</label><input asp-for="PeriodStart" type="date" class="form-control form-control-sm" /></div>
+                                <div><label class="ipd-label d-block">To</label><input asp-for="PeriodEnd" type="date" class="form-control form-control-sm" /></div>
+                                <button class="btn btn-primary btn-sm"><i class="fa-solid fa-file-circle-check"></i> Generate Bill</button>
+                            </form>
+                        }
+                        @if (Model.CanReverse || Model.CanUnsettle)
+                        {
+                            <form method="post" class="d-flex gap-2 align-items-end ms-auto flex-wrap">
+                                <input type="hidden" name="RegNo" value="@Model.RegNo" />
+                                <div><label class="ipd-label d-block">Reason (required)</label><input asp-for="Reason" class="form-control form-control-sm" style="min-width:260px" /></div>
+                                @if (Model.CanReverse && Model.BillHeaders.Any())
+                                {
+                                    <input type="hidden" name="billNo" value="@Model.BillHeaders.First().BillNo" />
+                                    <button class="btn btn-warning btn-sm" asp-page-handler="Reverse"><i class="fa-solid fa-rotate-left"></i> Reverse</button>
+                                }
+                                @if (Model.CanUnsettle)
+                                {
+                                    <button class="btn btn-warning btn-sm" asp-page-handler="Unsettle"><i class="fa-solid fa-rotate-left"></i> Unsettle</button>
+                                }
+                            </form>
+                        }
+                        @if (Model.CanSettle)
+                        {
+                            <form method="post" asp-page-handler="Settle" class="ms-auto">
+                                <input type="hidden" name="RegNo" value="@Model.RegNo" />
+                                <button class="btn btn-success btn-sm"><i class="fa-solid fa-sack-dollar"></i> Settle</button>
                             </form>
                         }
                     </div>
-                }
-                else if (!string.IsNullOrWhiteSpace(Model.SearchTerm))
-                {
-                    <div class="alert alert-secondary mt-3 mb-0 py-2 small">No charge items found.</div>
-                }
-            </div>
-        </div>
-    </div>
-
-    <div class="col-lg-7">
-        <div class="card">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="card-title fw-semibold mb-0">Bill Cart</h5>
-                    @if (Model.Cart.Any())
-                    {
-                        <form method="post" asp-page="/Inward/Billing" asp-page-handler="ClearCart">
-                            <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-trash me-1"></i>Clear</button>
-                        </form>
-                    }
                 </div>
+            }
 
-                @if (!ViewData.ModelState.IsValid)
-                {
-                    <div asp-validation-summary="All" class="alert alert-danger py-2 small"></div>
-                }
-
-                @if (Model.Cart.Any())
-                {
-                    <div class="table-responsive">
-                        <table class="table align-middle mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Item</th>
-                                    <th class="text-end">Rate</th>
-                                    <th class="text-center" style="width:110px;">Qty</th>
-                                    <th class="text-end">Line Total</th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var line in Model.Cart)
+            @* ---- generated bills (collapsible, only when present) ---- *@
+            @if (Model.BillHeaders.Any())
+            {
+                <div class="ipd-card mb-3">
+                    <div class="ipd-card-header ipd-header-link" data-bs-toggle="collapse" data-bs-target="#billsCollapse" aria-expanded="false" role="button">
+                        <span class="ipd-title"><i class="fa-solid fa-file-invoice-dollar"></i>Generated Bills (@Model.BillHeaders.Count)</span>
+                        <i class="fa-solid fa-chevron-down ipd-chevron"></i>
+                    </div>
+                    <div class="collapse" id="billsCollapse">
+                        <div class="ipd-table-wrap">
+                            <table class="table table-sm ipd-table mb-0">
+                                <thead><tr><th>Bill No</th><th>Bill Date</th><th class="text-end">Net</th></tr></thead>
+                                <tbody>
+                                @foreach (var b in Model.BillHeaders)
                                 {
-                                    <tr>
-                                        <td>
-                                            <div class="fw-semibold small">@line.ItemName</div>
-                                            <small class="text-secondary text-muted">#@line.ItemId</small>
-                                        </td>
-                                        <td class="text-end">@line.Rate.ToString("N2")</td>
-                                        <td>
-                                            <form method="post" asp-page="/Inward/Billing" asp-page-handler="UpdateQty" class="d-flex gap-1">
-                                                <input type="hidden" name="itemId" value="@line.ItemId" />
-                                                <input type="number" name="qty" value="@line.Qty" min="1" class="form-control form-control-sm text-center" style="width:56px;" />
-                                                <button type="submit" class="btn btn-sm btn-light"><i class="bi bi-arrow-repeat"></i></button>
-                                            </form>
-                                        </td>
-                                        <td class="text-end fw-semibold">@((line.Rate * line.Qty).ToString("N2"))</td>
-                                        <td>
-                                            <form method="post" asp-page="/Inward/Billing" asp-page-handler="Remove">
-                                                <input type="hidden" name="itemId" value="@line.ItemId" />
-                                                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-x-lg"></i></button>
-                                            </form>
-                                        </td>
-                                    </tr>
+                                    <tr><td>@b.BillNo</td><td>@b.BDate?.ToString("dd-MMM-yyyy")</td><td class="text-end ipd-money">@b.NTot?.ToString("N2")</td></tr>
                                 }
-                            </tbody>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @* ---- department summary (full width) ---- *@
+            <div class="ipd-card mb-3">
+                <div class="ipd-card-header">
+                    <span class="ipd-title"><i class="fa-solid fa-table-list"></i>Department Summary</span>
+                    <span class="small opacity-75">Click a row to open that department below</span>
+                </div>
+                <div class="ipd-table-wrap">
+                    <table class="table table-sm table-hover ipd-table mb-0">
+                        <thead><tr>
+                            <th style="width:120px">Dept Code</th>
+                            <th>Department Name</th>
+                            <th class="text-end" style="width:140px">Total Indents</th>
+                            <th class="text-end" style="width:160px">Total Amount</th>
+                        </tr></thead>
+                        <tbody>
+                        @foreach (var d in Model.DeptTotals)
+                        {
+                            <tr class="ipd-dept-row @(d.Dept == Model.Dept ? "selected" : "")"
+                                data-dept="@d.Dept"
+                                data-href="?Tab=update&RegNo=@Model.RegNo&Dept=@d.Dept"
+                                tabindex="0" role="button"
+                                aria-label="Open department @Model.DeptDisplay(d.Dept)"
+                                onclick="ipdSelectDept(this)"
+                                onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();ipdSelectDept(this);}">
+                                <td class="fw-semibold">@d.Dept</td>
+                                <td>@Model.DeptDisplay(d.Dept)</td>
+                                <td class="text-end">@d.SlipCount</td>
+                                <td class="text-end ipd-money">@d.Amount.ToString("N2")</td>
+                            </tr>
+                        }
+                        @if (!Model.DeptTotals.Any())
+                        {
+                            <tr><td colspan="4" class="ipd-empty">No indents yet</td></tr>
+                        }
+                        </tbody>
+                        @if (Model.DeptTotals.Any())
+                        {
                             <tfoot>
-                                <tr class="table-light">
-                                    <td colspan="3" class="fw-bold">Total</td>
-                                    <td class="text-end fw-bold fs-5">@Model.CartTotal.ToString("N2")</td>
-                                    <td></td>
+                                <tr class="fw-bold" style="background:#f1f5f9">
+                                    <td colspan="2" class="text-end">Grand Total</td>
+                                    <td class="text-end">@Model.DeptTotals.Sum(d => d.SlipCount)</td>
+                                    <td class="text-end ipd-money">@Model.DeptTotals.Sum(d => d.Amount).ToString("N2")</td>
                                 </tr>
                             </tfoot>
-                        </table>
-                    </div>
-
-                    <form method="post" asp-page="/Inward/Billing" asp-page-handler="SaveBill" class="mt-3">
-                        <div class="mb-2">
-                            <label asp-for="Comments" class="form-label small fw-bold">Comments</label>
-                            <textarea asp-for="Comments" class="form-control" rows="2" placeholder="Optional"></textarea>
-                        </div>
-                        <button type="submit" class="btn btn-success px-4">
-                            <i class="bi bi-cash-stack me-1"></i>Save Inward Bill
-                        </button>
-                        <a asp-page="/Inward/PatientList" class="btn btn-outline-secondary ms-2">Cancel</a>
-                    </form>
-                }
-                else
+                        }
+                    </table>
+                </div>
+                @if (Model.IndentDetailMissing)
                 {
-                    <div class="text-center py-4">
-                        <i class="bi bi-cart text-secondary" style="font-size:2rem;"></i>
-                        <p class="text-secondary mt-2 mb-0">Cart is empty. Search and add charge items.</p>
+                    <div class="alert alert-warning rounded-0 mb-0 small">
+                        <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                        <strong>No indent detail available for this file.</strong>
+                        The legacy indent tables (<code>IBIL_MST</code> / <code>IBIL_DET</code>) hold no
+                        department slips for Reg. No @Model.RegNo, so the department breakdown
+                        cannot be shown. This file was billed a total of
+                        <strong>@Model.BilledAmount.ToString("N2")</strong> in the source system;
+                        the figure is kept on the header above and is not lost.
                     </div>
                 }
             </div>
-        </div>
+
+            @* ---- indents grid (full width) ---- *@
+            <div class="ipd-card mb-3">
+                <div class="ipd-card-header">
+                    <span class="ipd-title"><i class="fa-solid fa-list-check"></i>Indents &mdash; Dept @Model.Dept</span>
+                    <div class="d-flex align-items-center gap-2">
+                        <select asp-for="Dept" asp-items="Model.DeptList" class="form-select form-select-sm ipd-dept-select"
+                                aria-label="Department"
+                                onchange="ipdShowLoader();location.href='?Tab=update&RegNo=@Model.RegNo&Dept='+encodeURIComponent(this.value)"></select>
+                        @if (Model.CanAddIndent)
+                        {
+                            <button type="button" class="btn btn-sm btn-light" id="ipdAddRowBtn" title="Add new row" aria-label="Add new row" onclick="ipdShowEntry()">
+                                <i class="fa-solid fa-circle-plus text-primary"></i>
+                            </button>
+                        }
+                    </div>
+                </div>
+
+                <form method="post" id="lineForm">
+                    <input type="hidden" name="RegNo" value="@Model.RegNo" />
+                    <input type="hidden" name="Dept" value="@Model.Dept" />
+                    <input type="hidden" name="LineId" value="" />
+                    <div class="ipd-table-wrap">
+                        <table class="table table-sm table-hover ipd-table mb-0 align-middle">
+                            <thead><tr>
+                                <th style="width:60px">Id</th>
+                                <th style="width:90px">Indent No</th>
+                                <th style="width:140px">Date</th>
+                                <th style="width:150px">Code</th>
+                                <th>Description</th>
+                                <th class="text-end" style="width:90px">Qty</th>
+                                <th class="text-end" style="width:100px">Rate</th>
+                                <th class="text-end" style="width:110px">Amount (auto)</th>
+                                <th style="width:170px">Remarks</th>
+                                <th style="width:1%">Actions</th>
+                            </tr></thead>
+                            <tbody id="ipdLinesBody">
+                            @foreach (var l in Model.Lines)
+                            {
+                                <tr>
+                                    <td class="text-muted">@l.Id</td>
+                                    <td>@l.SlipNo</td>
+                                    <td>@l.SlipDate?.ToString("dd-MM-yy")</td>
+                                    <td>@l.Code</td>
+                                    <td>@l.Description</td>
+                                    <td class="text-end">@l.Qty</td>
+                                    <td class="text-end ipd-money">@l.Rate.ToString("N2")</td>
+                                    <td class="text-end ipd-money ipd-amount">@l.Amount.ToString("N2")</td>
+                                    <td>@l.Remarks</td>
+                                    <td class="text-nowrap">
+                                        @if (Model.CanAddIndent)
+                                        {
+                                            <button type="button" class="ipd-act ipd-act-edit" title="Edit" aria-label="Edit line"
+                                                    data-edit='@System.Text.Json.JsonSerializer.Serialize(new { l.Id, l.SlipNo, SlipDate = l.SlipDate?.ToString("yyyy-MM-dd"), l.Code, l.Qty, l.Rate, l.Description, l.Remarks })'
+                                                    onclick="ipdFillEdit(this)"><i class="fa-solid fa-pencil"></i></button>
+                                            <button type="submit" class="ipd-act ipd-act-del" title="Delete" aria-label="Delete line"
+                                                    name="retireLineId" value="@l.Id" formaction="?handler=RetireLine"
+                                                    onclick="return confirm('Delete this indent line?')"><i class="fa-solid fa-trash"></i></button>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                            @if (Model.Lines.Any() == false && Model.CanAddIndent == false)
+                            {
+                                <tr><td colspan="10" class="ipd-empty">No indents recorded for Dept @Model.Dept.</td></tr>
+                            }
+                            @if (Model.Lines.Any() == false && Model.CanAddIndent)
+                            {
+                                <tr id="ipdEmptyHint"><td colspan="10" class="ipd-empty">No indents yet &mdash; click <i class="fa-solid fa-circle-plus"></i> Add new row to begin.</td></tr>
+                            }
+
+                            @if (Model.CanAddIndent)
+                            {
+                                @* ---- inline new / edit row (hidden until Add new row or Edit) ---- *@
+                                <tr class="ipd-entry-row d-none" id="ipdEntryRow">
+                                    <td class="text-muted fw-semibold">new</td>
+                                    <td><input name="SlipNo" class="form-control form-control-sm" title="Indent No" aria-label="Indent No" /></td>
+                                    <td><input name="SlipDate" type="date" class="form-control form-control-sm" title="Date" aria-label="Date" /></td>
+                                    <td>
+                                        <div class="input-group input-group-sm">
+                                            <input name="ItemCode" class="form-control" placeholder="Select" readonly aria-label="Item code" />
+                                            <button type="button" class="btn btn-outline-secondary ipd-act-search" data-bs-toggle="modal" data-bs-target="#serviceModal" title="Search item/code" aria-label="Search item or code"><i class="fa-solid fa-magnifying-glass"></i></button>
+                                        </div>
+                                    </td>
+                                    <td><input name="Description" class="form-control form-control-sm" placeholder="Selected service" readonly aria-label="Description" /></td>
+                                    <td><input name="Qty" type="number" step="0.01" min="0" class="form-control form-control-sm text-end ipd-num" title="Quantity" aria-label="Quantity" /></td>
+                                    <td><input name="Rate" type="number" step="0.01" min="0" class="form-control form-control-sm text-end ipd-num" title="Rate" aria-label="Rate" /></td>
+                                    <td class="text-end ipd-amount" id="ipdEntryAmount">0.00</td>
+                                    <td><input name="Remarks" class="form-control form-control-sm" title="Remarks" aria-label="Remarks" /></td>
+                                    <td class="text-nowrap">
+                                        <button type="submit" class="ipd-act ipd-act-save" id="ipdSaveBtn" formaction="?handler=AddLine" title="Save" aria-label="Save"><i class="fa-solid fa-check"></i></button>
+                                        <button type="button" class="ipd-act ipd-act-cancel" title="Cancel" aria-label="Cancel" onclick="ipdCancel()"><i class="fa-solid fa-xmark"></i></button>
+                                    </td>
+                                </tr>
+                            }
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="ipd-errors" id="ipdEntryErrors" role="alert" hidden></div>
+                </form>
+            </div>
+
+            @* ---- audit trail (full width, collapsible, collapsed by default) ---- *@
+            <div class="ipd-card mb-3">
+                <div class="ipd-card-header ipd-header-link" data-bs-toggle="collapse" data-bs-target="#auditCollapse" aria-expanded="false" role="button">
+                    <span class="ipd-title"><i class="fa-solid fa-clock-rotate-left"></i>Audit Trail (@Model.Audit.Count)</span>
+                    <i class="fa-solid fa-chevron-down ipd-chevron"></i>
+                </div>
+                <div class="collapse" id="auditCollapse">
+                    <div class="ipd-table-wrap">
+                        <table class="table table-sm ipd-table mb-0">
+                            <thead><tr><th>When (UTC)</th><th>Action</th><th>Entity</th><th>Key</th><th>Old</th><th>New</th><th>Reason</th><th>User</th></tr></thead>
+                            <tbody>
+                            @foreach (var a in Model.Audit)
+                            {
+                                <tr><td>@a.CreatedAt.ToString("dd-MMM-yyyy HH:mm")</td><td>@a.Action</td><td>@a.Entity</td><td>@a.EntityKey</td><td>@a.OldValue</td><td>@a.NewValue</td><td>@a.Reason</td><td>@a.UserName</td></tr>
+                            }
+                            @if (!Model.Audit.Any())
+                            {
+                                <tr><td colspan="8" class="ipd-empty">No audit entries.</td></tr>
+                            }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@* ============ LOADER + TOASTS ============ *@
+<div class="ipd-loader" id="ipdLoader" hidden>
+    <div class="text-center text-white">
+        <div class="spinner-border" role="status" aria-hidden="true"></div>
+        <div class="small mt-2">Loading&hellip;</div>
     </div>
 </div>
+
+<div class="toast-container position-fixed top-0 end-0 p-3" id="ipdToasts" style="z-index:2060"></div>
+@if (!string.IsNullOrEmpty(Model.Success))
+{
+    <div data-ipd-toast="success" data-ipd-msg="@Model.Success" hidden></div>
+}
+@if (!string.IsNullOrEmpty(Model.Message))
+{
+    <div data-ipd-toast="danger" data-ipd-msg="@Model.Message" hidden></div>
+}
+
+@* ============ SERVICE LOOKUP MODAL ============ *@
+<div class="modal fade" id="serviceModal" tabindex="-1" aria-labelledby="serviceModalTitle" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="serviceModalTitle"><i class="fa-solid fa-magnifying-glass me-2"></i>Select Service / Investigation</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="input-group mb-2">
+          <span class="input-group-text"><i class="fa-solid fa-magnifying-glass"></i></span>
+          <input id="serviceSearch" class="form-control" placeholder="Search by code or name" aria-label="Search services" />
+          <button class="btn btn-outline-secondary" type="button" id="serviceSearchBtn">Search</button>
+        </div>
+        <div class="table-responsive" style="max-height:400px;overflow:auto">
+          <table class="table table-sm table-hover mb-0">
+            <thead class="table-light"><tr><th>Code</th><th>Name</th><th class="text-end">Rate</th><th></th></tr></thead>
+            <tbody id="serviceTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+@*
+ * Script : IPD bill client behaviour
+ * Purpose: Department row selection, inline entry-row show/edit/cancel, live amount,
+ *          inline validation (Date required, Qty > 0, Rate >= 0), Enter=save/Esc=cancel,
+ *          service lookup, loader overlay and toast notifications.
+ * Notes  : Loaded inline after the layout's form markup. All DOM wiring happens on
+ *          DOMContentLoaded so bootstrap (loaded at the end of the layout) is ready.
+ * Developer: Tajwer Jalal
+ * Date/Time: 15-Oct-2026 15:05
+ *@
+<script>
+    (function () {
+        'use strict';
+
+        /* ---------- loader ---------- */
+        function showLoader() { var el = document.getElementById('ipdLoader'); if (el) el.hidden = false; }
+        function hideLoader() { var el = document.getElementById('ipdLoader'); if (el) el.hidden = true; }
+        window.ipdShowLoader = showLoader;
+
+        /* ---------- toast ---------- */
+        function showToast(message, type) {
+            var host = document.getElementById('ipdToasts');
+            if (!host || !message) return;
+            var bg = type === 'success' ? 'text-bg-success' : (type === 'danger' ? 'text-bg-danger' : 'text-bg-secondary');
+            var wrap = document.createElement('div');
+            wrap.className = 'toast align-items-center border-0 ' + bg;
+            wrap.setAttribute('role', 'alert');
+            wrap.setAttribute('aria-live', 'assertive');
+            wrap.setAttribute('aria-atomic', 'true');
+            var ico = type === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation';
+            wrap.innerHTML =
+                '<div class="d-flex">' +
+                '  <div class="toast-body"><i class="fa-solid ' + ico + ' me-2"></i>' + message + '</div>' +
+                '  <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>' +
+                '</div>';
+            host.appendChild(wrap);
+            var t = new bootstrap.Toast(wrap, { delay: 4000 });
+            t.show();
+            wrap.addEventListener('hidden.bs.toast', function () { wrap.remove(); });
+        }
+
+        /* ---------- department selection ---------- */
+        function selectDept(row) {
+            var href = row && row.getAttribute('data-href');
+            if (href) { showLoader(); window.location.href = href; }
+        }
+        window.ipdSelectDept = selectDept;
+
+        /* ---------- entry row ---------- */
+        function entryRow() { return document.getElementById('ipdEntryRow'); }
+        function form() { return document.getElementById('lineForm'); }
+        function q(sel) { var f = form(); return f ? f.querySelector(sel) : null; }
+
+        function clearErrors() {
+            var box = document.getElementById('ipdEntryErrors');
+            if (box) { box.hidden = true; box.innerHTML = ''; }
+            ['ItemCode', 'Qty', 'Rate', 'Remarks', 'SlipDate'].forEach(function (n) {
+                var el = q('[name=' + n + ']'); if (el) el.classList.remove('ipd-field-invalid');
+            });
+        }
+        function showErrors(msgs) {
+            var box = document.getElementById('ipdEntryErrors');
+            if (!box) { alert(msgs.join('\n')); return; }
+            box.innerHTML = msgs.map(function (m) { return '<div><i class="fa-solid fa-circle-exclamation me-1"></i>' + m + '</div>'; }).join('');
+            box.hidden = false;
+        }
+
+        function recalc() {
+            var qty = parseFloat(q('[name=Qty]').value) || 0;
+            var rate = parseFloat(q('[name=Rate]').value) || 0;
+            var out = document.getElementById('ipdEntryAmount');
+            if (out) out.textContent = (qty * rate).toFixed(2);
+        }
+
+        function showEntry(focusEl) {
+            var row = entryRow(); if (!row) return;
+            row.classList.remove('d-none');
+            var hint = document.getElementById('ipdEmptyHint'); if (hint) hint.classList.add('d-none');
+            row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            var target = focusEl || q('[name=ItemCode]');
+            if (target) { try { target.focus(); } catch (e) { } }
+        }
+        window.ipdShowEntry = showEntry;
+
+        function resetFields() {
+            var f = form(); if (!f) return;
+            f.querySelectorAll('[name=SlipNo],[name=SlipDate],[name=ItemCode],[name=Description],[name=Qty],[name=Rate],[name=Remarks]')
+                .forEach(function (el) { el.value = ''; });
+            q('[name=LineId]').value = '';
+            var save = document.getElementById('ipdSaveBtn');
+            if (save) save.setAttribute('formaction', '?handler=AddLine');
+            recalc(); clearErrors();
+        }
+
+        function cancel() {
+            var row = entryRow(); if (!row) return;
+            row.classList.add('d-none');
+            resetFields();
+            var hint = document.getElementById('ipdEmptyHint'); if (hint) hint.classList.remove('d-none');
+        }
+        window.ipdCancel = cancel;
+
+        function fillEdit(btn) {
+            var d; try { d = JSON.parse(btn.getAttribute('data-edit')); } catch (e) { return; }
+            var f = form(); if (!f) return;
+            q('[name=SlipNo]').value = d.SlipNo || '';
+            q('[name=SlipDate]').value = d.SlipDate || '';
+            q('[name=ItemCode]').value = d.Code || '';
+            q('[name=Description]').value = d.Description || '';
+            q('[name=Qty]').value = d.Qty;
+            q('[name=Rate]').value = d.Rate;
+            q('[name=Remarks]').value = d.Remarks || '';
+            q('[name=LineId]').value = d.Id;
+            var save = document.getElementById('ipdSaveBtn');
+            if (save) save.setAttribute('formaction', '?handler=EditLine');
+            recalc(); clearErrors();
+            showEntry(q('[name=Qty]'));
+        }
+        window.ipdFillEdit = fillEdit;
+
+        /* ---------- validation ---------- */
+        function validate() {
+            clearErrors();
+            var msgs = [];
+            var date = q('[name=SlipDate]');
+            var qtyEl = q('[name=Qty]');
+            var rateEl = q('[name=Rate]');
+            var qty = parseFloat(qtyEl.value);
+            var rate = parseFloat(rateEl.value);
+
+            if (!date.value) { msgs.push('Date is required.'); date.classList.add('ipd-field-invalid'); }
+            if (isNaN(qty) || qty <= 0) { msgs.push('Quantity must be greater than 0.'); qtyEl.classList.add('ipd-field-invalid'); }
+            if (isNaN(rate) || rate < 0) { msgs.push('Rate must be 0 or greater.'); rateEl.classList.add('ipd-field-invalid'); }
+
+            if (msgs.length) { showErrors(msgs); return false; }
+            return true;
+        }
+
+        /* ---------- service lookup ---------- */
+        function loadServices(search) {
+            // Read the department from the header dropdown explicitly (#Dept). There is
+            // also a hidden <input name="Dept"> inside #lineForm for POST binding;
+            // querying '[name=Dept]' could pick the wrong one, so target the select.
+            var deptEl = document.getElementById('Dept') || q('[name=Dept]');
+            var dept = deptEl ? deptEl.value : '';
+            var body = document.getElementById('serviceTableBody');
+            if (body) body.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3"><span class="spinner-border spinner-border-sm me-2"></span>Loading&hellip;</td></tr>';
+            fetch('?handler=DeptServices&dept=' + encodeURIComponent(dept) + '&search=' + encodeURIComponent(search || ''))
+                .then(function (r) { return r.json(); })
+                .then(function (d) {
+                    var tb = document.getElementById('serviceTableBody');
+                    tb.innerHTML = '';
+                    if (!d || !d.length) {
+                        tb.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">No services found.</td></tr>';
+                        return;
+                    }
+                    d.forEach(function (x) {
+                        var tr = document.createElement('tr');
+                        var tdCode = document.createElement('td'); tdCode.textContent = x.code || '';
+                        var tdName = document.createElement('td'); tdName.textContent = x.name || '';
+                        var tdRate = document.createElement('td'); tdRate.className = 'text-end';
+                        tdRate.textContent = (Number(x.rate) || 0).toFixed(2);
+                        var tdBtn = document.createElement('td');
+                        var btn = document.createElement('button');
+                        btn.type = 'button'; btn.className = 'btn btn-sm btn-primary';
+                        btn.innerHTML = '<i class="fa-solid fa-plus me-1"></i>Select';
+                        btn.addEventListener('click', function () { pickService(x.code, x.name, x.rate); });
+                        tdBtn.appendChild(btn);
+                        tr.appendChild(tdCode); tr.appendChild(tdName); tr.appendChild(tdRate); tr.appendChild(tdBtn);
+                        tb.appendChild(tr);
+                    });
+                })
+                .catch(function () {
+                    var tb = document.getElementById('serviceTableBody');
+                    if (tb) tb.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-3">Failed to load services.</td></tr>';
+                });
+        }
+
+        function pickService(code, name, rate) {
+            q('[name=ItemCode]').value = code || '';
+            q('[name=Description]').value = name || '';
+            q('[name=Rate]').value = (Number(rate) || 0);
+            recalc();
+            clearErrors();
+            var el = document.getElementById('serviceModal');
+            var inst = bootstrap.Modal.getInstance(el) || new bootstrap.Modal(el);
+            inst.hide();
+            var qtyEl = q('[name=Qty]');
+            if (qtyEl) { qtyEl.focus(); try { qtyEl.select(); } catch (e) { } }   // auto-focus Qty after pick
+        }
+
+        /* ---------- init ---------- */
+        document.addEventListener('DOMContentLoaded', function () {
+            // Toasts from server-side Success / Message.
+            document.querySelectorAll('[data-ipd-toast]').forEach(function (el) {
+                showToast(el.getAttribute('data-ipd-msg'), el.getAttribute('data-ipd-toast'));
+            });
+
+            var f = form();
+            var save = document.getElementById('ipdSaveBtn');
+
+            // Live amount.
+            var qtyEl = q('[name=Qty]'), rateEl = q('[name=Rate]');
+            if (qtyEl) qtyEl.addEventListener('input', recalc);
+            if (rateEl) rateEl.addEventListener('input', recalc);
+            recalc();
+
+            // Save: validate before submitting; show loader when valid.
+            if (save) {
+                save.addEventListener('click', function (e) {
+                    if (!validate()) { e.preventDefault(); }
+                });
+            }
+
+            // Enter = save, Esc = cancel (within the entry row).
+            var row = entryRow();
+            if (row) {
+                row.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (save && validate()) { showLoader(); f.submit(); }
+                    } else if (e.key === 'Escape') {
+                        e.preventDefault();
+                        cancel();
+                    }
+                });
+            }
+
+            // Loader on any real submit / navigation.
+            if (f) f.addEventListener('submit', function () { showLoader(); });
+            document.querySelectorAll('a[href^="?Tab"], a.btn').forEach(function (a) {
+                a.addEventListener('click', function () { /* no-op: navigation is instant enough */ });
+            });
+            window.addEventListener('beforeunload', function () { /* keep UI responsive */ });
+
+            // Service lookup modal wiring.
+            var inp = document.getElementById('serviceSearch');
+            var sbtn = document.getElementById('serviceSearchBtn');
+            if (inp) inp.addEventListener('input', function () { loadServices(this.value); });
+            if (sbtn) sbtn.addEventListener('click', function () { loadServices(inp ? inp.value : ''); });
+            var modal = document.getElementById('serviceModal');
+            if (modal) modal.addEventListener('show.bs.modal', function () { loadServices(''); });
+        });
+    })();
+</script>

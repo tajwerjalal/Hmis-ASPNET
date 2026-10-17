@@ -1,0 +1,15 @@
+chk admitted discharged generated settled still_null
+--- -------- ---------- --------- ------- ----------
+REGISTER.BILLSTATUS backfill 32 2995 49352 51241 0
+chk rows_with_id
+--- ------------
+IBIL_MST.Id 768037
+chk rows_with_id
+--- ------------
+IBIL_DET.Id 3744809
+chk row_count
+--- ---------
+IpdBillAudit 0
+chk row_count
+--- ---------
+LegacyDepartment 8

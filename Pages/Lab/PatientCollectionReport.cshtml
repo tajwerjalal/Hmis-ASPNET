@@ -3,13 +3,10 @@
 @{
     ViewData["Title"] = "Patient wise Collection Report";
 }
-
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h4 class="mb-0 fw-bold">Patient wise Collection Report</h4>
-</div>
-
-<div class="card">
-    <div class="card-body text-secondary">
-        <i class="bi bi-person me-1"></i> To be implemented — mirrors the VFP Labsys form <code>lb02403</code>.
+<div class="d-flex justify-content-between align-items-end mb-3">
+    <div>
+        <h4 class="mb-0 fw-bold"><i class="bi bi-person me-2 text-primary"></i>Patient wise Collection Report</h4>
+        <div class="text-secondary small">Laboratory collection by patient &middot; mirrors VFP Labsys <code>lb02403</code></div>
     </div>
 </div>
+<partial name="_LabCollectionReport" model="Model" />

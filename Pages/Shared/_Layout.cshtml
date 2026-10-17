@@ -6,6 +6,10 @@
     <title>@ViewData["Title"] - HMIS</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" />
+    <!-- Font Awesome 6 - required by the /inward/Billing (IPD Bill) redesign, which
+         uses fa-* glyphs for the row action buttons and card headers.
+         Developer: Tajwer Jalal | Date: 15-Oct-2026 | Time: 15:00 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
     <style>
         *, *::before, *::after { box-sizing: border-box; }
         html, body { height: 100%; margin: 0; padding: 0; }
@@ -226,7 +230,81 @@
                     <a asp-page="/inward/Admission" class="nav-link sub-link"><i class="bi bi-hospital"></i> Admission</a>
                     <a asp-page="/inward/PatientList" class="nav-link sub-link"><i class="bi bi-person-lines-fill"></i> Inpatients</a>
                     <a asp-page="/inward/Discharge" class="nav-link sub-link"><i class="bi bi-box-arrow-right"></i> Discharge</a>
-                    <a asp-page="/inward/Billing" class="nav-link sub-link"><i class="bi bi-cash-stack"></i> Inward Billing</a>
+                </div>
+            </div>
+
+            <div class="menu-group">
+                <a href="javascript:void(0)" class="nav-link menu-parent">
+                    <span><i class="bi bi-receipt-cutoff"></i> Billing</span>
+                    <i class="bi bi-chevron-down"></i>
+                </a>
+                <div class="submenu">
+                    <div class="menu-group">
+                        <a href="javascript:void(0)" class="nav-link menu-parent">
+                            <span><i class="bi bi-arrow-left-right"></i> Transactions</span>
+                            <i class="bi bi-chevron-down"></i>
+                        </a>
+                        <div class="submenu">
+                            <a asp-page="/opd/Billing" class="nav-link sub-link"><i class="bi bi-cash-coin"></i> OPD Billing</a>
+                            <a asp-page="/inward/Billing" class="nav-link sub-link"><i class="bi bi-cash-stack"></i> IPD Billing</a>
+                            <a asp-page="/billing/SlipEntry" asp-route-Type="opd" asp-route-Dept="01" class="nav-link sub-link"><i class="bi bi-journal-text"></i> Department Slip Entry</a>
+                            <a asp-page="/billing/GenerateOpdBill" class="nav-link sub-link"><i class="bi bi-file-earmark-text"></i> Generate OPD Bill <small class="text-muted ms-1">GENBILL</small></a>
+                            <a asp-page="/billing/GenerateIpdBill" class="nav-link sub-link"><i class="bi bi-file-earmark-text"></i> Generate IPD Bill <small class="text-muted ms-1">GENBILLI</small></a>
+                            <a asp-page="/billing/SearchBill" asp-route-Type="opd" class="nav-link sub-link"><i class="bi bi-search"></i> Search OPD Bill No.</a>
+                            <a asp-page="/billing/SearchBill" asp-route-Type="inward" class="nav-link sub-link"><i class="bi bi-search"></i> Search IPD Bill No.</a>
+                            <a asp-page="/billing/PatientOwnership" class="nav-link sub-link"><i class="bi bi-person-badge"></i> Assign Patient Ownership</a>
+                            <a asp-page="/billing/UpdateRates" class="nav-link sub-link"><i class="bi bi-currency-dollar"></i> Update Rates</a>
+                            <a asp-page="/billing/RecalculateConsultantPayable" class="nav-link sub-link"><i class="bi bi-calculator"></i> Recalculate Consultant Payable</a>
+                            <a asp-page="/billing/ReverseSettlement" class="nav-link sub-link"><i class="bi bi-arrow-counterclockwise"></i> Reverse Settlement</a>
+                        </div>
+                    </div>
+
+                    <div class="menu-group">
+                        <a href="javascript:void(0)" class="nav-link menu-parent">
+                            <span><i class="bi bi-arrow-return-left"></i> Recovery</span>
+                            <i class="bi bi-chevron-down"></i>
+                        </a>
+                        <div class="submenu">
+                            <a asp-page="/cashier/receipt" class="nav-link sub-link"><i class="bi bi-receipt"></i> Cash Receipts</a>
+                            <a asp-page="/cashier/refunds" class="nav-link sub-link"><i class="bi bi-arrow-return-left"></i> Refunds</a>
+                        </div>
+                    </div>
+
+                    <div class="menu-group">
+                        <a href="javascript:void(0)" class="nav-link menu-parent">
+                            <span><i class="bi bi-clipboard-data"></i> Reports</span>
+                            <i class="bi bi-chevron-down"></i>
+                        </a>
+                        <div class="submenu">
+                            <div class="ms-3 small text-uppercase text-muted fw-semibold py-1">Patient Bills</div>
+                            <a asp-page="/Reports/Billing/RunningBill" class="nav-link sub-link"><i class="bi bi-receipt-cutoff"></i> IPD Running Bills <small class="text-muted ms-1">BS021040</small></a>
+                            <a asp-page="/Reports/Billing/FinalBill" class="nav-link sub-link"><i class="bi bi-file-earmark-text"></i> Patient Bill (Final) - IPD <small class="text-muted ms-1">BS021001</small></a>
+
+                            <div class="ms-3 small text-uppercase text-muted fw-semibold py-1 mt-2">IPD Lists &amp; Summaries</div>
+                            <a asp-page="/Reports/Billing/Run" asp-route-Code="BILLSLIST" class="nav-link sub-link"><i class="bi bi-list-ul"></i> Bills List <small class="text-muted ms-1">BS021010</small></a>
+                            <a asp-page="/Reports/Billing/Run" asp-route-Code="CONSOLIDATED" class="nav-link sub-link"><i class="bi bi-diagram-3"></i> Consolidated Bills Report <small class="text-muted ms-1">BS021020</small></a>
+                            <a asp-page="/Reports/Billing/Run" asp-route-Code="PERIODIC" class="nav-link sub-link"><i class="bi bi-calendar-range"></i> Periodic Bills Summary <small class="text-muted ms-1">BS021030</small></a>
+                            <a asp-page="/Reports/Billing/Run" asp-route-Code="IPDAUDIT" class="nav-link sub-link"><i class="bi bi-journal-check"></i> IPD Audit Report <small class="text-muted ms-1">BS021050</small></a>
+                            <a asp-page="/Reports/Billing/Run" asp-route-Code="COVERING" class="nav-link sub-link"><i class="bi bi-envelope"></i> Covering Letter <small class="text-muted ms-1">BS021060</small></a>
+
+                            <div class="ms-3 small text-uppercase text-muted fw-semibold py-1 mt-2">Billing Status</div>
+                            <a asp-page="/Reports/Billing/Run" asp-route-Code="BILLSTATUS" class="nav-link sub-link"><i class="bi bi-clipboard-data"></i> Billing Status Report <small class="text-muted ms-1">IBILLSTAT</small></a>
+                            <a asp-page="/Reports/Billing/Run" asp-route-Code="BILLGENSTATUS" class="nav-link sub-link"><i class="bi bi-toggle-on"></i> Bill Generation Status <small class="text-muted ms-1">BILLSTAT</small></a>
+                            <a asp-page="/Reports/Billing/Run" asp-route-Code="DISCHARGES" class="nav-link sub-link"><i class="bi bi-box-arrow-right"></i> Company Discharges Report <small class="text-muted ms-1">CDISCHGRPT</small></a>
+                        </div>
+                    </div>
+
+                    <div class="menu-group">
+                        <a href="javascript:void(0)" class="nav-link menu-parent">
+                            <span><i class="bi bi-gear"></i> Setup</span>
+                            <i class="bi bi-chevron-down"></i>
+                        </a>
+                        <div class="submenu">
+                            <a asp-page="/Corporate/Rates" class="nav-link sub-link"><i class="bi bi-currency-dollar"></i> Company Rates</a>
+                            <a asp-page="/Corporate/ResourceRates" class="nav-link sub-link"><i class="bi bi-files"></i> Resource Rates</a>
+                            <a asp-page="/Corporate/ConsultantRates" class="nav-link sub-link"><i class="bi bi-person-vcard"></i> Consultant Rates</a>
+                        </div>
+                    </div>
                 </div>
             </div>
 

@@ -1,0 +1,120 @@
+@page "/billing/PatientOwnership"
+@model HmisWeb.Pages.Billing.PatientOwnershipModel
+@{
+    ViewData["Title"] = "Assign Patient Ownership";
+}
+
+<div class="d-flex justify-content-between align-items-end mb-3">
+    <div>
+        <h4 class="mb-0 fw-bold"><i class="bi bi-person-badge me-2 text-primary"></i>Assign Patient Ownership</h4>
+        <div class="text-secondary small">Assign the owning consultant for a registration &middot; mirrors VFP Billsys <code>patowner</code></div>
+    </div>
+    <div class="btn-group btn-group-sm">
+        <a asp-page="/billing/PatientOwnership" asp-route-Type="opd" class="btn @(Model.IsInward ? "btn-outline-primary" : "btn-primary")">OPD</a>
+        <a asp-page="/billing/PatientOwnership" asp-route-Type="inward" class="btn @(Model.IsInward ? "btn-primary" : "btn-outline-primary")">IPD</a>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.Success))
+{
+    <div class="alert alert-success alert-dismissible fade show py-2"><i class="bi bi-check-circle me-1"></i>@Model.Success<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger alert-dismissible fade show py-2"><i class="bi bi-exclamation-triangle me-1"></i>@Model.ErrorMessage<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+
+<form method="get" class="card mb-3">
+    <input type="hidden" name="Type" value="@Model.Type" />
+    <div class="card-body py-2">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-4"><label class="form-label small mb-1">Patient</label><input name="PatientSearch" value="@Model.PatientSearch" class="form-control form-control-sm" placeholder="name / PHN / @(Model.IsInward ? "BHT" : "Reg. No.")" /></div>
+            <div class="col-md-2"><label class="form-label small mb-1">From</label><input name="FromDate" value="@Model.FromDate?.ToString("yyyy-MM-dd")" type="date" class="form-control form-control-sm" /></div>
+            <div class="col-md-2"><label class="form-label small mb-1">To</label><input name="ToDate" value="@Model.ToDate?.ToString("yyyy-MM-dd")" type="date" class="form-control form-control-sm" /></div>
+            <div class="col-md-4 d-flex gap-2">
+                <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search me-1"></i>Find</button>
+                <a asp-page="/billing/PatientOwnership" asp-route-Type="@Model.Type" class="btn btn-outline-secondary btn-sm">Reset</a>
+            </div>
+        </div>
+    </div>
+</form>
+
+<div class="alert alert-info py-2 small">
+    <i class="bi bi-info-circle me-1"></i>
+    The owning consultant receives <strong>100%</strong> of his line's net amount during consultant recalculation.
+    Ownership is locked once the registration's bill has been generated.
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-sm table-hover mb-0 align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>@(Model.IsInward ? "BHT No." : "Reg. No.")</th>
+                    <th>Date</th>
+                    <th>Patient</th>
+                    <th>PHN</th>
+                    <th>Company</th>
+                    <th style="min-width:280px">Owning Consultant</th>
+                    <th style="width:90px"></th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (Model.Encounters.Any())
+                {
+                    foreach (var e in Model.Encounters)
+                    {
+                        var locked = Model.LockedEncounters.Contains(e.Id);
+                        Model.OwnershipByEncounter.TryGetValue(e.Id, out var own);
+                        var regno = Model.IsInward ? e.BhtNo : e.ReferenceNo;
+                        <tr>
+                            <td class="fw-semibold">@(regno ?? e.Id.ToString())</td>
+                            <td>@((e.EncounterDate ?? e.DateOfAdmission)?.ToString("yyyy-MM-dd"))</td>
+                            <td class="fw-semibold">@e.Patient?.Person?.Name</td>
+                            <td>@e.Patient?.Phn</td>
+                            <td>
+                                @if (e.CreditCompany != null)
+                                { <span class="badge bg-info text-dark">@e.CreditCompany.Name</span> }
+                                else
+                                { <span class="badge bg-secondary">Private</span> }
+                            </td>
+                            <td>
+                                <form method="post" asp-page-handler="Assign" class="d-flex gap-2">
+                                    <input type="hidden" name="EncounterId" value="@e.Id" />
+                                    <select name="OwnerId" class="form-select form-select-sm" disabled="@locked">
+                                        <option value="">-- none --</option>
+                                        @foreach (var c in Model.ConsultantList)
+                                        {
+                                            if (own?.OwnerId?.ToString() == c.Value)
+                                            { <option value="@c.Value" selected>@c.Text</option> }
+                                            else
+                                            { <option value="@c.Value">@c.Text</option> }
+                                        }
+                                    </select>
+                                    <button type="submit" class="btn btn-outline-primary btn-sm text-nowrap" disabled="@locked" title="Assign owner">
+                                        <i class="bi bi-check2"></i>
+                                    </button>
+                                </form>
+                            </td>
+                            <td class="text-end">
+                                @if (locked)
+                                {
+                                    <span class="badge bg-warning text-dark" title="Bill already generated">Locked</span>
+                                }
+                                else if (own?.Owner != null)
+                                {
+                                    <span class="badge bg-success">@own.Owner.Code</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr><td colspan="7" class="text-center text-muted py-4">No encounters found.</td></tr>
+                }
+            </tbody>
+        </table>
+        <partial name="_Pager" model="Model.Pager" />
+    </div>
+</div>

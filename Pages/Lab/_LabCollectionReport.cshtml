@@ -1,0 +1,81 @@
+@model HmisWeb.Pages.Lab.LabCollectionReportBase
+@{
+    Layout = null;
+}
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small mb-1">From</label>
+                <input name="FromDate" value="@Model.FromDate?.ToString("yyyy-MM-dd")" type="date" class="form-control form-control-sm" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small mb-1">To</label>
+                <input name="ToDate" value="@Model.ToDate?.ToString("yyyy-MM-dd")" type="date" class="form-control form-control-sm" />
+            </div>
+            @if (Model is HmisWeb.Pages.Lab.PeriodicCollectionReportModel p)
+            {
+                <div class="col-md-2">
+                    <label class="form-label small mb-1">Period</label>
+                    <select name="Period" class="form-select form-select-sm">
+                        <option value="day" selected="@(p.Period == "day")">Daily</option>
+                        <option value="month" selected="@(p.Period == "month")">Monthly</option>
+                    </select>
+                </div>
+            }
+            <div class="col-md-4 d-flex gap-2">
+                <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search me-1"></i>View</button>
+                <a asp-page="@ViewContext.RouteData.Values["page"]" asp-page-handler="Export" asp-route-FromDate="@Model.FromDate?.ToString("yyyy-MM-dd")" asp-route-ToDate="@Model.ToDate?.ToString("yyyy-MM-dd")" class="btn btn-outline-success btn-sm"><i class="bi bi-filetype-csv me-1"></i>CSV</a>
+                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="window.print()"><i class="bi bi-printer me-1"></i>Print</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="row g-2 mb-3">
+    <div class="col-md-3"><div class="card"><div class="card-body py-2"><div class="text-secondary small">Lines</div><div class="fw-bold fs-5">@Model.TotalCount</div></div></div></div>
+    <div class="col-md-3"><div class="card"><div class="card-body py-2"><div class="text-secondary small">Gross</div><div class="fw-bold fs-5">@Model.TotalGross.ToString("N2")</div></div></div></div>
+    <div class="col-md-3"><div class="card"><div class="card-body py-2"><div class="text-secondary small">Discount</div><div class="fw-bold fs-5">@Model.Rows.Sum(r => r.Discount).ToString("N2")</div></div></div></div>
+    <div class="col-md-3"><div class="card"><div class="card-body py-2"><div class="text-secondary small">Net</div><div class="fw-bold fs-5 text-primary">@Model.TotalNet.ToString("N2")</div></div></div></div>
+</div>
+
+<div class="card">
+    <div class="card-body p-0">
+        <table class="table table-sm table-hover mb-0 align-middle">
+            <thead class="table-light">
+                <tr><th>@Model.GroupHeader</th><th class="text-end">Count</th><th class="text-end">Gross</th><th class="text-end">Discount</th><th class="text-end">Net</th></tr>
+            </thead>
+            <tbody>
+                @if (Model.Rows.Any())
+                {
+                    @foreach (var r in Model.Rows)
+                    {
+                        <tr>
+                            <td>@r.Group</td>
+                            <td class="text-end">@r.Count</td>
+                            <td class="text-end">@r.Gross.ToString("N2")</td>
+                            <td class="text-end">@r.Discount.ToString("N2")</td>
+                            <td class="text-end fw-semibold">@r.Net.ToString("N2")</td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr><td colspan="5" class="text-center text-muted py-4">No collection data for the selected period.</td></tr>
+                }
+            </tbody>
+            @if (Model.Rows.Any())
+            {
+                <tfoot class="table-light">
+                    <tr class="fw-bold">
+                        <td>Total</td>
+                        <td class="text-end">@Model.TotalCount</td>
+                        <td class="text-end">@Model.TotalGross.ToString("N2")</td>
+                        <td class="text-end">@Model.Rows.Sum(r => r.Discount).ToString("N2")</td>
+                        <td class="text-end">@Model.TotalNet.ToString("N2")</td>
+                    </tr>
+                </tfoot>
+            }
+        </table>
+    </div>
+</div>

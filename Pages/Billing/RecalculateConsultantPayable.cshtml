@@ -1,0 +1,102 @@
+@page "/billing/RecalculateConsultantPayable"
+@model HmisWeb.Pages.Billing.RecalculateConsultantPayableModel
+@{
+    ViewData["Title"] = "Recalculate Consultant Payable";
+}
+
+<div class="d-flex justify-content-between align-items-end mb-3">
+    <div>
+        <h4 class="mb-0 fw-bold"><i class="bi bi-calculator me-2 text-primary"></i>Recalculate Consultant Payable</h4>
+        <div class="text-secondary small">Recompute &amp; post the consultant share of billed items &middot; mirrors VFP Billsys <code>recalcon</code>/<code>orecalcon</code></div>
+    </div>
+    <div class="btn-group btn-group-sm">
+        <a asp-page="/billing/RecalculateConsultantPayable" asp-route-Type="opd" class="btn @(Model.IsInward ? "btn-outline-primary" : "btn-primary")">OPD</a>
+        <a asp-page="/billing/RecalculateConsultantPayable" asp-route-Type="inward" class="btn @(Model.IsInward ? "btn-primary" : "btn-outline-primary")">IPD</a>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.Success))
+{
+    <div class="alert alert-success alert-dismissible fade show py-2"><i class="bi bi-check-circle me-1"></i>@Model.Success<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger alert-dismissible fade show py-2"><i class="bi bi-exclamation-triangle me-1"></i>@Model.ErrorMessage<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+
+<form method="get" class="card mb-3">
+    <input type="hidden" name="Type" value="@Model.Type" />
+    <div class="card-body py-2">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-2"><label class="form-label small mb-1">From</label><input name="FromDate" value="@Model.FromDate?.ToString("yyyy-MM-dd")" type="date" class="form-control form-control-sm" /></div>
+            <div class="col-md-2"><label class="form-label small mb-1">To</label><input name="ToDate" value="@Model.ToDate?.ToString("yyyy-MM-dd")" type="date" class="form-control form-control-sm" /></div>
+            <div class="col-md-4"><label class="form-label small mb-1">Company (optional)</label>
+                <select name="CompanyId" class="form-select form-select-sm">
+                    <option value="">All companies</option>
+                    @foreach (var c in Model.CompanyList)
+                    {
+                        if (Model.CompanyId?.ToString() == c.Value) { <option value="@c.Value" selected>@c.Text</option> }
+                        else { <option value="@c.Value">@c.Text</option> }
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-outline-primary btn-sm w-100"><i class="bi bi-search me-1"></i>Show</button>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary btn-sm w-100"
+                        formaction="?handler=Recalculate"
+                        onclick="return confirm('Recalculate consultant payable for the selected period?');">
+                    <i class="bi bi-calculator me-1"></i>Recalculate
+                </button>
+            </div>
+        </div>
+    </div>
+</form>
+
+<div class="alert alert-info py-2 small">
+    <i class="bi bi-info-circle me-1"></i>
+    Per bill line (consultant present, flag &ne; <code>P</code>): the owning consultant gets <strong>100%</strong>;
+    otherwise <strong>NAMT &times; (100 &minus; HMCPER) / 100</strong> from the commission master; otherwise <strong>0</strong>.
+    @(Model.IsInward ? "IPD scope uses the registration's discharge date." : "OPD scope uses the slip/bill date.")
+</div>
+
+<form method="post" asp-page-handler="Post">
+    <input type="hidden" name="Type" value="@Model.Type" />
+    <input type="hidden" name="FromDate" value="@Model.FromDate?.ToString("yyyy-MM-dd")" />
+    <input type="hidden" name="ToDate" value="@Model.ToDate?.ToString("yyyy-MM-dd")" />
+    <input type="hidden" name="CompanyId" value="@Model.CompanyId" />
+    <div class="card">
+        <div class="card-header bg-white d-flex justify-content-between">
+            <span class="fw-semibold">Consultant payable (@Model.Type.ToUpper())</span>
+            <span>Lines: <strong>@Model.TotalLines</strong> &nbsp;|&nbsp; Payable: <strong>@Model.TotalPayable.ToString("N2")</strong></span>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-sm table-hover mb-0 align-middle">
+                <thead class="table-light"><tr><th>Consultant</th><th class="text-end">Bills</th><th class="text-end">Lines</th><th class="text-end">Payable</th></tr></thead>
+                <tbody>
+                    @if (Model.Rows.Any())
+                    {
+                        foreach (var r in Model.Rows)
+                        {
+                            <tr>
+                                <td class="fw-semibold">@r.Consultant</td>
+                                <td class="text-end">@r.BillCount</td>
+                                <td class="text-end">@r.LineCount</td>
+                                <td class="text-end">@r.Payable.ToString("N2")</td>
+                            </tr>
+                        }
+                    }
+                    else { <tr><td colspan="4" class="text-center text-muted py-4">No billable items for the selected period.</td></tr> }
+                </tbody>
+            </table>
+        </div>
+        @if (Model.Rows.Any())
+        {
+            <div class="card-footer bg-white">
+                <button type="submit" class="btn btn-primary btn-sm" onclick="return confirm('Post consultant settlements for today?');"><i class="bi bi-check2-circle me-1"></i>Post Settlements</button>
+            </div>
+        }
+    </div>
+</form>

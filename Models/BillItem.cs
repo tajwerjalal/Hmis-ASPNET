@@ -39,6 +39,12 @@ namespace HmisWeb.Models
         public string CatId { get; set; }
         public string SessionId { get; set; }
         public string ItemId { get; set; }
+        /// <summary>Legacy consultant code for the line (ibil_det/obil_det.CONCODE).</summary>
+        [MaxLength(8)]
+        public string Concode { get; set; }
+        /// <summary>Legacy status flag (bil_det.FLAG): 'B','C','P' (posted). NULL for new rows.</summary>
+        [MaxLength(2)]
+        public string LegacyFlag { get; set; }
         public string AgentRefNo { get; set; }
 
         public DateTime? FromTime { get; set; }

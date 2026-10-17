@@ -1,0 +1,162 @@
+@page "/billing/GenerateIpdBill"
+@model HmisWeb.Pages.Billing.GenerateIpdBillModel
+@{
+    ViewData["Title"] = "Generate Bill (Indoor)";
+}
+
+<div class="d-flex justify-content-between align-items-end mb-3">
+    <div>
+        <h4 class="mb-0 fw-bold"><i class="bi bi-file-earmark-text me-2 text-primary"></i>Generate Bill &mdash; Indoor Patient</h4>
+        <div class="text-secondary small">Direct port of VFP Billsys <code>GENBILLI</code> (frmgenbilli)</div>
+    </div>
+    <div class="text-end">
+        <div class="text-secondary small">Next Bill No.</div>
+        <div class="fs-4 fw-bold text-primary">@Model.NextBillNo</div>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.Success))
+{
+    <div class="alert alert-success alert-dismissible fade show py-2"><i class="bi bi-check-circle me-1"></i>@Model.Success<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger alert-dismissible fade show py-2"><i class="bi bi-exclamation-triangle me-1"></i>@Model.ErrorMessage<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+
+<div class="alert alert-info py-2 small">
+    <i class="bi bi-info-circle me-1"></i>
+    Lists registrations whose discharge slips are still <strong>unbilled</strong> (<code>ibil_mst.bill = 0</code>) and whose<strong>discharge date</strong> falls in the period. Return slips are subtracted
+    (<code>iif(type&lt;&gt;'R', ntotal, ntotal*-1)</code>). Generating stamps the bill number onto every unbilled slip for that admission and sets
+    <code>register.billgen</code>.
+</div>
+
+<form method="get" class="card mb-3">
+    <div class="card-body py-2">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-2">
+                <label class="form-label small mb-1">Period from (discharge date)</label>
+                <input name="FromDate" value="@Model.FromDate?.ToString("yyyy-MM-dd")" type="date" class="form-control form-control-sm" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-1">Period to</label>
+                <input name="ToDate" value="@Model.ToDate?.ToString("yyyy-MM-dd")" type="date" class="form-control form-control-sm" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-1">Bill date</label>
+                <input name="BillDate" value="@Model.BillDate?.ToString("yyyy-MM-dd")" type="date" class="form-control form-control-sm" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-1">Company (optional)</label>
+                <input name="CompanyId" value="@Model.CompanyId" class="form-control form-control-sm" placeholder="company code" />
+            </div>
+            <div class="col-md-1">
+                <label class="form-label small mb-1">Page</label>
+                <input name="PageIndex" value="@Model.PageIndex" type="number" min="1" class="form-control form-control-sm" />
+            </div>
+            <div class="col-md-1">
+                <button type="submit" class="btn btn-outline-primary btn-sm w-100 mt-4"><i class="bi bi-search me-1"></i>List</button>
+            </div>
+        </div>
+    </div>
+</form>
+
+<form method="post" asp-page-handler="Generate">
+    <input type="hidden" name="FromDate" value="@Model.FromDate?.ToString("yyyy-MM-dd")" />
+    <input type="hidden" name="ToDate" value="@Model.ToDate?.ToString("yyyy-MM-dd")" />
+    <input type="hidden" name="BillDate" value="@Model.BillDate?.ToString("yyyy-MM-dd")" />
+    <input type="hidden" name="CompanyId" value="@Model.CompanyId" />
+    <input type="hidden" name="PageIndex" value="@Model.PageIndex" />
+
+    <div class="card">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">
+            <span class="fw-semibold">
+                <i class="bi bi-list-ul me-1"></i>Unbilled registrations (@Model.TotalRows)
+                @if (Model.TotalRows > 0)
+                {
+                    <span class="text-secondary small fw-normal">&mdash; rows @Model.FirstRowOnPage&ndash;@Model.LastRowOnPage of @Model.TotalRows</span>
+                }
+            </span>
+            <span class="text-secondary small">
+                Selected: <strong>@Model.SelectedCount</strong> &nbsp;|&nbsp; Net: <strong>@Model.TotalSelected.ToString("N2")</strong>
+            </span>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-sm table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width:40px"></th>
+                        <th style="width:100px">Reg. No.</th>
+                        <th>Patient Name</th>
+                        <th>Company</th>
+                        <th class="text-end" style="width:130px">Net Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.Rows.Any())
+                    {
+                        foreach (var r in Model.Rows)
+                        {
+                            <tr class="@(r.IsSelected ? "table-active" : "")">
+                                <td class="text-center">
+                                    <input class="form-check-input" type="checkbox" name="Selected" value="@r.RegNo"
+                                           checked="@(r.IsSelected ? "checked" : null)" />
+                                </td>
+                                <td class="fw-semibold">@r.RegNo</td>
+                                <td>@r.PatientName</td>
+                                <td>
+                                    @if (!string.IsNullOrWhiteSpace(r.CompanyName))
+                                    { <span class="badge bg-info text-dark">@r.CompanyName</span> }
+                                    else
+                                    { <span class="text-muted small">Private</span> }
+                                </td>
+                                <td class="text-end fw-semibold">@r.NetTotal.ToString("N2")</td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr><td colspan="5" class="text-center text-muted py-4">No unbilled registrations for the selected period.</td></tr>
+                    }
+                </tbody>
+                <tfoot class="table-light">
+                    <tr>
+                        <th></th>
+                        <th colspan="3">Total selected</th>
+                        <th class="text-end">@Model.TotalSelected.ToString("N2")</th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        <div class="card-footer bg-white d-flex justify-content-between align-items-center">
+            <nav aria-label="Candidate pages">
+                <ul class="pagination pagination-sm mb-0">
+                    <li class="page-item @(Model.PageIndex <= 1 ? "disabled" : "")">
+                        <a class="page-link"
+                           href="?FromDate=@Model.FromDate?.ToString("yyyy-MM-dd")&amp;ToDate=@Model.ToDate?.ToString("yyyy-MM-dd")&amp;BillDate=@Model.BillDate?.ToString("yyyy-MM-dd")&amp;CompanyId=@Model.CompanyId&amp;PageIndex=@(Model.PageIndex - 1)">
+                            &laquo; Prev
+                        </a>
+                    </li>
+                    @for (var p = Math.Max(1, Model.PageIndex - 3); p <= Math.Min(Model.TotalPages, Model.PageIndex + 3); p++)
+                    {
+                        <li class="page-item @(p == Model.PageIndex ? "active" : "")">
+                            <a class="page-link"
+                               href="?FromDate=@Model.FromDate?.ToString("yyyy-MM-dd")&amp;ToDate=@Model.ToDate?.ToString("yyyy-MM-dd")&amp;BillDate=@Model.BillDate?.ToString("yyyy-MM-dd")&amp;CompanyId=@Model.CompanyId&amp;PageIndex=@p">@p</a>
+                        </li>
+                    }
+                    <li class="page-item @(Model.PageIndex >= Model.TotalPages ? "disabled" : "")">
+                        <a class="page-link"
+                           href="?FromDate=@Model.FromDate?.ToString("yyyy-MM-dd")&amp;ToDate=@Model.ToDate?.ToString("yyyy-MM-dd")&amp;BillDate=@Model.BillDate?.ToString("yyyy-MM-dd")&amp;CompanyId=@Model.CompanyId&amp;PageIndex=@(Model.PageIndex + 1)">
+                            Next &raquo;
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+            <button type="submit" class="btn btn-primary btn-sm"
+                    disabled="@(Model.SelectedCount == 0 ? "disabled" : null)"
+                    onclick="return confirm('Generate bills for @Model.SelectedCount registration(s)?');">
+                <i class="bi bi-check2-circle me-1"></i>Generate Bill
+            </button>
+        </div>
+    </div>
+</form>

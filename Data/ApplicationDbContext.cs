@@ -132,8 +132,24 @@ public DbSet<ConsultantSettlement> ConsultantSettlements { get; set; }
         public DbSet<XrMedicalTerm> XrMedicalTerms { get; set; }
         public DbSet<PanelServiceCharge> PanelServiceCharges { get; set; }
         public DbSet<PanelDepartment> PanelDepartments { get; set; }
+        public DbSet<TestData> TestData { get; set; }
+        public DbSet<TestRemark> TestRemarks { get; set; }
+        public DbSet<GrowthDescription> GrowthDescriptions { get; set; }
+        public DbSet<Organism> Organisms { get; set; }
         public DbSet<FollowUp> FollowUps { get; set; }
         public DbSet<WebUserRoute> WebUserRoutes { get; set; }
+        public DbSet<PatientOwner> PatientOwners { get; set; }
+        public DbSet<ConsultantCommission> ConsultantCommissions { get; set; }
+        public DbSet<UnsettleRequest> UnsettleRequests { get; set; }
+
+        // ===== Legacy billing tables (migrated VFP DBFs - additive mapping only) =====
+        public DbSet<HmisWeb.Models.Legacy.RegisterLegacy> LegacyRegisters { get; set; }
+        public DbSet<HmisWeb.Models.Legacy.IbilMst> IbilMsts { get; set; }
+        public DbSet<HmisWeb.Models.Legacy.IbilDet> IbilDets { get; set; }
+        public DbSet<HmisWeb.Models.Legacy.IpdBillHeader> IpdBillHeaders { get; set; }
+        public DbSet<HmisWeb.Models.Legacy.Bcontrol> Bcontrols { get; set; }
+        public DbSet<HmisWeb.Models.Legacy.IpdBillAudit> IpdBillAudits { get; set; }
+        public DbSet<HmisWeb.Models.Legacy.LegacyDepartment> LegacyDepartments { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -1001,6 +1017,16 @@ modelBuilder.Entity<PatientEncounter>()
                 .HasOne(c => c.Item).WithMany().HasForeignKey(c => c.ItemId).OnDelete(DeleteBehavior.Restrict);
             modelBuilder.Entity<PanelDepartment>().ToTable("PANELDEPARTMENT");
             modelBuilder.Entity<PanelDepartment>().HasIndex(d => d.Code).IsUnique();
+            modelBuilder.Entity<TestData>().ToTable("TESTDATA");
+            modelBuilder.Entity<TestData>()
+                .HasOne(d => d.Category).WithMany().HasForeignKey(d => d.CategoryId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<TestRemark>().ToTable("TESTREMARK");
+            modelBuilder.Entity<TestRemark>()
+                .HasOne(r => r.Item).WithMany().HasForeignKey(r => r.ItemId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<GrowthDescription>().ToTable("GROWTHDESCRIPTION");
+            modelBuilder.Entity<GrowthDescription>().HasIndex(g => g.Code).IsUnique();
+            modelBuilder.Entity<Organism>().ToTable("ORGANISM");
+            modelBuilder.Entity<Organism>().HasIndex(o => o.Code).IsUnique();
             modelBuilder.Entity<WebUserRoleUser>().ToTable("WEBUSERROLEUSER");
             modelBuilder.Entity<WebUserPrivilege>().ToTable("WEBUSERPRIVILEGE");
             modelBuilder.Entity<WebUserDepartment>().ToTable("WEBUSERDEPARTMENT");
@@ -1459,6 +1485,38 @@ modelBuilder.Entity<Token>()
                 .HasOne(x => x.WebUser).WithMany().HasForeignKey(x => x.WebUserId).OnDelete(DeleteBehavior.Restrict);
             modelBuilder.Entity<WebUserRoute>()
                 .HasOne(x => x.Route).WithMany().HasForeignKey(x => x.RouteId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<PatientOwner>()
+                .HasIndex(x => new { x.Type, x.Regno });
+            modelBuilder.Entity<PatientOwner>()
+                .HasIndex(x => x.EncounterId);
+            modelBuilder.Entity<ConsultantCommission>()
+                .HasIndex(x => new { x.CompanyCode, x.ConCode, x.SCode });
+            modelBuilder.Entity<UnsettleRequest>()
+                .HasIndex(x => x.ReqNo);
+            modelBuilder.Entity<UnsettleRequest>()
+                .HasIndex(x => x.EncounterId);
+
+            // ===== Legacy IPD bill form (VFP BS0110) =====
+            // REGISTER / IBIL_MST / IBIL_DET are shared legacy tables - no keys are
+            // dropped and no data is migrated here (see db/migrations/01).
+            modelBuilder.Entity<HmisWeb.Models.Legacy.RegisterLegacy>()
+                .HasKey(r => new { r.Type, r.RegNo });
+            modelBuilder.Entity<HmisWeb.Models.Legacy.RegisterLegacy>()
+                .HasIndex(r => r.BillStatus);
+            modelBuilder.Entity<HmisWeb.Models.Legacy.IbilMst>()
+                .HasIndex(m => new { m.HosCode, m.Dept });
+            modelBuilder.Entity<HmisWeb.Models.Legacy.IbilDet>()
+                .HasIndex(d => new { d.Dept, d.SlipNo });
+            modelBuilder.Entity<HmisWeb.Models.Legacy.IpdBillHeader>()
+                .HasKey(h => h.BillNo);
+            modelBuilder.Entity<HmisWeb.Models.Legacy.IpdBillHeader>()
+                .HasIndex(h => h.HosCode);
+            modelBuilder.Entity<HmisWeb.Models.Legacy.IpdBillAudit>()
+                .HasIndex(a => new { a.RegNo, a.CreatedAt });
+            modelBuilder.Entity<HmisWeb.Models.Legacy.IpdBillAudit>()
+                .HasIndex(a => new { a.Entity, a.EntityKey, a.CreatedAt });
+            modelBuilder.Entity<HmisWeb.Models.Legacy.LegacyDepartment>()
+                .HasIndex(d => d.Code).IsUnique();
         }
     }
 }

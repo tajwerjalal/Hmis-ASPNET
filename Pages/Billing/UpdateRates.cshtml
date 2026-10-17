@@ -1,0 +1,96 @@
+@page "/billing/UpdateRates"
+@model HmisWeb.Pages.Billing.UpdateRatesModel
+@{
+    ViewData["Title"] = "Update Rates";
+}
+
+<div class="d-flex justify-content-between align-items-end mb-3">
+    <div>
+        <h4 class="mb-0 fw-bold"><i class="bi bi-currency-dollar me-2 text-primary"></i>Update Rates</h4>
+        <div class="text-secondary small">Edit service/test billable rates in bulk &middot; mirrors VFP Billsys <code>bs0120</code></div>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.Success))
+{
+    <div class="alert alert-success alert-dismissible fade show py-2"><i class="bi bi-check-circle me-1"></i>@Model.Success<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger alert-dismissible fade show py-2"><i class="bi bi-exclamation-triangle me-1"></i>@Model.ErrorMessage<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+
+<form method="get" class="card mb-3">
+    <div class="card-body py-2">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-4"><label class="form-label small mb-1">Search</label><input name="SearchTerm" value="@Model.SearchTerm" class="form-control form-control-sm" placeholder="code / name" /></div>
+            <div class="col-md-3"><label class="form-label small mb-1">Classification</label>
+                <select name="CategoryId" class="form-select form-select-sm">
+                    <option value="">All</option>
+                    @foreach (var c in Model.CategoryList)
+                    {
+                        if (Model.CategoryId?.ToString() == c.Value) { <option value="@c.Value" selected>@c.Text</option> }
+                        else { <option value="@c.Value">@c.Text</option> }
+                    }
+                </select>
+            </div>
+            <div class="col-md-5 d-flex gap-2">
+                <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search me-1"></i>Filter</button>
+                <a asp-page="/billing/UpdateRates" class="btn btn-outline-secondary btn-sm">Reset</a>
+            </div>
+        </div>
+    </div>
+</form>
+
+<form method="post" asp-page-handler="ApplyPercent" class="card mb-3">
+    <div class="card-body py-2 d-flex gap-2 align-items-end flex-wrap">
+        <input type="hidden" name="SearchTerm" value="@Model.SearchTerm" />
+        <input type="hidden" name="CategoryId" value="@Model.CategoryId" />
+        <div>
+            <label class="form-label small mb-1">Bulk % change (all matching)</label>
+            <input name="percent" type="number" step="0.01" class="form-control form-control-sm" style="width:120px" placeholder="e.g. 10 or -5" />
+        </div>
+        <button type="submit" class="btn btn-warning btn-sm"><i class="bi bi-percent me-1"></i>Apply %</button>
+        <span class="text-secondary small">Applies to every item matching the current filter (all pages).</span>
+    </div>
+</form>
+
+<form method="post" asp-page-handler="Save">
+    <input type="hidden" name="SearchTerm" value="@Model.SearchTerm" />
+    <input type="hidden" name="CategoryId" value="@Model.CategoryId" />
+    <input type="hidden" name="Pg" value="@Model.Pg" />
+    <div class="card">
+        <div class="card-body p-0">
+            <table class="table table-sm table-hover mb-0 align-middle">
+                <thead class="table-light"><tr><th>Code</th><th>Item</th><th>Classification</th><th class="text-end" style="width:130px">Rate</th><th class="text-end" style="width:130px">Foreigner</th><th class="text-end" style="width:130px">Staff</th><th class="text-end" style="width:130px">Unit</th></tr></thead>
+                <tbody>
+                    @if (Model.Items.Any())
+                    {
+                        var idx = 0;
+                        foreach (var i in Model.Items)
+                        {
+                            <tr>
+                                <td>@i.Code<input type="hidden" name="ids" value="@i.Id" /></td>
+                                <td class="fw-semibold">@i.Name</td>
+                                <td>@i.Category?.Name</td>
+                                <td><input name="totals" value="@i.Total" type="number" step="0.01" class="form-control form-control-sm text-end" /></td>
+                                <td><input name="foreigner" value="@i.TotalForForeigner" type="number" step="0.01" class="form-control form-control-sm text-end" /></td>
+                                <td><input name="staff" value="@i.StaffRate" type="number" step="0.01" class="form-control form-control-sm text-end" /></td>
+                                <td><input name="unit" value="@i.UnitRate" type="number" step="0.01" class="form-control form-control-sm text-end" /></td>
+                            </tr>
+                            idx++;
+                        }
+                    }
+                    else { <tr><td colspan="7" class="text-center text-muted py-4">No items found.</td></tr> }
+                </tbody>
+            </table>
+            <partial name="_Pager" model="Model.Pager" />
+        </div>
+        @if (Model.Items.Any())
+        {
+            <div class="card-footer bg-white">
+                <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-check2 me-1"></i>Save rates on this page</button>
+            </div>
+        }
+    </div>
+</form>
