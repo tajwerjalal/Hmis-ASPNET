@@ -64,6 +64,9 @@ namespace HmisWeb.Pages.Reports.Billing
 
         public List<(string Id, string Name)> Companies { get; private set; } = new List<(string, string)>();
         public List<(string Id, string Name)> Departments { get; private set; } = new List<(string, string)>();
+        /// <summary>Set when the submitted criteria matched nothing - the view shows a dialog.</summary>
+        public bool NoData { get; private set; }
+
         public string Message { get; private set; }
 
         public async Task OnGetAsync()
@@ -82,11 +85,33 @@ namespace HmisWeb.Pages.Reports.Billing
                 return Page();
             }
 
-            var bytes = await _report.RenderFinalBillAsync(criteria, BuildContext());
+            var result = await _report.RenderFinalBillAsync(criteria, BuildContext());
+            if (result.Rows == 0)
+            {
+                // No PDF: a blank page looks like a broken report.  Explain it instead.
+                NoData = true;
+                Message = NoDataText(Input.RegNo);
+                return Page();
+            }
+            var bytes = result.Pdf;
             var name = "IPD-Bill-Final-" +
                        (Input.Mode == "detail" ? "Detail" : "Summary") + "-" +
                        DateTime.Now.ToString("yyyyMMddHHmmss") + ".pdf";
             return File(bytes, "application/pdf", name);
+        }
+
+        /// <summary>
+        /// Explains an empty final bill.  A final bill only exists once the bill has been
+        /// generated for the file (IPDBILL row + the slips stamped with that bill number).
+        /// </summary>
+        private static string NoDataText(string regNo)
+        {
+            var who = string.IsNullOrWhiteSpace(regNo)
+                ? "the selected criteria"
+                : "IPD No. " + regNo.Trim();
+            return "No final bill found for " + who + ". A final bill only exists after the bill has been"
+                 + " generated for that file - use Billing > Transactions > Generate IPD Bill, or the"
+                 + " Inward Billing screen, then run this report again.";
         }
 
         private IpdBillReportService.ReportCriteria BuildCriteria()

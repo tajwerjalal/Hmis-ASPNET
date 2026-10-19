@@ -1,0 +1,669 @@
+@page
+@model HmisWeb.Pages.Pharmacy.PurchaseReceivedModel
+@{
+    ViewData["Title"] = "Purchase Received";
+}
+
+<h4 class="mb-3"><i class="fa-solid fa-cart-flatbed"></i> Purchase Received <small class="text-muted fs-6">(legacy: purchase.spr)</small></h4>
+
+@if (Model.Message != null)
+{
+    <div class="alert alert-success py-2"><i class="fa-solid fa-circle-check"></i> @Model.Message</div>
+}
+@if (Model.Error != null)
+{
+    <div class="alert alert-danger py-2"><i class="fa-solid fa-circle-exclamation"></i> @Model.Error</div>
+}
+
+<div class="card">
+    <div class="card-header bg-white">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-2">
+                <label class="form-label small mb-1">Store</label>
+                <select asp-for="StoreId" class="form-select form-select-sm"
+                        asp-items="@(new SelectList(Model.Stores, "Id", "Name"))">
+                    <option value="0">-- All stores --</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-1">From</label>
+                <input asp-for="From" type="date" class="form-control form-control-sm" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-1">To</label>
+                <input asp-for="To" type="date" class="form-control form-control-sm" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small mb-1">Search</label>
+                <input asp-for="Search" class="form-control form-control-sm" placeholder="Doc no, supplier, invoice..." />
+            </div>
+            <div class="col-md-3 d-flex gap-2 align-items-center pb-1">
+                <button type="submit" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-filter"></i> Apply</button>
+                <button type="button" class="btn btn-sm btn-success ms-auto" id="btnAddNew">
+                    <i class="fa-solid fa-plus"></i> New Purchase
+                </button>
+            </div>
+        </form>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive" style="max-height:70vh; overflow-y:auto;">
+            <table class="table table-sm table-striped table-hover mb-0 align-middle" id="purTable">
+                <thead class="table-light" style="position:sticky; top:0; z-index:1;">
+                    <tr>
+                        <th>Date</th>
+                        <th>Doc No</th>
+                        <th>Supplier / Source</th>
+                        <th>Invoice</th>
+                        <th class="text-center">Lines</th>
+                        <th class="text-end">Gross</th>
+                        <th class="text-end">Disc</th>
+                        <th class="text-end">Tax</th>
+                        <th class="text-end">Net</th>
+                        <th style="width:86px"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!Model.Rows.Any())
+                    {
+                        <tr><td colspan="10" class="text-center text-muted py-4">No purchase matches these filters.</td></tr>
+                    }
+                    @foreach (var r in Model.Rows)
+                    {
+                        <tr class="ph-row" data-id="@r.Id" style="cursor:pointer" title="Click to open">
+                            <td class="text-nowrap">@r.DocDate.ToString("dd-MMM-yyyy")</td>
+                            <td><code>@r.DocNo</code></td>
+                            <td>
+                                @if (r.IsStoreIssue)
+                                {
+                                    <span class="badge text-bg-info">Store issue</span>
+                                    <span class="small">@r.SourceStoreName &rarr; @r.StoreName</span>
+                                }
+                                else
+                                {
+                                    <span>@(string.IsNullOrEmpty(r.VendorName) ? r.VendorCode : r.VendorName)</span>
+                                    <span class="text-muted small">(@r.VendorCode)</span>
+                                }
+                            </td>
+                            <td class="small text-muted">@(string.IsNullOrEmpty(r.VendorInvoiceNo) ? "-" : r.VendorInvoiceNo)</td>
+                            <td class="text-center">@r.LineCount</td>
+                            <td class="text-end">@r.GrossAmount.ToString("N2")</td>
+                            <td class="text-end">@r.DiscountAmount.ToString("N2")</td>
+                            <td class="text-end">@r.TaxAmount.ToString("N2")</td>
+                            <td class="text-end fw-semibold">@r.NetAmount.ToString("N2")</td>
+                            <td class="text-end text-nowrap">
+                                <button type="button" class="btn btn-sm btn-outline-primary ph-edit" title="Open">
+                                    <i class="fa-solid fa-pen"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-danger ph-del"
+                                        title="Reverse" data-id="@r.Id" data-code="@r.DocNo"
+                                        data-name="@(string.IsNullOrEmpty(r.VendorName) ? r.VendorCode : r.VendorName)">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card-footer bg-white small text-muted">
+        Showing @Model.Rows.Count document(s). Click any row to open it.
+    </div>
+</div>
+
+<!-- ===================== DATA-ENTRY POPUP ===================== -->
+@* Full screen on purpose: this is a line-entry grid with 13 columns, and a
+   half-width dialog forces a horizontal scrollbar that pushes the Save button
+   out of sight. The list behind it is not needed while keying a document. *@
+<div class="modal fade" id="purModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-fullscreen modal-dialog-scrollable">
+        <div class="modal-content">
+            <form method="post" asp-page-handler="Save" id="purForm">
+                <input type="hidden" asp-for="Head.Id" id="Edit_Id" />
+                <input type="hidden" asp-for="LinesJson" id="LinesJson" />
+                <input type="hidden" asp-for="StoreId" />
+                <input type="hidden" asp-for="Search" />
+                <input type="hidden" asp-for="From" />
+                <input type="hidden" asp-for="To" />
+
+                <div class="modal-header">
+                    <h6 class="modal-title" id="purModalTitle">New Purchase</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <div class="modal-body">
+                    <!-- ---------- header ---------- -->
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-2">
+                            <label class="form-label small">Doc No</label>
+                            <input asp-for="Head.DocNo" id="Edit_DocNo" class="form-control form-control-sm" required />
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small">Date</label>
+                            <input asp-for="Head.DocDate" id="Edit_DocDate" type="date" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small">Receiving store</label>
+                            <select asp-for="Head.StoreId" id="Edit_StoreId" class="form-select form-select-sm"
+                                    asp-items="@(new SelectList(Model.Stores, "Id", "Name"))"></select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small">Supplier</label>
+                            <select asp-for="Head.VendorCode" id="Edit_VendorCode" class="form-select form-select-sm">
+                                <option value="">-- select supplier --</option>
+                                @foreach (var s in Model.Suppliers)
+                                {
+                                    <option value="@s.Code">@s.Code - @s.Name</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small">Supplier invoice</label>
+                            <input asp-for="Head.VendorInvoiceNo" id="Edit_VendorInvoiceNo" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small">Doc discount</label>
+                            <input asp-for="Head.DiscountAmount" id="Edit_DiscountAmount" type="number" step="any"
+                                   class="form-control form-control-sm" value="0" />
+                        </div>
+                        <input type="hidden" asp-for="Head.VendorName" id="Edit_VendorName" />
+                    </div>
+
+                    <hr class="my-2" />
+
+                    <!-- ---------- add a line ---------- -->
+                    @* Deliberately a bordered, tinted panel with its own heading.
+                       As a bare input above the grid it read as part of the table
+                       header and was easy to miss entirely. *@
+                    @* Shown as a locked banner instead of the picker when the opened
+                       document is already posted: a posted document is immutable, so
+                       offering an add box that can never be saved only misleads. *@
+                    <div id="readOnlyBanner" class="alert alert-warning py-2 px-3 mb-2 d-none">
+                        <i class="fa-solid fa-lock"></i>
+                        <strong>This document is already posted and cannot be edited.</strong>
+                        <span class="small">Figures below are the amounts stored on the document as posted.
+                        To take the stock back out, close this and use the red reverse button on the list.</span>
+                    </div>
+
+                    <div id="addPanel" class="border rounded bg-light p-2 mb-2" style="position:relative;">
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <span class="badge ph-step">1</span>
+                            <strong class="small">Add a medicine to this purchase</strong>
+                        </div>
+                        <div class="row g-2 align-items-center">
+                            <div class="col-md-7">
+                                <input type="text" id="itemSearch" class="form-control form-control-sm"
+                                       placeholder="Type a medicine code or name here, then click a result to add it..."
+                                       autocomplete="off" />
+                            </div>
+                            <div class="col-md-5 small text-muted">
+                                Picking a medicine fills the line with its master detail:
+                                code, name, pack, trade cost, retail and on-hand.
+                            </div>
+                        </div>
+                        <div id="itemResults" class="list-group shadow"
+                             style="z-index:2000; max-height:280px; overflow-y:auto; display:none; position:absolute; left:12px; right:12px;"></div>
+                    </div>
+
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <span class="badge ph-step">2</span>
+                        <strong class="small">Lines on this document</strong>
+                        <span class="text-muted small ms-auto" id="gridHint">Change qty / rate / tax / batch directly in the grid.</span>
+                    </div>
+
+                    <!-- ---------- the grid, showing master detail per line ---------- -->
+                    <div class="table-responsive" style="max-height:46vh; overflow-y:auto;">
+                        <table class="table table-sm table-bordered align-middle mb-0" id="lineTable">
+                            <thead class="table-light" style="position:sticky; top:0; z-index:1;">
+                                <tr>
+                                    <th style="width:28px">#</th>
+                                    <th style="width:90px">Code</th>
+                                    <th>Medicine</th>
+                                    <th style="width:60px" class="text-center">Pack</th>
+                                    <th style="width:80px" class="text-end">On-Hand</th>
+                                    <th style="width:90px" class="text-end">Trade</th>
+                                    <th style="width:90px" class="text-end">Retail</th>
+                                    <th style="width:90px" class="text-end">Qty</th>
+                                    <th style="width:115px" class="text-end">Rate</th>
+                                    <th style="width:85px" class="text-end">Tax %</th>
+                                    <th style="width:105px" class="text-end">Amount</th>
+                                    <th style="width:100px">Batch</th>
+                                    <th style="width:32px"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="lineBody">
+                                <tr id="noLines">
+                                    <td colspan="13" class="text-center text-muted py-4">
+                                        No lines yet. Search for a medicine above to add the first one.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="row mt-2">
+                        <div class="col-md-7"></div>
+                        <div class="col-md-5">
+                            <table class="table table-sm mb-0">
+                                <tr><td class="text-muted">Gross</td><td class="text-end" id="totGross">0.00</td></tr>
+                                <tr><td class="text-muted">Tax</td><td class="text-end" id="totTax">0.00</td></tr>
+                                <tr><td class="text-muted">Discount</td><td class="text-end" id="totDisc">0.00</td></tr>
+                                <tr class="fw-semibold border-top"><td>Net</td><td class="text-end" id="totNet">0.00</td></tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" id="btnSavePost" class="btn btn-sm btn-primary"><i class="fa-solid fa-floppy-disk"></i> Save &amp; Post</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<form method="post" asp-page-handler="Delete" id="delForm" class="d-none">
+    <input type="hidden" name="id" id="del_Id" />
+    <input type="hidden" name="StoreId" value="@Model.StoreId" />
+    <input type="hidden" name="Search" value="@Model.Search" />
+    <input type="hidden" name="From" value="@(Model.From?.ToString("yyyy-MM-dd"))" />
+    <input type="hidden" name="To" value="@(Model.To?.ToString("yyyy-MM-dd"))" />
+</form>
+
+@section Scripts {
+    <style>
+        /* The number spinners consume ~18px of an input; in a 13-column grid that
+           is enough to clip a rate like 1120.30 down to "1120". Hide them and let
+           the whole cell width show the value. */
+        #lineTable input[type=number]::-webkit-outer-spin-button,
+        #lineTable input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        #lineTable input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+        #lineTable td { padding: .25rem .3rem; }
+
+        /* The page theme renders default badges almost invisible against the tinted
+           panel, so the two numbered steps get an explicit high-contrast style. */
+        .ph-step {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 1.35rem; height: 1.35rem; padding: 0;
+            border-radius: 50%; background: #0d6efd; color: #fff;
+            font-size: .72rem; font-weight: 700; flex: 0 0 auto;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert2/11.10.1/sweetalert2.all.min.js"></script>
+    <script src="~/js/pharmacy-crud.js"></script>
+    <script>
+    (function () {
+        var modalEl = document.getElementById('purModal');
+        if (!modalEl) return;
+
+        var modalApi = (typeof bootstrap !== 'undefined' && bootstrap.Modal)
+            ? new bootstrap.Modal(modalEl) : null;
+
+        function showModal() {
+            if (modalApi) { modalApi.show(); return; }
+            modalEl.classList.add('show');
+            modalEl.style.display = 'block';
+            modalEl.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('modal-open');
+            var b = document.createElement('div');
+            b.className = 'modal-backdrop fade show';
+            document.body.appendChild(b);
+        }
+
+        var body = document.getElementById('lineBody');
+        var noLines = document.getElementById('noLines');
+        var searchBox = document.getElementById('itemSearch');
+        var results = document.getElementById('itemResults');
+        var titleEl = document.getElementById('purModalTitle');
+        var lines = [];   // working copy of the grid
+
+        // A posted document must never be re-costed on screen: 87% of the migrated
+        // legacy lines store an Amount that is not Qty*Rate (pack-unit pricing plus
+        // line discounts were baked into Amount upstream). Recomputing would show a
+        // total that never existed. So posted documents render read-only and display
+        // the stored Amount verbatim.
+        var readOnly = false;
+
+        function money(n) { return (Number(n) || 0).toFixed(2); }
+
+        function esc(s) {
+            return String(s === null || s === undefined ? '' : s)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        // Amount for one line: stored figure when read-only, else derived.
+        function lineAmount(l) {
+            if (readOnly) { return Number(l.storedAmount) || 0; }
+            return l.qty * l.rate * (1 + (l.taxRate || 0) / 100) - (l.discount || 0);
+        }
+
+        // Show or hide the editing affordances to match readOnly.
+        function applyMode() {
+            var banner = document.getElementById('readOnlyBanner');
+            var addPanel = document.getElementById('addPanel');
+            var saveBtn = document.getElementById('btnSavePost');
+            var hint = document.getElementById('gridHint');
+            var headInputs = document.querySelectorAll('#purModal .form-control, #purModal .form-select');
+            if (banner) { banner.classList.toggle('d-none', !readOnly); }
+            if (addPanel) { addPanel.classList.toggle('d-none', readOnly); }
+            if (saveBtn) { saveBtn.classList.toggle('d-none', readOnly); }
+            if (hint) {
+                hint.textContent = readOnly
+                    ? 'Read only \u2014 these are the amounts stored when the document was posted.'
+                    : 'Change qty / rate / tax / batch directly in the grid.';
+            }
+            // Header fields are part of the posted record too, so lock them as well.
+            headInputs.forEach(function (el) {
+                if (el.id === 'itemSearch') { return; }
+                el.readOnly = readOnly;
+                if (el.tagName === 'SELECT') { el.disabled = readOnly; }
+            });
+        }
+
+        // ---------- grid rendering ----------
+        function render() {
+            if (!lines.length) {
+                body.innerHTML = '<tr id="noLines"><td colspan="13" class="text-center text-muted py-4">' +
+                                 'No lines yet. Search for a medicine above to add the first one.</td></tr>';
+                totals();
+                return;
+            }
+
+            body.innerHTML = lines.map(function (l, i) {
+                var amount = lineAmount(l);
+                var ro = readOnly ? ' readonly' : '';
+                return '<tr data-i="' + i + '">' +
+                    '<td class="text-muted small">' + (i + 1) + '</td>' +
+                    '<td><code class="small">' + esc(l.code) + '</code></td>' +
+                    '<td>' + esc(l.name) +
+                        (l.generic ? '<div class="text-muted" style="font-size:.75rem">' + esc(l.generic) + '</div>' : '') +
+                    '</td>' +
+                    '<td class="text-center small">' + esc(l.pack || '-') + '</td>' +
+                    '<td class="text-end small text-muted">' + money(l.onHand) + '</td>' +
+                    '<td class="text-end small text-muted">' + money(l.tradeCost) + '</td>' +
+                    '<td class="text-end small text-muted">' + money(l.retail) + '</td>' +
+                    '<td><input type="number" step="any" min="0" class="form-control form-control-sm text-end l-qty" value="' + l.qty + '"' + ro + ' /></td>' +
+                    '<td><input type="number" step="any" min="0" class="form-control form-control-sm text-end l-rate" value="' + l.rate + '"' + ro + ' /></td>' +
+                    '<td><input type="number" step="any" min="0" class="form-control form-control-sm text-end l-tax" value="' + (l.taxRate || 0) + '"' + ro + ' /></td>' +
+                    '<td class="text-end fw-semibold">' + money(amount) + '</td>' +
+                    '<td><input type="text" class="form-control form-control-sm l-batch" value="' + esc(l.batchNo || '') + '"' + ro + ' /></td>' +
+                    '<td>' + (readOnly ? '' : '<button type="button" class="btn btn-sm btn-outline-danger l-del" title="Remove"><i class="fa-solid fa-xmark"></i></button>') + '</td>' +
+                '</tr>';
+            }).join('');
+
+            totals();
+        }
+
+        function totals() {
+            var gross = 0, tax = 0, disc = 0;
+            lines.forEach(function (l) {
+                if (readOnly) {
+                    // Use the stored figures so the footer agrees with the document.
+                    var amt = Number(l.storedAmount) || 0;
+                    gross += amt - (Number(l.storedTax) || 0);
+                    tax += Number(l.storedTax) || 0;
+                    disc += Number(l.discount) || 0;
+                } else {
+                    var g = l.qty * l.rate;
+                    gross += g;
+                    tax += g * (l.taxRate || 0) / 100;
+                    disc += (l.discount || 0);
+                }
+            });
+            var headDisc = parseFloat(document.getElementById('Edit_DiscountAmount').value) || 0;
+            var net = gross + tax - disc - headDisc;
+            document.getElementById('totGross').textContent = money(gross);
+            document.getElementById('totTax').textContent = money(tax);
+            document.getElementById('totDisc').textContent = money(disc + headDisc);
+            document.getElementById('totNet').textContent = money(net);
+        }
+
+        // keep edits in the model so a re-render never loses what was keyed
+        body.addEventListener('input', function (e) {
+            if (readOnly) { return; }
+            var tr = e.target.closest('tr[data-i]');
+            if (!tr) return;
+            var i = parseInt(tr.getAttribute('data-i'), 10);
+            var l = lines[i];
+            if (!l) return;
+
+            if (e.target.classList.contains('l-qty')) { l.qty = parseFloat(e.target.value) || 0; }
+            else if (e.target.classList.contains('l-rate')) { l.rate = parseFloat(e.target.value) || 0; }
+            else if (e.target.classList.contains('l-tax')) { l.taxRate = parseFloat(e.target.value) || 0; }
+            else if (e.target.classList.contains('l-batch')) { l.batchNo = e.target.value; return; }
+
+            var amountCell = tr.children[10];
+            if (amountCell) {
+                amountCell.textContent = money(lineAmount(l));
+            }
+            totals();
+        });
+
+        body.addEventListener('click', function (e) {
+            var btn = e.target.closest('.l-del');
+            if (!btn) return;
+            var tr = btn.closest('tr[data-i]');
+            var i = parseInt(tr.getAttribute('data-i'), 10);
+            lines.splice(i, 1);
+            render();
+        });
+
+        // ---------- item picker ----------
+        var searchTimer = null;
+
+        searchBox.addEventListener('input', function () {
+            var term = searchBox.value.trim();
+            if (searchTimer) { clearTimeout(searchTimer); }
+            searchTimer = setTimeout(function () { lookup(term); }, 220);
+        });
+
+        // Show the first page of medicines as soon as the box is focused, so the
+        // picker is visible without having to guess what to type.
+        searchBox.addEventListener('focus', function () {
+            if (results.style.display === 'none') { lookup(searchBox.value.trim()); }
+        });
+
+        function lookup(term) {
+            var store = document.getElementById('Edit_StoreId').value;
+            fetch('?handler=ItemLookup&term=' + encodeURIComponent(term) + '&StoreId=' + encodeURIComponent(store),
+                  { headers: { 'Accept': 'application/json' } })
+                .then(function (r) { return r.ok ? r.json() : []; })
+                .then(function (items) {
+                    if (!items || !items.length) {
+                        results.style.display = 'none';
+                        return;
+                    }
+                    results.innerHTML = items.map(function (it) {
+                        return '<button type="button" class="list-group-item list-group-item-action py-1" data-item=\'' +
+                               JSON.stringify(it).replace(/'/g, '&#39;') + '\'>' +
+                               '<div class="d-flex justify-content-between">' +
+                                 '<span><code class="small">' + esc(it.code) + '</code> ' + esc(it.name) + '</span>' +
+                                 '<span class="text-muted small">' + money(it.onHand) + ' on hand</span>' +
+                               '</div>' +
+                               '<div class="text-muted" style="font-size:.75rem">' +
+                                 'Trade ' + money(it.tradeCost) + ' &middot; Retail ' + money(it.retailPrice) +
+                                 (it.packType ? ' &middot; Pack ' + esc(it.packType) : '') +
+                               '</div>' +
+                               '</button>';
+                    }).join('');
+                    results.style.display = '';
+                })
+                .catch(function () { results.style.display = 'none'; });
+        }
+
+        results.addEventListener('click', function (e) {
+            var btn = e.target.closest('[data-item]');
+            if (!btn) return;
+            var it = JSON.parse(btn.getAttribute('data-item'));
+            addLine(it);
+            searchBox.value = '';
+            results.style.display = 'none';
+            searchBox.focus();
+        });
+
+        document.addEventListener('click', function (e) {
+            if (!results.contains(e.target) && e.target !== searchBox) results.style.display = 'none';
+        });
+
+        function addLine(it) {
+            if (readOnly) { return; }
+            // If the drug is already on the document, add to that line rather
+            // than creating a duplicate - two rows for one drug would post two
+            // separate movements and make the average cost harder to follow.
+            var existing = lines.filter(function (l) { return l.itemId === it.id; })[0];
+            if (existing) {
+                existing.qty += 1;
+                render();
+                return;
+            }
+
+            lines.push({
+                itemId: it.id,
+                code: it.code,
+                name: it.name,
+                generic: it.genericName,
+                pack: it.packType,
+                packUnit: it.packUnit,
+                onHand: it.onHand,
+                tradeCost: it.tradeCost,
+                retail: it.retailPrice,
+                qty: 1,
+                rate: it.tradeCost,        // default to master trade cost
+                taxRate: it.taxRate || 0,
+                discount: 0,
+                batchNo: ''
+            });
+            render();
+        }
+
+        // ---------- open a saved document ----------
+        function openDocument(id) {
+            fetch('?handler=Lines&id=' + encodeURIComponent(id), { headers: { 'Accept': 'application/json' } })
+                .then(function (r) { return r.ok ? r.json() : null; })
+                .then(function (doc) {
+                    if (!doc) return;
+                    // Posted documents are immutable; open them in a locked view.
+                    readOnly = !!doc.head.isPosted;
+
+                    document.getElementById('Edit_Id').value = doc.head.id;
+                    document.getElementById('Edit_DocNo').value = doc.head.docNo;
+                    document.getElementById('Edit_DocDate').value = doc.head.docDate;
+                    document.getElementById('Edit_StoreId').value = doc.head.storeId;
+                    document.getElementById('Edit_VendorCode').value = doc.head.vendorCode || '';
+                    document.getElementById('Edit_VendorInvoiceNo').value = doc.head.vendorInvoiceNo || '';
+                    document.getElementById('Edit_DiscountAmount').value = doc.head.discountAmount || 0;
+
+                    lines = doc.lines.map(function (l) {
+                        return {
+                            itemId: l.itemId, code: l.code, name: l.name, generic: l.genericName || '',
+                            pack: l.packType, packUnit: l.packUnit, onHand: l.onHand || 0,
+                            tradeCost: l.tradeCost || l.rate, retail: l.retailPrice || 0,
+                            qty: l.qty, rate: l.rate,
+                            taxRate: l.taxRate || 0, discount: l.discountAmount || 0,
+                            batchNo: l.batchNo || '',
+                            // stored figures, used verbatim while read-only
+                            storedAmount: l.amount || 0,
+                            storedTax: l.taxAmount || 0
+                        };
+                    });
+                    applyMode();
+                    render();
+                    titleEl.textContent = 'Purchase ' + doc.head.docNo +
+                        (readOnly ? '  (posted \u2014 read only)' : '');
+                    showModal();
+                });
+        }
+
+        // ---------- add new ----------
+        document.getElementById('btnAddNew').addEventListener('click', function () {
+            readOnly = false;
+            applyMode();
+            lines = [];
+            render();
+            document.getElementById('Edit_Id').value = 0;
+            document.getElementById('Edit_DocNo').value = '';
+            document.getElementById('Edit_VendorInvoiceNo').value = '';
+            document.getElementById('Edit_DiscountAmount').value = 0;
+            document.getElementById('Edit_DocDate').value = new Date().toISOString().slice(0, 10);
+            titleEl.textContent = 'New Purchase';
+
+            var store = document.getElementById('Edit_StoreId').value;
+            fetch('?handler=NextDocNo&storeId=' + encodeURIComponent(store), { headers: { 'Accept': 'application/json' } })
+                .then(function (r) { return r.ok ? r.json() : null; })
+                .then(function (d) { if (d && d.docNo) { document.getElementById('Edit_DocNo').value = d.docNo; } })
+                .catch(function () { });
+
+            showModal();
+            searchBox.focus();
+        });
+
+        document.querySelectorAll('#purTable tr.ph-row').forEach(function (tr) {
+            tr.addEventListener('click', function () {
+                openDocument(tr.getAttribute('data-id'));
+            });
+        });
+
+        // ---------- delete / reverse ----------
+        document.querySelectorAll('#purTable .ph-del').forEach(function (btn) {
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+
+                var id = btn.getAttribute('data-id');
+                var code = btn.getAttribute('data-code') || '';
+                var name = btn.getAttribute('data-name') || '';
+
+                function go() {
+                    document.getElementById('del_Id').value = id;
+                    document.getElementById('delForm').submit();
+                }
+
+                if (window.Swal && window.Swal.fire) {
+                    window.Swal.fire({
+                        title: 'Reverse this purchase?',
+                        html: '<div style="text-align:left"><div><strong>' + code + '</strong>' +
+                              (name ? ' &mdash; ' + name : '') + '</div>' +
+                              '<div class="small text-muted mt-2">The stock it brought in is taken back out ' +
+                              'and a reversing movement is recorded. The document is kept for audit.</div></div>',
+                        icon: 'warning', showCancelButton: true,
+                        confirmButtonText: 'Reverse', cancelButtonText: 'Cancel',
+                        confirmButtonColor: '#dc3545', reverseButtons: true,
+                        customClass: { popup: 'hmis-swal' }
+                    }).then(function (r) { if (r.isConfirmed) go(); });
+                } else if (window.confirm('Reverse purchase ' + code + '?')) { go(); }
+            });
+        });
+
+        // ---------- submit ----------
+        document.getElementById('purForm').addEventListener('submit', function (e) {
+            if (readOnly) {
+                e.preventDefault();
+                return;
+            }
+            if (!lines.length) {
+                e.preventDefault();
+                if (window.Swal) {
+                    window.Swal.fire({ icon: 'warning', title: 'No lines',
+                        text: 'Add at least one medicine line before saving.' });
+                }
+                return;
+            }
+            document.getElementById('LinesJson').value = JSON.stringify(lines.map(function (l) {
+                return {
+                    itemId: l.itemId, qty: l.qty, rate: l.rate, taxRate: l.taxRate,
+                    discountAmount: l.discount || 0, batchNo: l.batchNo || null
+                };
+            }));
+        });
+
+        document.getElementById('Edit_DiscountAmount').addEventListener('input', totals);
+        document.getElementById('Edit_StoreId').addEventListener('change', function () {
+            if (lines.length) {
+                // on-hand column is store specific; refresh it for the new store
+                lines.forEach(function (l) { l.onHand = 0; });
+                render();
+            }
+        });
+    })();
+    </script>
+}

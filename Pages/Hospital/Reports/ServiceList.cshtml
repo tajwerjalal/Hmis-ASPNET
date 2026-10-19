@@ -1,0 +1,132 @@
+@page "/hospital/Reports/ServiceList"
+@model HmisWeb.Pages.Hospital.Reports.ServiceListModel
+@{
+    ViewData["Title"] = "Service List";
+}
+
+<div class="d-flex justify-content-between align-items-end mb-3">
+    <div>
+        <h4 class="mb-0 fw-bold"><i class="bi bi-list-ul me-2 text-primary"></i>Service List</h4>
+        <div class="text-secondary small">Migrated from VFP report us0220</div>
+    </div>
+    <a asp-page="/Hospital/Reports" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Reports</a>
+</div>
+
+<form method="get" class="card mb-3">
+    <div class="card-body">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small mb-1">Layout</label>
+                <select asp-for="LayoutMode" class="form-select form-select-sm">
+                    <option value="Flat">Exclude groups</option>
+                    <option value="Grouped">Include groups</option>
+                    <option value="Selected">Selected group</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small mb-1">Order by</label>
+                <select asp-for="OrderBy" class="form-select form-select-sm">
+                    <option value="Code">Test ID</option>
+                    <option value="Name">Test name</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small mb-1">Test group</label>
+                <select asp-for="CategoryId" class="form-select form-select-sm">
+                    <option value="">-- all --</option>
+                    @foreach (var c in Model.Categories)
+                    {
+                        <option value="@c.Id">@c.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small mb-1">Search</label>
+                <input asp-for="SearchTerm" class="form-control form-control-sm" placeholder="Name or code" />
+            </div>
+            <div class="col-12 d-flex gap-2">
+                <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search me-1"></i>View</button>
+                <a asp-page="/Hospital/Reports/ServiceList" asp-page-handler="Export" class="btn btn-outline-success btn-sm">
+                    <i class="bi bi-filetype-csv me-1"></i>CSV
+                </a>
+                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="slPrint()">
+                    <i class="bi bi-printer me-1"></i>Print
+                </button>
+            </div>
+        </div>
+    </div>
+</form>
+
+<div class="card">
+    <div class="card-header bg-white fw-semibold d-flex justify-content-between">
+        <span>@Model.Rows.Count service(s)</span>
+        <span>Total value: <strong>@Model.TotalRate.ToString("N2")</strong></span>
+    </div>
+    <div class="card-body p-0">
+        @if (Model.Rows.Any())
+        {
+            <div class="table-responsive" id="slTable">
+                <table class="table table-sm table-striped mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Code</th>
+                            <th>Service</th>
+                            @if (Model.Grouped)
+                            {
+                                <th>Group</th>
+                            }
+                            <th class="text-end">Rate</th>
+                            <th class="text-end">Foreigner</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var r in Model.Rows)
+                        {
+                            <tr>
+                                <td>@r.Code</td>
+                                <td>@r.Name</td>
+                                @if (Model.Grouped)
+                                {
+                                    <td>@r.Group</td>
+                                }
+                                <td class="text-end">@r.Rate.ToString("N2")</td>
+                                <td class="text-end">@r.RateForeigner.ToString("N2")</td>
+                                <td>
+                                    <span class="badge bg-@(r.Active ? "success" : "secondary")">@(r.Active ? "Active" : "Inactive")</span>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <p class="text-secondary m-3">No services found.</p>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function slPrint() {
+            var w = window.open('', '_blank', 'width=1000,height=1200');
+            if (!w) { alert('Allow pop-ups to print the report.'); return; }
+            var css = 'body{font-family:Segoe UI,Arial,sans-serif;font-size:10pt;padding:20px}' +
+                      'table{border-collapse:collapse;width:100%;font-size:9pt}' +
+                      'th,td{border:1px solid #999;padding:3px 5px}' +
+                      'th{background:#f0f0f0;text-align:left}' +
+                      '.num{text-align:right}' +
+                      'h1{font-size:14pt;text-align:center;margin:0 0 2px}' +
+                      '.sub{text-align:center;color:#555;margin-bottom:10px}';
+            w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Service List</title><style>' + css + '</style></head><body>');
+            w.document.write('<h1>SERVICE LIST</h1><div class="sub">@Model.PeriodText &nbsp;|&nbsp; @Model.Rows.Count service(s)</div>');
+            w.document.write(document.getElementById('slTable').innerHTML);
+            w.document.write('</body></html>');
+            w.document.close();
+            w.focus();
+            setTimeout(function () { w.print(); }, 400);
+        }
+    </script>
+}

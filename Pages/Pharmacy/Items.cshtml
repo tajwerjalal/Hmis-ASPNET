@@ -1,0 +1,454 @@
+@page
+@model HmisWeb.Pages.Pharmacy.ItemsModel
+@using System.Text.Json
+@using System.Text.Encodings.Web
+@{
+    ViewData["Title"] = "Medicine / Product";
+    // The popup is opened server-side only for the no-JS fallback (?handler=Edit).
+    // With scripting on, the row click fills the same popup client-side instead.
+    bool ServerOpened = Model.EditId.HasValue;
+    var jsonOpts = new JsonSerializerOptions { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+    var rowJson = JsonSerializer.Serialize(Model.Rows.Select(r => new {
+        id = r.Id, code = r.Code, name = r.Name, itemType = r.ItemType,
+        genericCode = r.GenericCode, supplierCode = r.SupplierCode,
+        manufacturerCode = r.ManufacturerCode, categoryCode = r.CategoryCode,
+        packType = r.PackType, packUnit = r.PackUnit,
+        tradeCost = r.TradeCost, tradePrice = r.TradePrice, retailPrice = r.RetailPrice,
+        taxRate = r.TaxRate, unitCost = r.UnitCost, hospitalCost = r.HospitalCost,
+        reorderLevel = r.ReorderLevel, minStock = r.MinStock, maxStock = r.MaxStock,
+        isActive = r.IsActive, isTop = r.IsTop
+    }).ToList(), jsonOpts);
+}
+
+<h4 class="mb-3"><i class="fa-solid fa-pills"></i> Medicine / Product <small class="text-muted fs-6">(legacy: invmast.spr)</small></h4>
+
+@if (Model.Message != null)
+{
+    <div class="alert alert-success py-2"><i class="fa-solid fa-circle-check"></i> @Model.Message</div>
+}
+@if (Model.Error != null)
+{
+    <div class="alert alert-danger py-2"><i class="fa-solid fa-circle-exclamation"></i> @Model.Error</div>
+}
+
+<div class="card">
+    <div class="card-header bg-white">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-2">
+                <label class="form-label small mb-1">Stock of store</label>
+                <select asp-for="SelectedStoreId" class="form-select form-select-sm"
+                        asp-items="@(new SelectList(Model.Stores, "Id", "Name"))">
+                    <option value="0">-- All stores --</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-1">Catalogue</label>
+                <select asp-for="SelectedCategoryCode" class="form-select form-select-sm"
+                        asp-items="@(new SelectList(Model.Categories, "Code", "Name"))">
+                    <option value="">-- All --</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small mb-1">Search</label>
+                <input asp-for="Search" class="form-control form-control-sm" placeholder="Code or name..." />
+            </div>
+            <div class="col-md-5 d-flex gap-2 align-items-center pb-1">
+                <div class="form-check">
+                    <input asp-for="ActiveOnly" class="form-check-input" />
+                    <label class="form-check-label small">Active only</label>
+                </div>
+                <button type="submit" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-filter"></i> Apply</button>
+                <button type="button" class="btn btn-sm btn-success ms-auto" id="btnAddNew">
+                    <i class="fa-solid fa-plus"></i> Add New Medicine
+                </button>
+            </div>
+        </form>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive" style="max-height:72vh; overflow-y:auto;">
+            <table class="table table-sm table-striped table-hover mb-0 align-middle" id="itemTable">
+                <thead class="table-light" style="position:sticky; top:0; z-index:1;">
+                    <tr>
+                        <th style="width:35px"></th>
+                        <th>Code</th>
+                        <th>Name</th>
+                        <th>Generic</th>
+                        <th>Supplier</th>
+                        <th class="text-end">Trade</th>
+                        <th class="text-end">Retail</th>
+                        <th class="text-end">On-Hand (store)</th>
+                        <th class="text-end">Total</th>
+                        <th style="width:70px"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!Model.Rows.Any())
+                    {
+                        <tr>
+                            <td colspan="10" class="text-center text-muted py-4">
+                                No medicine matches these filters.
+                            </td>
+                        </tr>
+                    }
+                    @foreach (var r in Model.Rows)
+                    {
+                        <tr class="ph-row @(r.IsActive ? "" : "text-muted")"
+                            data-id="@r.Id" style="cursor:pointer"
+                            title="Click to edit">
+                            <td>
+                                @if (r.IsTop)
+                                {
+                                    <i class="fa-solid fa-star text-warning" title="Fast mover"></i>
+                                }
+                                @if (!r.IsActive)
+                                {
+                                    <span class="badge text-bg-secondary">In</span>
+                                }
+                            </td>
+                            <td><code>@r.Code</code></td>
+                            <td>@r.Name</td>
+                            <td class="text-muted small">@(string.IsNullOrEmpty(r.GenericName) ? "-" : r.GenericName)</td>
+                            <td class="text-muted small">@(string.IsNullOrEmpty(r.SupplierName) ? "-" : r.SupplierName)</td>
+                            <td class="text-end">@r.TradeCost.ToString("N2")</td>
+                            <td class="text-end">@r.RetailPrice.ToString("N2")</td>
+                            <td class="text-end">@r.StoreOnHand.ToString("N2")</td>
+                            <td class="text-end">@r.TotalOnHand.ToString("N2")</td>
+                            <td class="text-end text-nowrap">
+                                <button type="button" class="btn btn-sm btn-outline-primary ph-edit" title="Edit">
+                                    <i class="fa-solid fa-pen"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-danger ph-del"
+                                        title="Delete" data-id="@r.Id" data-code="@r.Code" data-name="@r.Name">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card-footer bg-white small text-muted">
+        Showing @Model.Rows.Count medicine(s). @if (Model.Rows.Count >= 1000)
+        {
+            <span> The master holds 9,236 &mdash; narrow the search or pick a catalogue.</span>
+        }
+        Click any row to open its data-entry popup.
+    </div>
+</div>
+
+<!-- ===================== DATA-ENTRY POPUP ===================== -->
+@if (ServerOpened)
+{
+    <div class="modal-backdrop fade show"></div>
+}
+<div class="modal fade @(ServerOpened ? "show" : "")" id="itemModal" tabindex="-1" aria-hidden="@(ServerOpened ? "false" : "true")"
+     style="@(ServerOpened ? "display:block;" : "")" data-bs-backdrop="@(ServerOpened ? "false" : "true")"
+     data-open-stock="@(ServerOpened ? Model.EditId?.ToString() : "")">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <form method="post" asp-page-handler="Save" id="itemForm">
+                <input type="hidden" asp-for="Edit.Id" id="Edit_Id" />
+                @* The popup posts on its own, so the list filters have to ride
+                   along or a failed save would rebuild the list unfiltered. *@
+                <input type="hidden" asp-for="SelectedStoreId" id="F_Store" />
+                <input type="hidden" asp-for="Search" id="F_Search" />
+                <input type="hidden" asp-for="SelectedCategoryCode" id="F_Category" />
+                <input type="hidden" asp-for="ActiveOnly" id="F_ActiveOnly" />
+                <div class="modal-header">
+                    <h6 class="modal-title" id="itemModalTitle">Add Medicine</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-2">
+                        <div class="col-md-3">
+                            <label class="form-label small">Code</label>
+                            <input asp-for="Edit.Code" id="Edit_Code" class="form-control form-control-sm" maxlength="20" required />
+                        </div>
+                        <div class="col-md-9">
+                            <label class="form-label small">Name</label>
+                            <input asp-for="Edit.Name" id="Edit_Name" class="form-control form-control-sm" maxlength="200" required />
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small">Type</label>
+                            <input asp-for="Edit.ItemType" id="Edit_ItemType" class="form-control form-control-sm" maxlength="1" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small">Generic code</label>
+                            <input asp-for="Edit.GenericCode" id="Edit_GenericCode" class="form-control form-control-sm" maxlength="20" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small">Catalogue</label>
+                            <input asp-for="Edit.CategoryCode" id="Edit_CategoryCode" class="form-control form-control-sm" maxlength="20" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small">Supplier code</label>
+                            <input asp-for="Edit.SupplierCode" id="Edit_SupplierCode" class="form-control form-control-sm" maxlength="20" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small">Manufacturer code</label>
+                            <input asp-for="Edit.ManufacturerCode" id="Edit_ManufacturerCode" class="form-control form-control-sm" maxlength="20" />
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small">Pack type</label>
+                            <input asp-for="Edit.PackType" id="Edit_PackType" class="form-control form-control-sm" maxlength="1" />
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small">Pack unit</label>
+                            <input asp-for="Edit.PackUnit" id="Edit_PackUnit" type="number" step="any" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small">Tax rate %</label>
+                            <input asp-for="Edit.TaxRate" id="Edit_TaxRate" type="number" step="any" class="form-control form-control-sm" />
+                        </div>
+
+                        <div class="col-12"><hr class="my-1" /></div>
+
+                        <div class="col-md-3">
+                            <label class="form-label small">Trade cost</label>
+                            <input asp-for="Edit.TradeCost" id="Edit_TradeCost" type="number" step="any" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small">Trade price (TP)</label>
+                            <input asp-for="Edit.TradePrice" id="Edit_TradePrice" type="number" step="any" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small">Retail price</label>
+                            <input asp-for="Edit.RetailPrice" id="Edit_RetailPrice" type="number" step="any" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small">Unit cost</label>
+                            <input asp-for="Edit.UnitCost" id="Edit_UnitCost" type="number" step="any" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small">Hospital cost</label>
+                            <input asp-for="Edit.HospitalCost" id="Edit_HospitalCost" type="number" step="any" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small">Reorder level</label>
+                            <input asp-for="Edit.ReorderLevel" id="Edit_ReorderLevel" type="number" step="any" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small">Min stock</label>
+                            <input asp-for="Edit.MinStock" id="Edit_MinStock" type="number" step="any" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small">Max stock</label>
+                            <input asp-for="Edit.MaxStock" id="Edit_MaxStock" type="number" step="any" class="form-control form-control-sm" />
+                        </div>
+
+                        <div class="col-12 d-flex gap-4">
+                            <div class="form-check">
+                                <input asp-for="Edit.IsActive" id="Edit_IsActive" class="form-check-input" />
+                                <label class="form-check-label small">Active</label>
+                            </div>
+                            <div class="form-check">
+                                <input asp-for="Edit.IsTop" id="Edit_IsTop" class="form-check-input" />
+                                <label class="form-check-label small">Fast mover</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="stockPanel" class="mt-2" style="display:none;">
+                        <hr />
+                        <div class="small fw-semibold mb-1">Stock position</div>
+                        <table class="table table-sm mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Store</th>
+                                    <th class="text-end">On-Hand</th>
+                                    <th class="text-end">Avg Cost</th>
+                                </tr>
+                            </thead>
+                            <tbody id="stockRows"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-primary"><i class="fa-solid fa-floppy-disk"></i> Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete posts on its own so it never rides along with the edit popup. -->
+<form method="post" asp-page-handler="Delete" id="delForm" class="d-none">
+    <input type="hidden" name="id" id="del_Id" />
+    <input type="hidden" name="SelectedStoreId" value="@Model.SelectedStoreId" />
+    <input type="hidden" name="Search" value="@Model.Search" />
+    <input type="hidden" name="SelectedCategoryCode" value="@Model.SelectedCategoryCode" />
+    <input type="hidden" name="ActiveOnly" value="@Model.ActiveOnly.ToString().ToLower()" />
+</form>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert2/11.10.1/sweetalert2.all.min.js"></script>
+    <script id="phItems" type="application/json">@Html.Raw(rowJson)</script>
+    <script>
+    (function () {
+        var data = [];
+        try { data = JSON.parse(document.getElementById('phItems').textContent || '[]'); }
+        catch (e) { console.error('pharmacy item json parse failed', e); return; }
+
+        var modalEl = document.getElementById('itemModal');
+        if (!modalEl) return;
+        var titleEl = document.getElementById('itemModalTitle');
+
+        // Bootstrap's JS bundle is preferred, but it is not the only thing that
+        // can open this popup. If the bundle is unavailable the modal is driven
+        // directly through Bootstrap's own CSS classes, so the screen still
+        // works rather than silently doing nothing on row click.
+        var api = (typeof bootstrap !== 'undefined' && bootstrap.Modal)
+            ? new bootstrap.Modal(modalEl)
+            : null;
+
+        function backdrop(on) {
+            var b = document.querySelector('.modal-backdrop');
+            if (on) {
+                if (!b) {
+                    b = document.createElement('div');
+                    b.className = 'modal-backdrop fade show';
+                    document.body.appendChild(b);
+                }
+            } else if (b) { b.remove(); }
+        }
+
+        function open() {
+            if (api) { api.show(); return; }
+            modalEl.classList.add('show');
+            modalEl.style.display = 'block';
+            modalEl.setAttribute('aria-hidden', 'false');
+            document.body.classList.add('modal-open');
+            backdrop(true);
+        }
+
+        function close() {
+            if (api) { api.hide(); return; }
+            modalEl.classList.remove('show');
+            modalEl.style.display = 'none';
+            modalEl.setAttribute('aria-hidden', 'true');
+            document.body.classList.remove('modal-open');
+            backdrop(false);
+        }
+
+        modalEl.querySelectorAll('[data-bs-dismiss="modal"]').forEach(function (el) {
+            el.addEventListener('click', close);
+        });
+        if (!api) {
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape' && modalEl.classList.contains('show')) { close(); }
+            });
+        }
+
+        var FIELDS = ['Id', 'Code', 'Name', 'ItemType', 'GenericCode', 'SupplierCode',
+                      'ManufacturerCode', 'CategoryCode', 'PackType', 'PackUnit', 'TradeCost',
+                      'TradePrice', 'RetailPrice', 'TaxRate', 'UnitCost', 'HospitalCost',
+                      'ReorderLevel', 'MinStock', 'MaxStock', 'IsActive', 'IsTop'];
+
+        function setField(field, value) {
+            var el = document.getElementById('Edit_' + field);
+            if (!el) return;
+            if (el.type === 'checkbox') { el.checked = !!value; }
+            else { el.value = (value === null || value === undefined) ? '' : value; }
+        }
+
+        function fill(item) {
+            FIELDS.forEach(function (f) { setField(f, item[f.charAt(0).toLowerCase() + f.slice(1)]); });
+        }
+
+        // Stock is fetched per drug rather than shipped for all 1,000 rows.
+        var stockPanel = document.getElementById('stockPanel');
+        var stockRows = document.getElementById('stockRows');
+
+        function loadStock(id) {
+            if (!stockPanel || !stockRows) return;
+            if (!id) { stockPanel.style.display = 'none'; stockRows.innerHTML = ''; return; }
+            fetch('?handler=Stock&id=' + encodeURIComponent(id), { headers: { 'Accept': 'application/json' } })
+                .then(function (r) { return r.ok ? r.json() : []; })
+                .then(function (rows) {
+                    if (!rows || !rows.length) { stockPanel.style.display = 'none'; return; }
+                    stockRows.innerHTML = rows.map(function (s) {
+                        return '<tr><td>' + esc(s.store) + '</td><td class="text-end">' +
+                               Number(s.onHand).toFixed(2) + '</td><td class="text-end">' +
+                               Number(s.avgCost).toFixed(2) + '</td></tr>';
+                    }).join('');
+                    stockPanel.style.display = '';
+                })
+                .catch(function () { stockPanel.style.display = 'none'; });
+        }
+
+        function esc(s) {
+            return String(s === null || s === undefined ? '' : s)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        document.getElementById('btnAddNew').addEventListener('click', function () {
+            fill({ IsActive: true, IsTop: false });
+            FIELDS.forEach(function (f) {
+                if (f === 'IsActive' || f === 'IsTop' || f === 'Id') return;
+                setField(f, '');
+            });
+            setField('IsActive', true);
+            setField('Id', 0);
+            titleEl.textContent = 'Add Medicine';
+            loadStock(0);
+            open();
+            var code = document.getElementById('Edit_Code');
+            if (code) { code.focus(); }
+        });
+
+        document.querySelectorAll('#itemTable tr.ph-row').forEach(function (tr) {
+            tr.addEventListener('click', function () {
+                var id = parseInt(tr.getAttribute('data-id'), 10);
+                var item = data.filter(function (d) { return d.id === id; })[0];
+                if (!item) return;
+                fill(item);
+                titleEl.textContent = 'Edit Medicine - ' + item.code;
+                loadStock(id);
+                open();
+            });
+        });
+
+        // ---- Delete -------------------------------------------------------
+        // The trash button sits inside the row, so the row's own click handler
+        // would otherwise fire too and open the edit popup underneath the
+        // confirmation. stopPropagation is what keeps those two apart.
+        document.querySelectorAll('#itemTable .ph-del').forEach(function (btn) {
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+
+                var id = btn.getAttribute('data-id');
+                var code = btn.getAttribute('data-code') || '';
+                var name = btn.getAttribute('data-name') || '';
+
+                function go() {
+                    document.getElementById('del_Id').value = id;
+                    document.getElementById('delForm').submit();
+                }
+
+                if (window.Swal && window.Swal.fire) {
+                    window.Swal.fire({
+                        title: 'Delete this medicine?',
+                        html: '<div style="text-align:left">' +
+                              '<div><strong>' + esc(code) + '</strong> &mdash; ' + esc(name) + '</div>' +
+                              '<div class="small text-muted mt-2">The drug is removed from the master but kept ' +
+                              'on every historic purchase, issue and sale document. It cannot be deleted ' +
+                              'while stock is still on hand.</div></div>',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: 'Delete',
+                        cancelButtonText: 'Cancel',
+                        confirmButtonColor: '#dc3545',
+                        reverseButtons: true,
+                        customClass: { popup: 'hmis-swal' }
+                    }).then(function (r) { if (r.isConfirmed) go(); });
+                } else {
+                    // No SweetAlert available - never delete silently.
+                    if (window.confirm('Delete ' + code + ' - ' + name + '?')) go();
+                }
+            });
+        });
+    })();
+    </script>
+}

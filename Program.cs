@@ -26,6 +26,7 @@ builder.Services.AddScoped<ILookupSeedService, LookupSeedService>();
 // Indoor Patient (IPD Bill) form - VFP BS0110 replacement
 builder.Services.AddScoped<HmisWeb.Services.Billing.IpdBillReportService>();
 builder.Services.AddScoped<HmisWeb.Services.Billing.BillingReportService>();
+builder.Services.AddScoped<HmisWeb.Services.Pharmacy.PhService>();
 builder.Services.AddScoped<HmisWeb.Services.Billing.IpdBillQueryService>();
 builder.Services.AddScoped<HmisWeb.Services.Billing.IpdBillLineService>();
 builder.Services.AddScoped<HmisWeb.Services.Billing.IpdBillWorkflowService>();

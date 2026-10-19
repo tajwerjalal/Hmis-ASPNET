@@ -1,0 +1,91 @@
+@page "/hospital/CompanyCharges"
+@model HmisWeb.Pages.Hospital.CompanyChargesModel
+@{
+    ViewData["Title"] = "Company wise Charges Setup";
+}
+
+<div class="d-flex justify-content-between align-items-end mb-3">
+    <h4 class="mb-0 fw-bold"><i class="bi bi-building me-2 text-primary"></i>Company wise Charges Setup</h4>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.Success))
+{
+    <div class="alert alert-success">@Model.Success</div>
+}
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger">@Model.ErrorMessage</div>
+}
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form method="post">
+            @Html.AntiForgeryToken()
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Company</label>
+                    <select asp-for="Input.CompanyId" asp-items="Model.CompanyList" class="form-select">
+                        <option value="">-- Select Company --</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Service</label>
+                    <select asp-for="Input.ItemId" asp-items="Model.ItemList" class="form-select">
+                        <option value="">-- Select Service --</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Normal Chgs.</label>
+                    <input asp-for="Input.Rate" class="form-control" type="number" step="0.01" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Urgent Chgs.</label>
+                    <input asp-for="Input.UrgentRate" class="form-control" type="number" step="0.01" />
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-save me-1"></i>Save</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <table class="table table-sm table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Company</th>
+                    <th>Service</th>
+                    <th class="text-end">Normal Chgs.</th>
+                    <th class="text-end">Urgent Chgs.</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var r in Model.Items)
+                {
+                    <tr>
+                        <td>@(r.Company?.Name ?? r.CompanyId.ToString())</td>
+                        <td>@(r.Item?.Name ?? r.ItemId.ToString())</td>
+                        <td class="text-end">@r.Rate.ToString("N2")</td>
+                        <td class="text-end">@(r.UnitRate?.ToString("N2") ?? "-")</td>
+                        <td class="text-end">
+                            <form method="post" asp-page-handler="Delete" class="d-inline">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@r.Id" />
+                                <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Retire this charge?');">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+                @if (!Model.Items.Any())
+                {
+                    <tr><td colspan="5" class="text-center text-secondary py-3">No company charges defined.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

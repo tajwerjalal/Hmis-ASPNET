@@ -83,6 +83,17 @@ namespace HmisWeb.Services.Billing
                 || !string.IsNullOrWhiteSpace(RegNo);
         }
 
+        /// <summary>
+        /// Result of a render: the PDF bytes plus how many rows matched.  A zero row
+        /// count means the criteria matched nothing, so the page shows a dialog
+        /// instead of a blank PDF.
+        /// </summary>
+        public sealed class RenderResult
+        {
+            public byte[] Pdf { get; set; }
+            public int Rows { get; set; }
+        }
+
         /// <summary>Header context supplied by the page (VFP globals gccompany / gcloginid).</summary>
         public class ReportContext
         {
@@ -111,10 +122,10 @@ namespace HmisWeb.Services.Billing
         // ================================================================ RUNNING BILL
 
         /// <summary>Runs the BS021040 query and returns the "IPD Running Bill" PDF bytes.</summary>
-        public async Task<byte[]> RenderRunningBillAsync(ReportCriteria c, ReportContext ctx)
+        public async Task<RenderResult> RenderRunningBillAsync(ReportCriteria c, ReportContext ctx)
         {
             var rows = await QueryRunningRowsAsync(c);
-            return BuildRunningBillPdf(rows, c, ctx);
+            return new RenderResult { Pdf = BuildRunningBillPdf(rows, c, ctx), Rows = rows.Count };
         }
 
         private async Task<List<BillRow>> QueryRunningRowsAsync(ReportCriteria c)
@@ -161,10 +172,10 @@ ORDER BY m.HOS_CODE, dept.BILLORDER, d.CONCODE DESC, m.TYPE, m.SLIPDT, d.CODE");
         // ================================================================ FINAL BILL
 
         /// <summary>Runs the BS021001 query and returns the "IPD Bill (Final)" PDF bytes.</summary>
-        public async Task<byte[]> RenderFinalBillAsync(ReportCriteria c, ReportContext ctx)
+        public async Task<RenderResult> RenderFinalBillAsync(ReportCriteria c, ReportContext ctx)
         {
             var rows = await QueryFinalRowsAsync(c);
-            return BuildFinalBillPdf(rows, c, ctx);
+            return new RenderResult { Pdf = BuildFinalBillPdf(rows, c, ctx), Rows = rows.Count };
         }
 
         private async Task<List<BillRow>> QueryFinalRowsAsync(ReportCriteria c)

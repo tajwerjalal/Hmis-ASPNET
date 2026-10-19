@@ -62,6 +62,9 @@ namespace HmisWeb.Pages.Reports.Billing
 
         public List<(string Id, string Name)> Companies { get; private set; } = new List<(string, string)>();
         public List<(string Id, string Name)> Departments { get; private set; } = new List<(string, string)>();
+        /// <summary>Set when the submitted criteria matched nothing - the view shows a dialog.</summary>
+        public bool NoData { get; private set; }
+
         public string Message { get; private set; }
 
         public async Task OnGetAsync()
@@ -80,7 +83,20 @@ namespace HmisWeb.Pages.Reports.Billing
                 return Page();
             }
 
-            var bytes = await _report.RenderRunningBillAsync(criteria, BuildContext());
+            var result = await _report.RenderRunningBillAsync(criteria, BuildContext());
+            if (result.Rows == 0)
+            {
+                NoData = true;
+                Message = string.IsNullOrWhiteSpace(Input.RegNo)
+                    ? "No unbilled charges matched the selected criteria. A running bill only covers"
+                      + " inpatient slips that have not been billed yet - try a different date range,"
+                      + " company or department."
+                    : "No unbilled charges found for IPD No. " + Input.RegNo.Trim() + ". A running bill only"
+                      + " covers slips that are not yet billed - if this file has already been billed, use"
+                      + " Billing > Reports > Patient Bill (Final) instead.";
+                return Page();
+            }
+            var bytes = result.Pdf;
             var name = "IPD-Running-Bill-" +
                        (Input.Mode == "detail" ? "Detail" : "Summary") + "-" +
                        DateTime.Now.ToString("yyyyMMddHHmmss") + ".pdf";

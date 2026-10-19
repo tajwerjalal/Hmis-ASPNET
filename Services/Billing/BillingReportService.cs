@@ -731,10 +731,10 @@ WHERE r.TYPE='I' AND ISNULL(r.CID,'') <> ''");
 
         // ================================================================ execution
 
-        /// <summary>Runs a report definition and returns the rendered PDF bytes.</summary>
-        public async Task<byte[]> RenderAsync(Definition def, Criteria c, ReportContext ctx)
+        /// <summary>Runs a report definition and returns the rendered PDF plus the row count.</summary>
+        public async Task<IpdBillReportService.RenderResult> RenderAsync(Definition def, Criteria c, ReportContext ctx)
         {
-            if (def == null) return Empty("Unknown report");
+            if (def == null) return new IpdBillReportService.RenderResult { Pdf = Empty("Unknown report"), Rows = 0 };
             HmisFontResolver.Install();
 
             if (!c.From.HasValue && !c.To.HasValue && string.IsNullOrWhiteSpace(c.Company)
@@ -742,7 +742,7 @@ WHERE r.TYPE='I' AND ISNULL(r.CID,'') <> ''");
                 && string.IsNullOrWhiteSpace(c.BillNo))
             {
                 // every one of these legacy forms refused to run without a criterion
-                return Empty(def.Title + "\nNo criteria specified - choose at least one filter.");
+                return new IpdBillReportService.RenderResult { Rows = 0, Pdf = Empty(def.Title + "\nNo criteria specified - choose at least one filter.") };
             }
 
             var (sql, ps) = def.Build(c);
@@ -787,7 +787,7 @@ WHERE r.TYPE='I' AND ISNULL(r.CID,'') <> ''");
                 flow.Current?.Dispose();
             }
             doc.Save(ms, false);
-            return ms.ToArray();
+            return new IpdBillReportService.RenderResult { Pdf = ms.ToArray(), Rows = rows.Count };
         }
 
         private static byte[] Empty(string message)

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using HmisWeb.Models;
+using HmisWeb.Models.Pharmacy;
 using HMISRoute = HmisWeb.Models.Route;
 
 namespace HmisWeb.Data
@@ -141,6 +142,30 @@ public DbSet<ConsultantSettlement> ConsultantSettlements { get; set; }
         public DbSet<PatientOwner> PatientOwners { get; set; }
         public DbSet<ConsultantCommission> ConsultantCommissions { get; set; }
         public DbSet<UnsettleRequest> UnsettleRequests { get; set; }
+
+        // ===== Pharmacy multi-store inventory (ported VFP BASEMENT + Satell, 19-Oct-2026) =====
+        // The legacy system kept a separate copy of every table per store. Here the
+        // drug master is stored once and everything store-specific hangs off
+        // PHITEMSTOCK (ItemId, StoreId) and the documents carry a StoreId.
+        public DbSet<PhStore> PhStores { get; set; }
+        public DbSet<PhItem> PhItems { get; set; }
+        public DbSet<PhItemStock> PhItemStocks { get; set; }
+        public DbSet<PhSupplier> PhSuppliers { get; set; }
+        public DbSet<PhManufacturer> PhManufacturers { get; set; }
+        public DbSet<PhPurchase> PhPurchases { get; set; }
+        public DbSet<PhPurchaseLine> PhPurchaseLines { get; set; }
+        public DbSet<PhSale> PhSales { get; set; }
+        public DbSet<PhSaleLine> PhSaleLines { get; set; }
+        public DbSet<PhSaleReturn> PhSaleReturns { get; set; }
+        public DbSet<PhSaleReturnLine> PhSaleReturnLines { get; set; }
+        public DbSet<PhPurchaseReturn> PhPurchaseReturns { get; set; }
+        public DbSet<PhPurchaseReturnLine> PhPurchaseReturnLines { get; set; }
+        public DbSet<PhStockMovement> PhStockMovements { get; set; }
+        public DbSet<PhAccount> PhAccounts { get; set; }
+        public DbSet<PhVoucher> PhVouchers { get; set; }
+        public DbSet<PhVoucherLine> PhVoucherLines { get; set; }
+        public DbSet<PhGeneric> PhGenerics { get; set; }
+        public DbSet<PhCategory> PhCategories { get; set; }
 
         // ===== Legacy billing tables (migrated VFP DBFs - additive mapping only) =====
         public DbSet<HmisWeb.Models.Legacy.RegisterLegacy> LegacyRegisters { get; set; }
@@ -1517,6 +1542,145 @@ modelBuilder.Entity<Token>()
                 .HasIndex(a => new { a.Entity, a.EntityKey, a.CreatedAt });
             modelBuilder.Entity<HmisWeb.Models.Legacy.LegacyDepartment>()
                 .HasIndex(d => d.Code).IsUnique();
+
+            // ===== Pharmacy multi-store inventory (ported VFP BASEMENT + Satell) =====
+            // Created by db/migrations/03_pharmacy_inventory_schema.sql, which already
+            // declares keys and indexes. EF must not try to recreate them, so every
+            // entity below is pinned to its table with the same key/index shape.
+            modelBuilder.Entity<PhStore>().ToTable("PHSTORE");
+            modelBuilder.Entity<PhItem>().ToTable("PHITEM");
+            modelBuilder.Entity<PhItemStock>().ToTable("PHITEMSTOCK");
+            modelBuilder.Entity<PhSupplier>().ToTable("PHSUPPLIER");
+            modelBuilder.Entity<PhManufacturer>().ToTable("PHMANUFACTURER");
+            modelBuilder.Entity<PhPurchase>().ToTable("PHPURCHASE");
+            modelBuilder.Entity<PhPurchaseLine>().ToTable("PHPURCHASELINE");
+            modelBuilder.Entity<PhSale>().ToTable("PHSALE");
+            modelBuilder.Entity<PhSaleLine>().ToTable("PHSALELINE");
+            modelBuilder.Entity<PhSaleReturn>().ToTable("PHSALERETURN");
+            modelBuilder.Entity<PhSaleReturnLine>().ToTable("PHSALERETURNLINE");
+            modelBuilder.Entity<PhPurchaseReturn>().ToTable("PHPURBASERETURN");
+            modelBuilder.Entity<PhPurchaseReturnLine>().ToTable("PHPURBASERETURNLINE");
+            modelBuilder.Entity<PhStockMovement>().ToTable("PHSTOCKMOVEMENT");
+
+            modelBuilder.Entity<PhItem>().HasIndex(i => i.Code).IsUnique();
+            modelBuilder.Entity<PhItem>().HasIndex(i => i.Name);
+            modelBuilder.Entity<PhStore>().HasIndex(s => s.Code).IsUnique();
+            modelBuilder.Entity<PhSupplier>().HasIndex(s => s.Code).IsUnique();
+            modelBuilder.Entity<PhManufacturer>().HasIndex(m => m.Code).IsUnique();
+
+            // One stock row per (item, store) - this is the constraint that replaces the
+            // legacy per-store duplicate INVMAST rows.
+            modelBuilder.Entity<PhItemStock>().HasIndex(s => new { s.ItemId, s.StoreId }).IsUnique();
+            // WithMany(s => s.ItemStocks), NOT a bare WithMany(): PhItem and PhStore
+            // both declare an ItemStocks collection, so an unpaired WithMany() makes
+            // EF invent a SECOND relationship with shadow columns (PhItemId /
+            // PhStoreId) alongside the real ItemId / StoreId. Querying the entity
+            // then fails with "Invalid column name 'PhItemId'".
+            modelBuilder.Entity<PhItemStock>()
+                .HasOne(s => s.Item).WithMany(i => i.ItemStocks)
+                .HasForeignKey(s => s.ItemId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<PhItemStock>()
+                .HasOne(s => s.Store).WithMany(s => s.ItemStocks)
+                .HasForeignKey(s => s.StoreId).OnDelete(DeleteBehavior.Restrict);
+
+            // Document numbers are unique per store, not globally: two stores may each
+            // legitimately use slip no 1.
+            modelBuilder.Entity<PhPurchase>().HasIndex(p => new { p.StoreId, p.DocNo }).IsUnique();
+            modelBuilder.Entity<PhPurchase>().HasIndex(p => new { p.StoreId, p.DocDate });
+            modelBuilder.Entity<PhSale>().HasIndex(s => new { s.StoreId, s.SlipNo }).IsUnique();
+            modelBuilder.Entity<PhSale>().HasIndex(s => new { s.StoreId, s.SlipDate });
+            modelBuilder.Entity<PhSale>().HasIndex(s => s.HosCode);
+
+            // Supplier purchase has no issuing store; main-store issue points at the
+            // store the goods came from.
+            modelBuilder.Entity<PhPurchase>()
+                .HasOne(p => p.Store).WithMany().HasForeignKey(p => p.StoreId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<PhPurchase>()
+                .HasOne(p => p.SourceStore).WithMany().HasForeignKey(p => p.SourceStoreId).OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<PhPurchaseLine>()
+                .HasOne(l => l.Purchase).WithMany(p => p.Lines)
+                .HasForeignKey(l => l.PurchaseId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<PhPurchaseLine>()
+                .HasOne(l => l.Item).WithMany().HasForeignKey(l => l.ItemId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<PhPurchaseLine>().HasIndex(l => l.PurchaseId);
+            modelBuilder.Entity<PhPurchaseLine>().HasIndex(l => l.ItemId);
+
+            modelBuilder.Entity<PhSale>()
+                .HasOne(s => s.Store).WithMany().HasForeignKey(s => s.StoreId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<PhSaleLine>()
+                .HasOne(l => l.Sale).WithMany(s => s.Lines)
+                .HasForeignKey(l => l.SaleId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<PhSaleLine>()
+                .HasOne(l => l.Item).WithMany().HasForeignKey(l => l.ItemId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<PhSaleLine>().HasIndex(l => l.SaleId);
+            modelBuilder.Entity<PhSaleLine>().HasIndex(l => l.ItemId);
+
+            modelBuilder.Entity<PhSaleReturn>()
+                .HasOne(r => r.Store).WithMany().HasForeignKey(r => r.StoreId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<PhSaleReturn>()
+                .HasOne(r => r.Sale).WithMany().HasForeignKey(r => r.SaleId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<PhSaleReturnLine>()
+                .HasOne(l => l.SaleReturn).WithMany(r => r.Lines)
+                .HasForeignKey(l => l.ReturnId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<PhSaleReturnLine>()
+                .HasOne(l => l.Item).WithMany().HasForeignKey(l => l.ItemId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<PhSaleReturnLine>().HasIndex(l => l.ReturnId);
+
+            modelBuilder.Entity<PhPurchaseReturn>()
+                .HasOne(r => r.Store).WithMany().HasForeignKey(r => r.StoreId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<PhPurchaseReturn>()
+                .HasOne(r => r.SourceStore).WithMany().HasForeignKey(r => r.SourceStoreId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<PhPurchaseReturn>()
+                .HasOne(r => r.Purchase).WithMany().HasForeignKey(r => r.PurchaseId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<PhPurchaseReturnLine>()
+                .HasOne(l => l.PurchaseReturn).WithMany(r => r.Lines)
+                .HasForeignKey(l => l.ReturnId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<PhPurchaseReturnLine>()
+                .HasOne(l => l.Item).WithMany().HasForeignKey(l => l.ItemId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<PhPurchaseReturnLine>().HasIndex(l => l.ReturnId);
+
+            modelBuilder.Entity<PhStockMovement>()
+                .HasOne(m => m.Store).WithMany().HasForeignKey(m => m.StoreId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<PhStockMovement>()
+                .HasOne(m => m.Item).WithMany().HasForeignKey(m => m.ItemId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<PhStockMovement>().HasIndex(m => new { m.StoreId, m.ItemId, m.MoveDate });
+            modelBuilder.Entity<PhStockMovement>().HasIndex(m => new { m.DocType, m.DocId });
+
+            // Ledger + small masters (db/migrations/04_pharmacy_ledger_schema.sql).
+            modelBuilder.Entity<PhAccount>().ToTable("PHACCOUNT");
+            modelBuilder.Entity<PhVoucher>().ToTable("PHVOUCHER");
+            modelBuilder.Entity<PhVoucherLine>().ToTable("PHVOUCHERLINE");
+            modelBuilder.Entity<PhGeneric>().ToTable("PHGENERIC");
+            modelBuilder.Entity<PhCategory>().ToTable("PHCATEGORY");
+
+            modelBuilder.Entity<PhAccount>().HasIndex(a => a.Code).IsUnique();
+            modelBuilder.Entity<PhAccount>().HasIndex(a => a.ParentCode);
+
+            // Column names that do not follow directly from the property name.
+            // Without these EF infers OpeningBalance / GLNo, which do not exist
+            // in the SQL created by 03/04 (the columns are OPENINGBAL / GLNO).
+            modelBuilder.Entity<PhAccount>().Property(a => a.OpeningBalance).HasColumnName("OPENINGBAL");
+            modelBuilder.Entity<PhPurchase>().Property(p => p.GLNo).HasColumnName("GLNO");
+            modelBuilder.Entity<PhSale>().Property(s => s.GLNo).HasColumnName("GLNO");
+            modelBuilder.Entity<PhVoucher>().HasIndex(v => new { v.DocType, v.VoucherNo }).IsUnique();
+            modelBuilder.Entity<PhVoucher>().HasIndex(v => v.VoucherDate);
+            modelBuilder.Entity<PhGeneric>().HasIndex(g => g.Code).IsUnique();
+            modelBuilder.Entity<PhCategory>().HasIndex(c => c.Code).IsUnique();
+
+            // A ledger line points at an account by CODE, matching how the legacy
+            // system stores it. No database foreign key is used because the same
+            // account code appears in both stores' ledgers.
+            modelBuilder.Entity<PhVoucherLine>()
+                .HasOne(l => l.Voucher).WithMany(v => v.Lines)
+                .HasForeignKey(l => l.VoucherId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<PhVoucherLine>().HasIndex(l => l.VoucherId);
+            modelBuilder.Entity<PhVoucherLine>().HasIndex(l => l.AccountCode);
+
+            // GLNO on a document is the voucher id held as text (the legacy GLNO
+            // values look like "PV30699" / "RV94426"). Indexed for the join.
+            modelBuilder.Entity<PhPurchase>().HasIndex(p => p.GLNo);
+            modelBuilder.Entity<PhSale>().HasIndex(s => s.GLNo);
         }
     }
 }

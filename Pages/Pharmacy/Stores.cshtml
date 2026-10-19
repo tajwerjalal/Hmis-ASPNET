@@ -1,0 +1,134 @@
+@page
+@model HmisWeb.Pages.Pharmacy.StoresModel
+@{
+    ViewData["Title"] = "Pharmacy Stores";
+}
+
+<h4 class="mb-3"><i class="fa-solid fa-warehouse"></i> Pharmacy Stores</h4>
+
+@if (Model.Message != null)
+{
+    <div class="alert alert-success py-2"><i class="fa-solid fa-circle-check"></i> @Model.Message</div>
+}
+@if (Model.Error != null)
+{
+    <div class="alert alert-danger py-2"><i class="fa-solid fa-circle-exclamation"></i> @Model.Error</div>
+}
+
+<div class="row g-3">
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header bg-white">
+                <strong>@(Model.Input.Id == null ? "Add Store" : "Edit Store")</strong>
+            </div>
+            <div class="card-body">
+                <form method="post" asp-page-handler="Save">
+                    <input type="hidden" asp-for="Input.Id" />
+                    <div class="mb-2">
+                        <label class="form-label small">Code</label>
+                        <input asp-for="Input.Code" class="form-control form-control-sm" maxlength="10" required />
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small">Name</label>
+                        <input asp-for="Input.Name" class="form-control form-control-sm" maxlength="100" required />
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small">Store Type</label>
+                        <select asp-for="Input.StoreType" class="form-select form-select-sm">
+                            <option value="MAIN">MAIN &mdash; purchases and issues to sub stores</option>
+                            <option value="SUB">SUB &mdash; retail counter</option>
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small">Address</label>
+                        <input asp-for="Input.Address" class="form-control form-control-sm" maxlength="200" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">Phone</label>
+                        <input asp-for="Input.Phone" class="form-control form-control-sm" maxlength="50" />
+                    </div>
+                    <div class="form-check mb-3">
+                        <input asp-for="Input.IsActive" class="form-check-input" />
+                        <label class="form-check-label small">Active</label>
+                    </div>
+                    <button type="submit" class="btn btn-sm btn-primary w-100">
+                        <i class="fa-solid fa-floppy-disk"></i> Save Store
+                    </button>
+                    @if (Model.Input.Id != null)
+                    {
+                        <a asp-page="/Pharmacy/Stores" class="btn btn-sm btn-outline-secondary w-100 mt-1">Cancel</a>
+                    }
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header bg-white"><strong>Registered Stores (@Model.Stores.Count)</strong></div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-striped table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Code</th>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Phone</th>
+                                <th>Status</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var s in Model.Stores)
+                            {
+                                <tr>
+                                    <td><code>@s.Code</code></td>
+                                    <td>@s.Name</td>
+                                    <td>
+                                        @if (s.StoreType == "MAIN")
+                                        {
+                                            <span class="badge text-bg-primary">MAIN</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge text-bg-secondary">SUB</span>
+                                        }
+                                    </td>
+                                    <td class="text-muted">@(s.Phone ?? "-")</td>
+                                    <td>
+                                        @if (s.IsActive)
+                                        {
+                                            <span class="badge text-bg-success">Active</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge text-bg-secondary">Inactive</span>
+                                        }
+                                    </td>
+                                    <td class="text-end">
+                                        <a class="btn btn-sm btn-outline-primary" asp-page="/Pharmacy/Stores"
+                                           asp-page-handler="Edit" asp-route-id="@s.Id">
+                                            <i class="fa-solid fa-pen"></i>
+                                        </a>
+                                        <form method="post" asp-page-handler="Toggle" asp-route-id="@s.Id" class="d-inline">
+                                            <button class="btn btn-sm btn-outline-secondary" type="submit"
+                                                    title="@(s.IsActive ? "Deactivate" : "Activate")">
+                                                <i class="fa-solid fa-power-off"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <p class="text-muted small mt-3 mb-0">
+            In the legacy system a store was a folder with its own copy of every table.
+            Here a store is a single row &mdash; the drug master is stored once and each store's
+            quantity lives in its own <code>PHITEMSTOCK</code> row.
+        </p>
+    </div>
+</div>

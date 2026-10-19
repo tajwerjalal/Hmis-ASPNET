@@ -314,6 +314,76 @@
                     <i class="bi bi-chevron-down"></i>
                 </a>
                 <div class="submenu">
+                    <a asp-page="/pharmacy/Dashboard" class="nav-link sub-link"><i class="fa-solid fa-chart-pie"></i> Dashboard</a>
+                    <a asp-page="/pharmacy/Stores" class="nav-link sub-link"><i class="fa-solid fa-warehouse"></i> Stores</a>
+                    <a asp-page="/pharmacy/OnHand" class="nav-link sub-link"><i class="fa-solid fa-boxes-stacked"></i> On-Hand Stock</a>
+                    <a asp-page="/pharmacy/Balances" class="nav-link sub-link"><i class="fa-solid fa-scale-balanced"></i> Open Balance</a>
+
+                    <div class="sub-link fw-semibold small text-uppercase text-muted mt-2">Setup</div>
+                    <a asp-page="/pharmacy/Items" class="nav-link sub-link"><i class="fa-solid fa-pills"></i> Medicine / Product</a>
+                    <a asp-page="/pharmacy/Manufacturers" class="nav-link sub-link"><i class="fa-solid fa-industry"></i> Manufacturer</a>
+                    <a asp-page="/pharmacy/Suppliers" class="nav-link sub-link"><i class="fa-solid fa-truck-field"></i> Supplier</a>
+                    <a asp-page="/pharmacy/Accounts" class="nav-link sub-link"><i class="fa-solid fa-sitemap"></i> Chart of Accounts</a>
+                    <a asp-page="/pharmacy/Generics" class="nav-link sub-link"><i class="fa-solid fa-flask-vial"></i> Generic Name</a>
+                    <a asp-page="/pharmacy/Categories" class="nav-link sub-link"><i class="fa-solid fa-tags"></i> Item Catalogue</a>
+                    <span class="nav-link sub-link text-muted opacity-50"><i class="fa-solid fa-building-circle-check"></i> Company Info <span class="badge text-bg-light ms-1">soon</span></span>
+                    <span class="nav-link sub-link text-muted opacity-50"><i class="fa-solid fa-calendar-day"></i> Accounting Year <span class="badge text-bg-light ms-1">soon</span></span>
+
+                    <div class="sub-link fw-semibold small text-uppercase text-muted mt-2">Transaction &mdash; Stock In</div>
+                    <a asp-page="/pharmacy/PurchaseReceived" class="nav-link sub-link"><i class="fa-solid fa-cart-flatbed"></i> Purchase Received</a>
+                    <span class="nav-link sub-link text-muted opacity-50"><i class="fa-solid fa-rotate-left"></i> Requisition Return <span class="badge text-bg-light ms-1">soon</span></span>
+
+                    <div class="sub-link fw-semibold small text-uppercase text-muted mt-2">Transaction &mdash; Stock Out</div>
+                    <a asp-page="/pharmacy/Issue" class="nav-link sub-link"><i class="fa-solid fa-arrow-right-from-bracket"></i> Issue</a>
+                    <span class="nav-link sub-link text-muted opacity-50"><i class="fa-solid fa-user-doctor"></i> Medicos <span class="badge text-bg-light ms-1">soon</span></span>
+                    <span class="nav-link sub-link text-muted opacity-50"><i class="fa-solid fa-box-open"></i> Purchase Return <span class="badge text-bg-light ms-1">soon</span></span>
+                    <span class="nav-link sub-link text-muted opacity-50"><i class="fa-solid fa-sliders"></i> Adjustment <span class="badge text-bg-light ms-1">soon</span></span>
+                    <span class="nav-link sub-link text-muted opacity-50"><i class="fa-solid fa-book"></i> Journal Voucher <span class="badge text-bg-light ms-1">soon</span></span>
+
+                    <div class="sub-link fw-semibold small text-uppercase text-muted mt-2">Reports &mdash; Purchase</div>
+                    <span class="nav-link sub-link text-muted opacity-50"><i class="fa-solid fa-list"></i> Register <span class="badge text-bg-light ms-1">soon</span></span>
+                    <span class="nav-link sub-link text-muted opacity-50"><i class="fa-solid fa-file-invoice"></i> Summary <span class="badge text-bg-light ms-1">soon</span></span>
+                    <span class="nav-link sub-link text-muted opacity-50"><i class="fa-solid fa-file-signature"></i> Acceptance <span class="badge text-bg-light ms-1">soon</span></span>
+                    <span class="nav-link sub-link text-muted opacity-50"><i class="fa-solid fa-undo"></i> Return <span class="badge text-bg-light ms-1">soon</span></span>
+                    <span class="nav-link sub-link text-muted opacity-50"><i class="fa-solid fa-gift"></i> Bonus <span class="badge text-bg-light ms-1">soon</span></span>
+                    <span class="nav-link sub-link text-muted opacity-50"><i class="fa-solid fa-percent"></i> Discount <span class="badge text-bg-light ms-1">soon</span></span>
+                    <span class="nav-link sub-link text-muted opacity-50"><i class="fa-solid fa-calendar-xmark"></i> Purchase Expiry <span class="badge text-bg-light ms-1">soon</span></span>
+
+                    <div class="sub-link fw-semibold small text-uppercase text-muted mt-2">Reports &mdash; Issue</div>
+                    <span class="nav-link sub-link text-muted opacity-50"><i class="fa-solid fa-user-injured"></i> HMC IPD <span class="badge text-bg-light ms-1">soon</span></span>
+                    <span class="nav-link sub-link text-muted opacity-50"><i class="fa-solid fa-stethoscope"></i> HMC OPD <span class="badge text-bg-light ms-1">soon</span></span>
+                    <span class="nav-link sub-link text-muted opacity-50"><i class="fa-solid fa-bed"></i> HMC Ward <span class="badge text-bg-light ms-1">soon</span></span>
+                    <span class="nav-link sub-link text-muted opacity-50"><i class="fa-solid fa-store"></i> Satellite <span class="badge text-bg-light ms-1">soon</span></span>
+                    <span class="nav-link sub-link text-muted opacity-50"><i class="fa-solid fa-user-doctor"></i> Medicos <span class="badge text-bg-light ms-1">soon</span></span>
+                    <span class="nav-link sub-link text-muted opacity-50"><i class="fa-solid fa-indent"></i> Indent Register <span class="badge text-bg-light ms-1">soon</span></span>
+
+                    <div class="sub-link fw-semibold small text-uppercase text-muted mt-2">Reports &mdash; Stock</div>
+                    <span class="nav-link sub-link text-muted opacity-50"><i class="fa-solid fa-bell"></i> Alert <span class="badge text-bg-light ms-1">soon</span></span>
+                    <span class="nav-link sub-link text-muted opacity-50"><i class="fa-solid fa-layer-group"></i> Levels <span class="badge text-bg-light ms-1">soon</span></span>
+                    <span class="nav-link sub-link text-muted opacity-50"><i class="fa-solid fa-box"></i> Stock in Packing <span class="badge text-bg-light ms-1">soon</span></span>
+                    <span class="nav-link sub-link text-muted opacity-50"><i class="fa-solid fa-layer-group"></i> Group Item <span class="badge text-bg-light ms-1">soon</span></span>
+                    <span class="nav-link sub-link text-muted opacity-50"><i class="fa-solid fa-ranking-star"></i> Issue Turn Over <span class="badge text-bg-light ms-1">soon</span></span>
+                    <span class="nav-link sub-link text-muted opacity-50"><i class="fa-solid fa-arrow-right-arrow-left"></i> Purchase Turn Over <span class="badge text-bg-light ms-1">soon</span></span>
+                    <span class="nav-link sub-link text-muted opacity-50"><i class="fa-solid fa-warehouse"></i> No Movement <span class="badge text-bg-light ms-1">soon</span></span>
+                    <span class="nav-link sub-link text-muted opacity-50"><i class="fa-solid fa-chart-line"></i> Issue Activity <span class="badge text-bg-light ms-1">soon</span></span>
+                    <span class="nav-link sub-link text-muted opacity-50"><i class="fa-solid fa-box-archive"></i> Ending Inventory <span class="badge text-bg-light ms-1">soon</span></span>
+
+                    <div class="sub-link fw-semibold small text-uppercase text-muted mt-2">Reports &mdash; Financial</div>
+                    <span class="nav-link sub-link text-muted opacity-50"><i class="fa-solid fa-receipt"></i> Ledger <span class="badge text-bg-light ms-1">soon</span></span>
+                    <span class="nav-link sub-link text-muted opacity-50"><i class="fa-solid fa-book"></i> General Journal <span class="badge text-bg-light ms-1">soon</span></span>
+                    <span class="nav-link sub-link text-muted opacity-50"><i class="fa-solid fa-scale-balanced"></i> Trial Balance <span class="badge text-bg-light ms-1">soon</span></span>
+                    <span class="nav-link sub-link text-muted opacity-50"><i class="fa-solid fa-arrow-trend-up"></i> Profit &amp; Loss <span class="badge text-bg-light ms-1">soon</span></span>
+                    <span class="nav-link sub-link text-muted opacity-50"><i class="fa-solid fa-file-invoice-dollar"></i> Balance Sheet <span class="badge text-bg-light ms-1">soon</span></span>
+                    <span class="nav-link sub-link text-muted opacity-50"><i class="fa-solid fa-coins"></i> Valuation <span class="badge text-bg-light ms-1">soon</span></span>
+
+                    <div class="sub-link fw-semibold small text-uppercase text-muted mt-2">Process</div>
+                    <span class="nav-link sub-link text-muted opacity-50"><i class="fa-solid fa-stamp"></i> Purchase Posting <span class="badge text-bg-light ms-1">soon</span></span>
+                    <span class="nav-link sub-link text-muted opacity-50"><i class="fa-solid fa-stamp"></i> Issue Posting <span class="badge text-bg-light ms-1">soon</span></span>
+                    <span class="nav-link sub-link text-muted opacity-50"><i class="fa-solid fa-stamp"></i> Adjustment Posting <span class="badge text-bg-light ms-1">soon</span></span>
+                    <span class="nav-link sub-link text-muted opacity-50"><i class="fa-solid fa-cloud-arrow-down"></i> Download <span class="badge text-bg-light ms-1">soon</span></span>
+                    <span class="nav-link sub-link text-muted opacity-50"><i class="fa-solid fa-rotate"></i> Update Account <span class="badge text-bg-light ms-1">soon</span></span>
+
+                    <div class="sub-link fw-semibold small text-uppercase text-muted mt-2">Legacy HMIS Pages</div>
                     <a asp-page="/pharmacy/Sale" class="nav-link sub-link"><i class="bi bi-bag-plus"></i> POS Sale</a>
                     <a asp-page="/pharmacy/Purchase" class="nav-link sub-link"><i class="bi bi-cart4"></i> Purchase</a>
                     <a asp-page="/pharmacy/Grn" class="nav-link sub-link"><i class="bi bi-box-seam"></i> GRN</a>
@@ -542,6 +612,125 @@
                 </div>
             </div>
 
+            <div class="menu-group">
+                <a href="javascript:void(0)" class="nav-link menu-parent">
+                    <span><i class="bi bi-hospital"></i> Hospitalization Services</span>
+                    <i class="bi bi-chevron-down"></i>
+                </a>
+                <div class="submenu">
+
+                    <div class="menu-group">
+                        <a href="javascript:void(0)" class="nav-link menu-parent">
+                            <span><i class="bi bi-file-earmark-plus"></i> Transactions</span>
+                            <i class="bi bi-chevron-down"></i>
+                        </a>
+                        <div class="submenu">
+                            <a asp-page="/hospital/Indent" class="nav-link sub-link"><i class="bi bi-receipt"></i> Indent Entry</a>
+                        </div>
+                    </div>
+
+                    <div class="menu-group">
+                        <a href="javascript:void(0)" class="nav-link menu-parent">
+                            <span><i class="bi bi-graph-up"></i> Reports</span>
+                            <i class="bi bi-chevron-down"></i>
+                        </a>
+                        <div class="submenu">
+                            <a asp-page="/hospital/Reports/AuditStatement" class="nav-link sub-link"><i class="bi bi-journal-check"></i> Audit Statement</a>
+                            <a asp-page="/hospital/Reports/TestCharges" class="nav-link sub-link"><i class="bi bi-cash-coin"></i> Test Charges Report</a>
+                            <a asp-page="/hospital/Reports/ServiceList" class="nav-link sub-link"><i class="bi bi-list-ul"></i> Service List</a>
+
+                            <div class="menu-group">
+                                <a href="javascript:void(0)" class="nav-link menu-parent">
+                                    <span><i class="bi bi-cash-stack"></i> Collection Reports</span>
+                                    <i class="bi bi-chevron-down"></i>
+                                </a>
+                                <div class="submenu">
+                                    <a asp-page="/hospital/Reports/CollectionPeriodic" class="nav-link sub-link"><i class="bi bi-calendar-range"></i> Periodic Collection Report</a>
+                                    <a asp-page="/hospital/Reports/CollectionCompany" class="nav-link sub-link"><i class="bi bi-building"></i> Company Wise Collection Report</a>
+                                    <a asp-page="/hospital/Reports/CollectionPatient" class="nav-link sub-link"><i class="bi bi-person"></i> Patient Wise Collection Report</a>
+                                    <a asp-page="/hospital/Reports/CollectionService" class="nav-link sub-link"><i class="bi bi-heart-pulse"></i> Service Wise Collection Report</a>
+                                </div>
+                            </div>
+
+                            <a asp-page="/hospital/Reports/IndentPrintout" class="nav-link sub-link"><i class="bi bi-receipt-cutoff"></i> Indent Printout</a>
+                            <a asp-page="/hospital/Reports/CompanySummary" class="nav-link sub-link"><i class="bi bi-pie-chart"></i> Company Wise Summary</a>
+                        </div>
+                    </div>
+
+                    <div class="menu-group">
+                        <a href="javascript:void(0)" class="nav-link menu-parent">
+                            <span><i class="bi bi-gear"></i> Setup</span>
+                            <i class="bi bi-chevron-down"></i>
+                        </a>
+                        <div class="submenu">
+                            <a asp-page="/Items" class="nav-link sub-link"><i class="bi bi-gear"></i> Services Setup</a>
+                            <a asp-page="/hospital/CompanyCharges" class="nav-link sub-link"><i class="bi bi-building"></i> Company wise Charges Setup</a>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+            <div class="menu-group">
+                <a href="javascript:void(0)" class="nav-link menu-parent">
+                    <span><i class="bi bi-person-lines-fill"></i> Consultancy &amp; Procedures</span>
+                    <i class="bi bi-chevron-down"></i>
+                </a>
+                <div class="submenu">
+
+                    <div class="menu-group">
+                        <a href="javascript:void(0)" class="nav-link menu-parent">
+                            <span><i class="bi bi-file-earmark-plus"></i> Transactions</span>
+                            <i class="bi bi-chevron-down"></i>
+                        </a>
+                        <div class="submenu">
+                            <a asp-page="/cnp/Indent" class="nav-link sub-link"><i class="bi bi-receipt"></i> Indent Entry</a>
+                        </div>
+                    </div>
+
+                    <div class="menu-group">
+                        <a href="javascript:void(0)" class="nav-link menu-parent">
+                            <span><i class="bi bi-graph-up"></i> Reports</span>
+                            <i class="bi bi-chevron-down"></i>
+                        </a>
+                        <div class="submenu">
+                            <a asp-page="/cnp/Reports/AuditStatement" class="nav-link sub-link"><i class="bi bi-journal-check"></i> Audit Statement</a>
+                            <a asp-page="/cnp/Reports/TestCharges" class="nav-link sub-link"><i class="bi bi-cash-coin"></i> Test Charges Report</a>
+                            <a asp-page="/cnp/Reports/ServiceList" class="nav-link sub-link"><i class="bi bi-list-ul"></i> Service/Procedure List</a>
+                            <a asp-page="/cnp/Reports/ConsultantCharges" class="nav-link sub-link"><i class="bi bi-person-vcard"></i> Consultant Charges Report</a>
+
+                            <div class="menu-group">
+                                <a href="javascript:void(0)" class="nav-link menu-parent">
+                                    <span><i class="bi bi-cash-stack"></i> Collection Reports</span>
+                                    <i class="bi bi-chevron-down"></i>
+                                </a>
+                                <div class="submenu">
+                                    <a asp-page="/cnp/Reports/CollectionPeriodic" class="nav-link sub-link"><i class="bi bi-calendar-range"></i> Periodic Collection Report</a>
+                                    <a asp-page="/cnp/Reports/CollectionCompany" class="nav-link sub-link"><i class="bi bi-building"></i> Company Wise Collection Report</a>
+                                    <a asp-page="/cnp/Reports/CollectionPatient" class="nav-link sub-link"><i class="bi bi-person"></i> Patient Wise Collection Report</a>
+                                    <a asp-page="/cnp/Reports/CollectionService" class="nav-link sub-link"><i class="bi bi-heart-pulse"></i> Service Wise Collection Report</a>
+                                </div>
+                            </div>
+
+                            <a asp-page="/cnp/Reports/IndentPrintout" class="nav-link sub-link"><i class="bi bi-receipt-cutoff"></i> Indent Printout</a>
+                            <a asp-page="/cnp/Reports/CompanySummary" class="nav-link sub-link"><i class="bi bi-pie-chart"></i> Company Wise Summary</a>
+                        </div>
+                    </div>
+
+                    <div class="menu-group">
+                        <a href="javascript:void(0)" class="nav-link menu-parent">
+                            <span><i class="bi bi-gear"></i> Setup</span>
+                            <i class="bi bi-chevron-down"></i>
+                        </a>
+                        <div class="submenu">
+                            <a asp-page="/Items" class="nav-link sub-link"><i class="bi bi-gear"></i> Test Setup</a>
+                            <a asp-page="/cnp/CompanyCharges" class="nav-link sub-link"><i class="bi bi-building"></i> Test Charges Setup</a>
+                            <a asp-page="/hr/Consultants" class="nav-link sub-link"><i class="bi bi-person-vcard"></i> Consultant Setup</a>
+                            <a asp-page="/cnp/ConsultantFeeSetup" class="nav-link sub-link"><i class="bi bi-cash-coin"></i> Consultant Fee Setup</a>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
             <div class="menu-group">
                 <a href="javascript:void(0)" class="nav-link menu-parent">
                     <span><i class="bi bi-person-badge"></i> HR &amp; Payroll</span>

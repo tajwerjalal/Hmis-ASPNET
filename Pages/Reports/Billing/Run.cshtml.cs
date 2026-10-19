@@ -60,6 +60,9 @@ namespace HmisWeb.Pages.Reports.Billing
         public BillingReportService.Definition Def { get; private set; }
         public List<(string Id, string Name)> Companies { get; private set; } = new List<(string, string)>();
         public List<(string Id, string Name)> Departments { get; private set; } = new List<(string, string)>();
+        /// <summary>Set when the submitted criteria matched nothing - the view shows a dialog.</summary>
+        public bool NoData { get; private set; }
+
         public string Message { get; private set; }
 
         public async Task OnGetAsync()
@@ -84,7 +87,15 @@ namespace HmisWeb.Pages.Reports.Billing
                 EndPage = Input.EndPage < 1 ? 9999 : Input.EndPage,
             };
 
-            var bytes = await _reports.RenderAsync(Def, criteria, BuildContext());
+            var result = await _reports.RenderAsync(Def, criteria, BuildContext());
+            if (result.Rows == 0)
+            {
+                NoData = true;
+                Message = "No records matched the selected criteria for " + Def.Title
+                        + ". Widen the date range, or clear the company / department / IPD number filter.";
+                return Page();
+            }
+            var bytes = result.Pdf;
             var name = Def.Code + "-" + (Def.Modes.Length > 1 ? "M" + Input.Mode : "S")
                        + "-" + DateTime.Now.ToString("yyyyMMddHHmmss") + ".pdf";
             return File(bytes, "application/pdf", name);

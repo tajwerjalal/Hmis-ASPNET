@@ -1,0 +1,123 @@
+@page
+@model HmisWeb.Pages.Pharmacy.BalancesModel
+@{
+    ViewData["Title"] = "Pharmacy Open Balance";
+}
+
+<h4 class="mb-3"><i class="fa-solid fa-scale-balanced"></i> Open Balance</h4>
+
+<form method="post" class="row g-2 mb-3 align-items-end">
+    <div class="col-auto">
+        <label class="form-label small mb-1">From</label>
+        <input type="date" asp-for="From" class="form-control form-control-sm" />
+    </div>
+    <div class="col-auto">
+        <label class="form-label small mb-1">To</label>
+        <input type="date" asp-for="To" class="form-control form-control-sm" />
+    </div>
+    <div class="col-md-3">
+        <label class="form-label small mb-1">Account</label>
+        <input asp-for="Search" class="form-control form-control-sm" placeholder="Code or name..." />
+    </div>
+    <div class="col-auto">
+        <button type="submit" class="btn btn-sm btn-primary"><i class="fa-solid fa-filter"></i> Apply</button>
+    </div>
+</form>
+
+<div class="row g-2 mb-3">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm"><div class="card-body py-2">
+            <div class="small text-muted">Receivable (Debit &gt; Credit)</div>
+            <div class="fs-5 fw-semibold text-success">@Model.Summary.TotalReceivable.ToString("N2")</div>
+        </div></div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm"><div class="card-body py-2">
+            <div class="small text-muted">Payable (Credit &gt; Debit)</div>
+            <div class="fs-5 fw-semibold text-danger">@Model.Summary.TotalPayable.ToString("N2")</div>
+        </div></div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm"><div class="card-body py-2">
+            <div class="small text-muted">Accounts with postings</div>
+            <div class="fs-5 fw-semibold">@Model.Summary.AccountCount</div>
+        </div></div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header bg-white">
+        <strong>Account balances</strong>
+        <span class="text-muted small ms-2">@Model.FromDate.ToString("dd/MM/yyyy") &ndash; @Model.ToDate.ToString("dd/MM/yyyy")</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive" style="max-height:70vh; overflow-y:auto;">
+            <table class="table table-sm table-striped table-hover mb-0 align-middle">
+                <thead class="table-light" style="position:sticky; top:0; z-index:1;">
+                    <tr>
+                        <th>Code</th>
+                        <th>Account</th>
+                        <th class="text-end">Debit</th>
+                        <th class="text-end">Credit</th>
+                        <th class="text-end">Balance</th>
+                        <th>Type</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!Model.Rows.Any())
+                    {
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-4">
+                                No account postings for this period.
+                            </td>
+                        </tr>
+                    }
+                    @foreach (var r in Model.Rows)
+                    {
+                        <tr>
+                            <td><code>@r.AccountCode</code></td>
+                            <td>@r.AccountName</td>
+                            <td class="text-end">@r.Debit.ToString("N2")</td>
+                            <td class="text-end">@r.Credit.ToString("N2")</td>
+                            <td class="text-end fw-semibold @(r.Balance >= 0 ? "text-success" : "text-danger")">
+                                @r.Balance.ToString("N2")
+                            </td>
+                            <td>
+                                @if (r.BalanceType == "Receivable")
+                                {
+                                    <span class="badge text-bg-success">Receivable</span>
+                                }
+                                else if (r.BalanceType == "Payable")
+                                {
+                                    <span class="badge text-bg-danger">Payable</span>
+                                }
+                                else
+                                {
+                                    <span class="badge text-bg-light">Nil</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+                @if (Model.Rows.Any())
+                {
+                    <tfoot class="table-light fw-semibold">
+                        <tr>
+                            <td colspan="2">Total</td>
+                            <td class="text-end">@Model.TotalDebit.ToString("N2")</td>
+                            <td class="text-end">@Model.TotalCredit.ToString("N2")</td>
+                            <td class="text-end">@((Model.TotalDebit - Model.TotalCredit).ToString("N2"))</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                }
+            </table>
+        </div>
+    </div>
+</div>
+
+<p class="text-muted small mt-3 mb-0">
+    Only accounts that actually carry postings are listed. Rolling these up the account tree would
+    double count, because each posting already lands on its parent accounts as well.
+    Ledger figures cover the migrated sample period, not the store's full history.
+</p>

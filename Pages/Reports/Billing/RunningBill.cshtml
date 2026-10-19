@@ -11,10 +11,37 @@
     At least one criterion is required.
 </p>
 
-@if (!string.IsNullOrEmpty(Model.Message))
+
+@* No records matched - show a SweetAlert instead of returning a blank PDF.
+   SweetAlert2 comes from cdnjs like the other CDN assets; if it fails to load the
+   inline bootstrap fallback below still surfaces the message. *@
+@if (Model.NoData)
 {
-    <div class="alert alert-warning py-2">@Model.Message</div>
+    <div class="alert alert-warning py-2 mb-3">
+        <i class="bi bi-exclamation-triangle me-1"></i>@Model.Message
+    </div>
 }
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert2/11.10.1/sweetalert2.all.min.js"></script>
+<script>
+    (function () {
+        var msg = @(Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Message ?? "")));
+        if (!msg) { return; }
+        var show = function () {
+            if (window.Swal && window.Swal.fire) {
+                window.Swal.fire({
+                    icon: 'warning',
+                    title: 'No records found',
+                    text: msg,
+                    confirmButtonText: 'OK',
+                    customClass: { popup: 'hmis-swal' }
+                });
+            }
+        };
+        if (window.Swal) { show(); }
+        else { window.addEventListener('load', function () { show(); }); }
+    })();
+</script>
 
 <form method="post" asp-page-handler="Generate">
     <div class="card mb-3">
