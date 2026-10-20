@@ -1,0 +1,27 @@
+@page
+@model HmisWeb.Pages.Cashier.VouchersListModel
+@{
+    ViewData["Title"] = "Vouchers List";
+}
+<div class="container-fluid mt-3">
+    <h3><i class="bi bi-list-ul"></i> Vouchers List</h3>
+    <form method="get" class="row g-2 mb-3">
+        <div class="col-md-2"><label class="form-label">From</label><input asp-for="FromDate" type="date" class="form-control" /></div>
+        <div class="col-md-2"><label class="form-label">To</label><input asp-for="ToDate" type="date" class="form-control" /></div>
+        <div class="col-md-2 align-self-end"><button type="submit" class="btn btn-primary">Filter</button></div>
+    </form>
+    <table class="table table-sm table-striped">
+        <thead><tr><th>Vou No</th><th>Vou Date</th><th>Type</th><th>Tr No</th><th>Tr Date</th><th>RegNo</th><th class="text-end">Total</th><th>User</th></tr></thead>
+        <tbody>
+            @foreach (var v in Model.Vouchers)
+            {
+                <tr>
+                    <td>@v.VouNo</td><td>@v.VouDate.ToString("dd-MM-yyyy")</td><td>@v.TrType</td>
+                    <td>@v.TrNo</td><td>@v.TrDate.ToString("dd-MM-yyyy")</td><td>@v.RegNo</td>
+                    <td class="text-end">@v.TotalAmt.ToString("N2")</td><td>@v.UserId</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <a asp-page="/cashier" class="btn btn-secondary">Back</a>
+</div>

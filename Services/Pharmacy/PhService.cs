@@ -948,8 +948,10 @@ namespace HmisWeb.Services.Pharmacy
         // Issues are stored in two tables (PHPURCHASE for store-to-store,
         // PHSALE for department issues), so the next number must consider
         // both to avoid a collision.
+        // A store-to-store issue belongs to the ISSUING store, which is
+        // SourceStoreId - StoreId is the receiving store.
         var purNumbers = await _db.PhPurchases.AsNoTracking()
-            .Where(p => p.StoreId == storeId && p.SourceStoreId.HasValue)
+            .Where(p => p.SourceStoreId == storeId)
             .Select(p => p.DocNo)
             .ToListAsync();
 
@@ -974,15 +976,18 @@ namespace HmisWeb.Services.Pharmacy
     /// Created: 19-Oct-2026 17:30
     /// </summary>
     public async Task<List<PhIssueRow>> GetIssuesAsync(
-        int storeId, string? search, DateTime? from, DateTime? to, int maxRows = 500)
+        int storeId, string? search, DateTime? from, DateTime? to, int maxRows = 300)
     {
         var rows = new List<PhIssueRow>();
 
         // --- store-to-store issues (PHPURCHASE with SourceStoreId) ---
+        // An issue belongs to the ISSUING store (SourceStoreId), so that is
+        // what the Store filter matches. Matching StoreId as well would make
+        // the same document appear under both stores.
         var purQ = _db.PhPurchases.AsNoTracking()
             .Where(p => !p.Retired && p.SourceStoreId.HasValue);
 
-        if (storeId > 0) purQ = purQ.Where(p => p.SourceStoreId == storeId || p.StoreId == storeId);
+        if (storeId > 0) purQ = purQ.Where(p => p.SourceStoreId == storeId);
         if (from.HasValue) purQ = purQ.Where(p => p.DocDate >= from.Value.Date);
         if (to.HasValue) purQ = purQ.Where(p => p.DocDate <= to.Value.Date);
 
@@ -1018,9 +1023,9 @@ namespace HmisWeb.Services.Pharmacy
                 StoreName = stores.TryGetValue(h.StoreId, out var sn) ? sn : "",
                 SourceStoreId = h.SourceStoreId,
                 SourceStoreName = h.SourceStoreId.HasValue && stores.TryGetValue(h.SourceStoreId.Value, out var ss) ? ss : "",
-                Destination = "Store",
-                DestinationName = stores.TryGetValue(h.StoreId, out var dn) ? dn : "",
-                PatientName = h.VendorName ?? "",
+                Destination = stores.TryGetValue(h.StoreId, out var dn) ? dn : "Store",
+                DestinationName = stores.TryGetValue(h.StoreId, out var dn2) ? dn2 : "",
+                PatientName = h.SourceStoreId.HasValue && stores.TryGetValue(h.SourceStoreId.Value, out var ss2) ? ss2 : (h.VendorName ?? ""),
                 GrossAmount = h.GrossAmount,
                 DiscountAmount = h.DiscountAmount,
                 TaxAmount = h.TaxAmount,
@@ -1032,8 +1037,10 @@ namespace HmisWeb.Services.Pharmacy
         }
 
         // --- department issues (PHSALE with PatientType I/O/W) ---
-        var salQ = _db.PhSales.AsNoTracking()
-            .Where(s => !s.Retired && s.PatientType != "O");
+        // Legacy sal_hipd / sal_hopd / sal_ward all wrote SAL_MAST with a
+        // PT_TYPE of I, O or W, so OPD rows belong here too - excluding 'O'
+        // would silently hide every sal_hopd document.
+        var salQ = _db.PhSales.AsNoTracking().Where(s => !s.Retired);
 
         if (storeId > 0) salQ = salQ.Where(s => s.StoreId == storeId);
         if (from.HasValue) salQ = salQ.Where(s => s.SlipDate >= from.Value.Date);

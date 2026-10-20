@@ -1,0 +1,45 @@
+@page
+@model HmisWeb.Pages.Cashier.CashAuditModel
+@{
+    ViewData["Title"] = "Cash Audit (Un-posted)";
+}
+<div class="container-fluid mt-3">
+    <h3><i class="bi bi-journal-check"></i> Cash Audit Report (Un-posted)</h3>
+
+    <form method="get" class="row g-2 mb-3">
+        <div class="col-md-2">
+            <label class="form-label">From</label>
+            <input asp-for="FromDate" type="date" class="form-control" />
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">To</label>
+            <input asp-for="ToDate" type="date" class="form-control" />
+        </div>
+        <div class="col-md-2 align-self-end">
+            <button type="submit" class="btn btn-primary">Filter</button>
+        </div>
+    </form>
+
+    <h5>Receipts (@Model.Receipts.Count) — Total: @Model.ReceiptTotal.ToString("N2")</h5>
+    <table class="table table-sm table-striped">
+        <thead><tr><th>TrNo</th><th>Date</th><th>RegNo</th><th>Mode</th><th class="text-end">Total</th><th>User</th></tr></thead>
+        <tbody>
+            @foreach (var r in Model.Receipts)
+            {
+                <tr><td>@r.TrNo</td><td>@r.TrDate.ToString("dd-MM-yyyy")</td><td>@r.RegNo</td><td>@r.Mode</td><td class="text-end">@r.TotalAmt.ToString("N2")</td><td>@r.UserId</td></tr>
+            }
+        </tbody>
+    </table>
+
+    <h5>Payments (@Model.Payments.Count) — Total: @Model.PaymentTotal.ToString("N2")</h5>
+    <table class="table table-sm table-striped">
+        <thead><tr><th>P.V. No.</th><th>Date</th><th>RegNo</th><th class="text-end">Total</th><th>User</th></tr></thead>
+        <tbody>
+            @foreach (var p in Model.Payments)
+            {
+                <tr><td>@p.TrNo</td><td>@p.TrDate.ToString("dd-MM-yyyy")</td><td>@p.RegNo</td><td class="text-end">@p.TotalAmt.ToString("N2")</td><td>@p.UserId</td></tr>
+            }
+        </tbody>
+    </table>
+    <a asp-page="/cashier" class="btn btn-secondary">Back</a>
+</div>

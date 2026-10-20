@@ -1,0 +1,51 @@
+@page
+@model HmisWeb.Pages.Cashier.CounterSetupModel
+@{
+    ViewData["Title"] = "Counter Setup";
+}
+<div class="container mt-4">
+    <h3><i class="bi bi-hdd-stack"></i> Cash Counters (Setup)</h3>
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage)) { <div class="alert alert-danger">@Model.ErrorMessage</div> }
+    @if (!string.IsNullOrEmpty(Model.Success)) { <div class="alert alert-success">@Model.Success</div> }
+
+    <form method="post" asp-page-handler="Save" class="row g-2 mb-3">
+        <input type="hidden" asp-for="Input.Id" />
+        <div class="col-md-2">
+            <label class="form-label">Code</label>
+            <input asp-for="Input.Code" class="form-control" />
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">Description</label>
+            <input asp-for="Input.Desc" class="form-control" required />
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Status</label>
+            <select asp-for="Input.Status" class="form-select">
+                <option value="A">Active</option>
+                <option value="I">Inactive</option>
+            </select>
+        </div>
+        <div class="col-md-2 align-self-end">
+            <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+    </form>
+
+    <table class="table table-sm table-striped">
+        <thead><tr><th>Code</th><th>Description</th><th>Next No</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+            @foreach (var c in Model.Items)
+            {
+                <tr>
+                    <td>@c.CCode</td><td>@c.Desc</td><td>@c.NextNo</td><td>@c.Status</td>
+                    <td>
+                        <a asp-page="/cashier/countersetup" asp-route-id="@c.CCode" class="btn btn-sm btn-outline-secondary">Edit</a>
+                        <form method="post" asp-page-handler="Delete" asp-route-id="@c.CCode" style="display:inline">
+                            <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete?')">Del</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+    <a asp-page="/cashier" class="btn btn-secondary">Back</a>
+</div>

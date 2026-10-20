@@ -19,14 +19,14 @@ namespace HmisWeb.Models.Pharmacy
     /// DOCTYPE is one of:
     ///   OPENING      - migrated opening position (legacy OP_BAL / ONHAND)
     ///   PURCHASE     - receipt in (supplier purchase or main-store issue)
-    ///   SALE         - sale out
+    ///   ISSUE        - out of the issuing store for a store-to-store transfer
+    ///   SALE         - sale out / issue out to a hospital department
     ///   SALERETURN   - retail sale return in
     ///   PURBASERETURN- purchase return out
     ///   ADJUST       - manual stock correction
     ///
-    /// A movement to a sub store is written as TWO rows: a PURCHASE into the
-    /// receiving store and, when the issuing store is tracked, a matching
-    /// SALE-like issue out of the issuing store.
+    /// A movement to a sub store is written as TWO rows: an ISSUE out of the
+    /// issuing store and a PURCHASE into the receiving store.
     /// </summary>
     public class PhStockMovement
     {
@@ -40,7 +40,7 @@ namespace HmisWeb.Models.Pharmacy
 
         public DateTime MoveDate { get; set; }
 
-        /// <summary>OPENING | PURCHASE | SALE | SALERETURN | PURBASERETURN | ADJUST.
+        /// <summary>OPENING | PURCHASE | ISSUE | SALE | SALERETURN | PURBASERETURN | ADJUST.
         /// VARCHAR(20) - "PURBASERETURN" is 13 characters.</summary>
         [Required, StringLength(20)]
         public string DocType { get; set; } = "";

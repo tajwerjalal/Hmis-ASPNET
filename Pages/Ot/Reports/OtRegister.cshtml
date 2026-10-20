@@ -1,0 +1,200 @@
+@page "/ot/Reports/OtRegister"
+@model HmisWeb.Pages.Ot.Reports.OtRegisterModel
+@{
+    ViewData["Title"] = "OT Register";
+}
+
+<div class="d-flex justify-content-between align-items-end mb-3">
+    <div>
+        <h4 class="mb-0 fw-bold"><i class="bi bi-journal-text me-2 text-primary"></i>OT Register</h4>
+        <div class="text-secondary small">All theatre cases in the period &middot; patient, surgeon, times and outcome</div>
+    </div>
+    <a asp-page="/Ot/Index" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>OT Menu</a>
+</div>
+
+<form method="get" class="card shadow-sm border-0 mb-3">
+    <div class="card-body py-2">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-2">
+                <label class="form-label small mb-1">Date from</label>
+                <input asp-for="FromDate" type="date" class="form-control form-control-sm" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-1">Date to</label>
+                <input asp-for="ToDate" type="date" class="form-control form-control-sm" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-1">Theatre</label>
+                <select asp-for="TheatreId" asp-items="Model.TheatreList" class="form-select form-select-sm">
+                    <option value="">-- all --</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-1">Status</label>
+                <select asp-for="Status" class="form-select form-select-sm">
+                    <option value="">-- all --</option>
+                    <option value="Scheduled" selected="@(Model.Status == "Scheduled")">Scheduled</option>
+                    <option value="In Theatre" selected="@(Model.Status == "In Theatre")">In Theatre</option>
+                    <option value="Completed" selected="@(Model.Status == "Completed")">Completed</option>
+                    <option value="Cancelled" selected="@(Model.Status == "Cancelled")">Cancelled</option>
+                    <option value="Postponed" selected="@(Model.Status == "Postponed")">Postponed</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-1">Case type</label>
+                <select asp-for="CaseType" class="form-select form-select-sm">
+                    <option value="">-- all --</option>
+                    <option value="Elective" selected="@(Model.CaseType == "Elective")">Elective</option>
+                    <option value="Emergency" selected="@(Model.CaseType == "Emergency")">Emergency</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search me-1"></i>View</button>
+                <a asp-page="/Ot/Reports/OtRegister" asp-page-handler="Export" asp-route-FromDate="@Model.FromDate?.ToString("yyyy-MM-dd")"
+                   asp-route-ToDate="@Model.ToDate?.ToString("yyyy-MM-dd")" asp-route-TheatreId="@Model.TheatreId"
+                   asp-route-Status="@Model.Status" asp-route-CaseType="@Model.CaseType"
+                   class="btn btn-outline-success btn-sm"><i class="bi bi-filetype-csv me-1"></i>CSV</a>
+                @if (Model.Rows.Any())
+                {
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="otPrint()">
+                        <i class="bi bi-printer me-1"></i>Print
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
+</form>
+
+<div class="card shadow-sm border-0 mb-3">
+    <div class="card-body py-2 d-flex flex-wrap gap-3 small">
+        <span><i class="bi bi-calendar-range me-1 text-primary"></i><strong>@Model.PeriodText</strong></span>
+        <span>Cases: <strong>@Model.Rows.Count</strong></span>
+        <span>Completed: <strong class="text-success">@Model.CompletedCount</strong></span>
+        <span>Cancelled: <strong class="text-danger">@Model.CancelledCount</strong></span>
+        <span>Emergency: <strong>@Model.EmergencyCount</strong></span>
+        @if (Model.TotalMinutes.HasValue)
+        {
+            <span>Total OT minutes: <strong>@Model.TotalMinutes.Value</strong></span>
+        }
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive" id="otRegTable" style="max-height:70vh;overflow:auto">
+            <table class="table table-sm table-striped mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Date</th>
+                        <th>Slot</th>
+                        <th>Case No</th>
+                        <th>PHN</th>
+                        <th>Patient</th>
+                        <th>Theatre</th>
+                        <th>Procedure</th>
+                        <th>Surgeon</th>
+                        <th>Anaesthetist</th>
+                        <th>Type</th>
+                        <th>Anaesthesia</th>
+                        <th class="text-center">Actual</th>
+                        <th class="text-end">Min</th>
+                        <th class="text-center">Status</th>
+                        <th>Outcome</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @if (Model.Rows.Count == 0)
+                {
+                    <tr><td colspan="15" class="text-center text-secondary py-5">No OT cases in this period.</td></tr>
+                }
+                else
+                {
+                    foreach (var r in Model.Rows)
+                    {
+                        <tr>
+                            <td class="text-nowrap">@r.Date.ToString("dd-MMM-yy")</td>
+                            <td>@(string.IsNullOrEmpty(r.SlotTime) ? "—" : r.SlotTime)</td>
+                            <td class="text-nowrap">@r.CaseNo</td>
+                            <td>@r.Phn</td>
+                            <td>@r.PatientName</td>
+                            <td>@r.Theatre</td>
+                            <td>
+                                @r.Procedure
+                                @if (!string.IsNullOrEmpty(r.BillNo))
+                                {
+                                    <div class="text-secondary small">Bill: @r.BillNo</div>
+                                }
+                                @if (r.Status == "Cancelled" && !string.IsNullOrEmpty(r.CancelReason))
+                                {
+                                    <div class="text-danger small">@r.CancelReason</div>
+                                }
+                            </td>
+                            <td>@r.Surgeon</td>
+                            <td>@r.Anesthetist</td>
+                            <td>@r.CaseType</td>
+                            <td>@r.Anesthesia</td>
+                            <td class="text-center text-nowrap small">
+                                @if (r.ActualStart.HasValue)
+                                {
+                                    @r.ActualStart.Value.ToString("dd-MMM HH:mm")
+                                    <text> – </text>
+                                    @(r.ActualEnd?.ToString("HH:mm") ?? "?")
+                                }
+                                else
+                                {
+                                    <span class="text-secondary">—</span>
+                                }
+                            </td>
+                            <td class="text-end">@(r.Minutes?.ToString() ?? "—")</td>
+                            <td class="text-center">
+                                @switch (r.Status)
+                                {
+                                    case "Completed":
+                                        <span class="badge bg-success">Completed</span>
+                                        break;
+                                    case "Cancelled":
+                                        <span class="badge bg-danger">Cancelled</span>
+                                        break;
+                                    case "In Theatre":
+                                        <span class="badge bg-info text-dark">In Theatre</span>
+                                        break;
+                                    default:
+                                        <span class="badge bg-secondary">@r.Status</span>
+                                        break;
+                                }
+                            </td>
+                            <td>@r.Outcome</td>
+                        </tr>
+                    }
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function otPrint() {
+            var w = window.open('', '_blank', 'width=1200,height=1200');
+            if (!w) { alert('Allow pop-ups to print the report.'); return; }
+            var css = 'body{font-family:Segoe UI,Arial,sans-serif;font-size:8pt;padding:12mm;color:#000}' +
+                      'table{border-collapse:collapse;width:100%;font-size:7.5pt}' +
+                      'th,td{border:1px solid #999;padding:2px 4px}' +
+                      'th{background:#f0f0f0;text-align:left}' +
+                      'h1{font-size:13pt;text-align:center;margin:0 0 2px}' +
+                      '.sub{text-align:center;color:#555;font-size:9pt;margin-bottom:8px}' +
+                      'thead{display:table-header-group}' +
+                      'tr{page-break-inside:avoid}' +
+                      '@@page{margin:10mm}';
+            w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>OT Register</title><style>' + css + '</style></head><body>');
+            w.document.write('<h1>OT REGISTER</h1>');
+            w.document.write('<div class="sub">Operation Theatre &nbsp;|&nbsp; @Model.PeriodText &nbsp;|&nbsp; @Model.Rows.Count case(s)</div>');
+            w.document.write(document.getElementById('otRegTable').innerHTML);
+            w.document.write('</body></html>');
+            w.document.close();
+            w.focus();
+            w.print();
+        }
+    </script>
+}

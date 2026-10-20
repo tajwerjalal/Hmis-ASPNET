@@ -1,403 +1,146 @@
-@page "/cashier/receipt"
+@page
 @model HmisWeb.Pages.Cashier.ReceiptModel
-@using HmisWeb.Data.Enums
 @{
-    ViewData["Title"] = "Cashier Receipts";
+    ViewData["Title"] = "Cash Receipts";
 }
 
-<style>
-    .print-sheet { max-width: 800px; margin: 0 auto; }
-    .receipt-thermal { display: none; }
-    body.print-a4 .no-print-zone { display: none !important; }
-    body.print-a4 .print-sheet { display: block; max-width: none; }
-    .receipt-ticket { border: 1.5px dashed #444; padding: 4mm 6mm; height: 136mm; box-sizing: border-box; page-break-inside: avoid; position: relative; }
-    .copy-badge { position: absolute; top: 4mm; right: 6mm; font-size: 10px; letter-spacing: 2px; font-weight: 700; color: #6c757d; border: 1px solid #989fa5; padding: 1px 7px; border-radius: 3px; }
-    .perforation { border-top: 2px dashed #999; margin: 4mm 0; }
-    .ticket-body { font-size: 13px; }
-    .ticket-head { text-align: center; border-bottom: 1px solid #444; padding-bottom: 3mm; margin-bottom: 3mm; }
-    .ticket-row { display: flex; justify-content: space-between; padding: 1px 0; }
-    .ticket-total { display: flex; justify-content: space-between; border-top: 1px solid #444; padding-top: 2mm; margin-top: 2mm; font-weight: 700; }
-    .ticket-foot { text-align: center; color: #6c757d; font-size: 11px; margin-top: 3mm; }
-    .change-positive { color: #198754; font-weight: 700; }
-    .change-negative { color: #dc3545; font-weight: 700; }
-    .pay-validation-msg { color: #dc3545; font-size: 12px; margin-top: 4px; display: none; }
-    @@media print {
-        .no-print { display: none !important; }
-        .no-print-zone { display: none !important; }
-        .print-sheet { display: block; max-width: none; }
-    }
-</style>
-
-<div class="no-print-zone">
-    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-        <div>
-            <h4 class="mb-0 fw-bold"><i class="bi bi-cash-register me-1 text-success"></i>Cashier - Cash Receipts</h4>
-            <div class="text-secondary small">All unpaid indents from every department appear below. Select one to receive the amount and mark it as paid.</div>
-        </div>
-        <div class="d-flex gap-2 align-items-center flex-wrap">
-            <form method="get" class="d-flex gap-2 align-items-center">
-                <input asp-for="Q" class="form-control form-control-sm" placeholder="Indent # / PHN / invoice..." style="width:220px" />
-                <input asp-for="SessionDate" type="date" class="form-control form-control-sm" style="width:150px" />
-                <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search me-1"></i>Find</button>
-            </form>
-        </div>
-    </div>
+<div class="container-fluid mt-3">
+    <h3><i class="bi bi-receipt"></i> Cash Receipts Transaction</h3>
 
     @if (!string.IsNullOrEmpty(Model.ErrorMessage))
     {
-        <div class="alert alert-danger py-2"><i class="bi bi-exclamation-triangle me-1"></i>@Model.ErrorMessage</div>
+        <div class="alert alert-danger">@Model.ErrorMessage</div>
     }
-
-    @if (Model.Receipt != null)
+    @if (!string.IsNullOrEmpty(Model.Success))
     {
-        <div class="card mb-3 border-success no-print">
-            <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-check-circle me-1 text-success"></i>Payment Received - Receipt @(Model.Receipt.InvoiceNumber ?? ("#" + Model.Receipt.IndentId))</span>
-                <span class="badge bg-success">@Model.Receipt.Total.ToString("N2")</span>
-            </div>
-            <div class="card-body">
-                <div class="d-flex gap-2 flex-wrap">
-                    <button type="button" onclick="printA4()" class="btn btn-primary"><i class="bi bi-printer me-1"></i> Print A4 (Office + Patient copy)</button>
-                    <button type="button" onclick="printThermal()" class="btn btn-dark"><i class="bi bi-receipt me-1"></i> Print Thermal 80mm</button>
-                    <a asp-page-handler="Pdf" asp-route-id="@Model.Receipt.IndentId" class="btn btn-outline-danger"><i class="bi bi-file-earmark-pdf me-1"></i> Download PDF</a>
-                    <a asp-page="/Cashier/Receipt" class="btn btn-outline-secondary">Back to receipts</a>
-                </div>
-            </div>
-        </div>
+        <div class="alert alert-success">@Model.Success</div>
     }
 
-    <div class="row g-3 mb-3">
-        <div class="col-md-3">
-            <div class="card text-center py-3">
-                <div class="text-secondary small">Pending indents</div>
-                <div class="fs-4 fw-bold text-warning">@Model.PendingIndents.Count</div>
+    <form method="post" asp-page-handler="Save">
+        <div class="row g-2 mb-3">
+            <div class="col-md-2">
+                <label class="form-label">Date</label>
+                <input asp-for="Input.TrDate" type="date" class="form-control" />
+            </div>
+            <div class="col-md-1">
+                <label class="form-label">Time</label>
+                <input asp-for="Input.TrTime" class="form-control" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Type</label>
+                <input asp-for="Input.Type" class="form-control" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Register No.</label>
+                <input asp-for="Input.RegNo" type="number" class="form-control" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Mode</label>
+                <select asp-for="Input.Mode" class="form-select">
+                    <option value="1">Cash</option>
+                    <option value="2">Card</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Reference</label>
+                <input asp-for="Input.Reference" class="form-control" />
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card text-center py-3">
-                <div class="text-secondary small">Pending value</div>
-                <div class="fs-4 fw-bold text-warning">@Model.PendingTotal.ToString("N2")</div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card text-center py-3">
-                <div class="text-secondary small">Receipts today</div>
-                <div class="fs-4 fw-bold text-success">@Model.PaidToday.Count</div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card text-center py-3">
-                <div class="text-secondary small">Collected today</div>
-                <div class="fs-4 fw-bold text-success">@Model.CollectedToday.ToString("N2")</div>
-            </div>
-        </div>
-    </div>
 
-    <div class="card mb-3">
-        <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
-            <span><i class="bi bi-inbox me-1 text-primary"></i>Unpaid indents / invoices</span>
-            <span class="badge bg-primary">@Model.PendingIndents.Count</span>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-sm table-hover align-middle mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Indent #</th>
-                            <th>Patient</th>
-                            <th>Visit #</th>
-                            <th>Department</th>
-                            <th>Service / Procedure</th>
-                            <th class="text-end">Amount</th>
-                            <th class="text-end">Raised</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @if (!Model.PendingIndents.Any())
-                        {
-                            <tr><td colspan="8" class="text-center text-muted py-4">No unpaid indents. New indents from any department will appear here automatically.</td></tr>
-                        }
-                        @foreach (var x in Model.PendingIndents)
-                        {
-                            <tr>
-                                <td>
-                                    <span class="fw-semibold">@(x.InvoiceNumber ?? ("#" + x.Id))</span>
-                                    <div class="small text-muted">@x.BillType</div>
-                                </td>
-                                <td>
-                                    <span class="fw-semibold">@x.PatientName</span>
-                                    <div class="small text-muted">PHN @(x.Phn?.ToString() ?? "-")</div>
-                                </td>
-                                <td>@(x.VisitId?.ToString() ?? "-")</td>
-                                <td>@(string.IsNullOrEmpty(x.DepartmentName) ? "-" : x.DepartmentName)</td>
-                                <td class="small text-secondary">@(string.IsNullOrEmpty(x.ItemSummary) ? "-" : x.ItemSummary)</td>
-                                <td class="text-end fw-semibold">@x.Amount.ToString("N2")</td>
-                                <td class="text-end small text-muted text-nowrap">@x.CreatedAt?.ToString("dd/MM HH:mm")</td>
-                                <td class="text-end">
-                                    <button type="button" class="btn btn-sm btn-success"
-                                            data-bs-toggle="modal" data-bs-target="#payModal"
-                                            data-bill-id="@x.Id"
-                                            data-invoice="@(x.InvoiceNumber ?? ("#" + x.Id))"
-                                            data-patient="@x.PatientName"
-                                            data-phn="@(x.Phn?.ToString() ?? "-")"
-                                            data-visit="@(x.VisitId?.ToString() ?? "-")"
-                                            data-department="@(string.IsNullOrEmpty(x.DepartmentName) ? "-" : x.DepartmentName)"
-                                            data-amount="@x.Amount.ToString("0.00")">
-                                        <i class="bi bi-cash-coin me-1"></i>Receive
-                                    </button>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
+        <div class="row g-2 mb-3">
+            <div class="col-md-2">
+                <label class="form-label">Card Name</label>
+                <input asp-for="Input.CardName" class="form-control" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Card No</label>
+                <input asp-for="Input.CardNo" class="form-control" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Card Valid</label>
+                <input asp-for="Input.CardValid" type="date" class="form-control" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Approval No</label>
+                <input asp-for="Input.CardApprNo" class="form-control" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Discount</label>
+                <input asp-for="Input.CDisc" type="number" step="0.01" class="form-control" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Discount By</label>
+                <input asp-for="Input.DiscBy" class="form-control" />
             </div>
         </div>
-    </div>
 
-    <div class="card">
-        <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
-            <span><i class="bi bi-clock-history me-1 text-success"></i>Receipts on @Model.SessionDate?.ToString("dd MMM yyyy")</span>
-            <span class="badge bg-success">@Model.CollectedToday.ToString("N2")</span>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-sm table-hover align-middle mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Receipt #</th>
-                            <th>Patient</th>
-                            <th>Visit #</th>
-                            <th>Department</th>
-                            <th>Method</th>
-                            <th class="text-end">Amount</th>
-                            <th class="text-end">Time</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @if (!Model.PaidToday.Any())
-                        {
-                            <tr><td colspan="8" class="text-center text-muted py-4">No receipts on this date.</td></tr>
-                        }
-                        @foreach (var x in Model.PaidToday)
-                        {
-                            <tr>
-                                <td>@(x.InvoiceNumber ?? ("#" + x.Id))</td>
-                                <td>@x.PatientName</td>
-                                <td>@(x.VisitId?.ToString() ?? "-")</td>
-                                <td>@(string.IsNullOrEmpty(x.DepartmentName) ? "-" : x.DepartmentName)</td>
-                                <td>@x.PaymentMethod?.ToString()</td>
-                                <td class="text-end fw-semibold">@x.Amount.ToString("N2")</td>
-                                <td class="text-end small text-muted">@x.PaidAt?.ToString("HH:mm")</td>
-                                <td class="text-end">
-                                    <a asp-page="/Cashier/Receipt" asp-route-PaidId="@x.Id" class="btn btn-sm btn-outline-secondary"><i class="bi bi-printer me-1"></i>Receipt</a>
-                                    <a asp-page-handler="Pdf" asp-route-id="@x.Id" class="btn btn-sm btn-outline-danger"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal fade" id="payModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog">
-            <form method="post" asp-page-handler="Pay" class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title"><i class="bi bi-cash-coin me-1 text-success"></i>Receive Payment</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <input type="hidden" asp-for="IndentId" id="payIndentId" />
-                    <div class="border rounded p-2 mb-3 bg-light">
-                        <div class="row small">
-                            <div class="col-6"><b>Indent:</b> <span id="payInvoice"></span></div>
-                            <div class="col-6 text-end"><b>Visit #:</b> <span id="payVisit"></span></div>
-                        </div>
-                        <div class="mt-1"><b>Patient:</b> <span id="payPatient"></span> &middot; PHN <span id="payPhn"></span></div>
-                        <div class="small text-secondary">Department: <span id="payDept"></span></div>
-                    </div>
-                    <div class="row align-items-center g-2 mb-3">
-                        <div class="col-7"><div class="text-muted small">Total to receive</div><div class="fs-3 fw-bold text-success">Rs <span id="payAmount">0</span></div></div>
-                        <div class="col-5 text-end">
-                            <div id="payChangeBox" class="fs-5 fw-bold"></div>
-                            <div id="payReturnBox" class="small change-positive"></div>
-                        </div>
-                    </div>
-                    <div class="row g-2">
-                        <div class="col-12">
-                            <label class="form-label">Payment method</label>
-                            <select asp-for="PaymentMethod" class="form-select" id="payMethod">
-                                @foreach (var m in Enum.GetNames<PaymentMethod>())
+        <h5>Detail Lines</h5>
+        <table class="table table-sm table-bordered" id="linesTable">
+            <thead class="table-light">
+                <tr><th>Account Head</th><th>Dept</th><th>Indent No</th><th>Remarks</th><th class="text-end">Amount</th></tr>
+            </thead>
+            <tbody>
+                @for (int i = 0; i < (Model.Input.Lines?.Count ?? 0); i++)
+                {
+                    <tr>
+                        <td>
+                            <select asp-for="Input.Lines[i].AccNo" class="form-select form-select-sm">
+                                <option value="">-- select --</option>
+                                @foreach (var a in Model.AccountHeads)
                                 {
-                                    <option value="@m">@m</option>
+                                    <option value="@a.AccNo">@a.AccNo - @a.AccDesc</option>
                                 }
                             </select>
-                        </div>
-                        <div class="col-6" id="tenderBox">
-                            <label class="form-label">Amount tendered</label>
-                            <input asp-for="TenderedAmount" type="number" step="0.01" min="0" class="form-control" id="payTendered" value="0" />
-                            <div id="payValidationMsg" class="pay-validation-msg">Amount must be greater than zero</div>
-                        </div>
-                        <div class="col-6" id="refBox" style="display:none;">
-                            <label class="form-label">Reference / Txn ID</label>
-                            <input asp-for="ReferenceNo" class="form-control" id="payReference" placeholder="Bank ref / card / wallet no" />
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-success" id="paySubmitBtn"><i class="bi bi-check2-circle me-1"></i>Collect &amp; Mark Paid</button>
-                </div>
-            </form>
+                        </td>
+                        <td>
+                            <select asp-for="Input.Lines[i].Dept" class="form-select form-select-sm">
+                                <option value="">--</option>
+                                @foreach (var d in Model.Departments)
+                                {
+                                    <option value="@d.Code">@d.Code - @d.Name</option>
+                                }
+                            </select>
+                        </td>
+                        <td><input asp-for="Input.Lines[i].IndentNo" class="form-control form-control-sm" /></td>
+                        <td><input asp-for="Input.Lines[i].Remarks" class="form-control form-control-sm" /></td>
+                        <td><input asp-for="Input.Lines[i].Amount" type="number" step="0.01" class="form-control form-control-sm text-end" /></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <div class="mb-3">
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addLine()">+ Add Line</button>
         </div>
-    </div>
+
+        <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Save Receipt</button>
+        <a asp-page="/cashier" class="btn btn-secondary">Back</a>
+    </form>
+
+    <hr />
+    <h5>Recent Receipts</h5>
+    <table class="table table-sm table-striped">
+        <thead><tr><th>TrNo</th><th>Date</th><th>RegNo</th><th>Total</th><th>User</th></tr></thead>
+        <tbody>
+            @foreach (var r in Model.RecentReceipts)
+            {
+                <tr><td>@r.TrNo</td><td>@r.TrDate.ToString("dd-MM-yyyy")</td><td>@r.RegNo</td><td class="text-end">@r.TotalAmt.ToString("N2")</td><td>@r.UserId</td></tr>
+            }
+        </tbody>
+    </table>
 </div>
 
-@if (Model.Receipt != null)
-{
-    <div class="print-sheet" id="a4Sheet">
-        <div class="receipt-ticket">
-            <div class="copy-badge">OFFICE COPY</div>
-            <div class="ticket-body">
-                <div class="ticket-head">
-                    <div class="fw-bold fs-5">@Model.Receipt.HospitalName</div>
-                    <div class="small text-secondary">@Model.Receipt.HospitalNo</div>
-                    <div class="small">CASH PAYMENT RECEIPT</div>
-                    <div class="text-muted small">Receipt No: @Model.Receipt.IndentId &middot; @Model.Receipt.PaidAt?.ToString("dd MMM yyyy HH:mm")</div>
-                </div>
-                <div class="ticket-row"><span>Indent / Invoice</span><span>@(Model.Receipt.InvoiceNumber ?? ("#" + Model.Receipt.IndentId))</span></div>
-                <div class="ticket-row"><span>Patient</span><span>@Model.Receipt.PatientName &middot; PHN @(Model.Receipt.Phn?.ToString() ?? "-")</span></div>
-                <div class="ticket-row"><span>Visit #</span><span>@(Model.Receipt.VisitId?.ToString() ?? "-")</span></div>
-                <div class="ticket-row"><span>Department</span><span>@(string.IsNullOrEmpty(Model.Receipt.DepartmentName) ? "-" : Model.Receipt.DepartmentName)</span></div>
-                <table class="table table-sm mb-2 mt-2">
-                    <thead class="table-light">
-                        <tr><th>Description</th><th class="text-end">Qty</th><th class="text-end">Rate</th><th class="text-end">Amount</th></tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var l in Model.Receipt.Lines)
-                        {
-                            <tr>
-                                <td>@l.Description</td>
-                                <td class="text-end">@(l.Qty?.ToString("N0") ?? "1")</td>
-                                <td class="text-end">@l.Rate.ToString("N2")</td>
-                                <td class="text-end">@l.Amount.ToString("N2")</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-                <div class="ticket-total"><span>Total paid</span><span>Rs @Model.Receipt.Total.ToString("N2")</span></div>
-                @if (Model.Receipt.PaymentMethod == PaymentMethod.Cash)
-                {
-                    <div class="ticket-row"><span>Tendered</span><span>@Model.Receipt.Tendered.ToString("N2")</span></div>
-                    <div class="ticket-row"><span>Change</span><span>@Model.Receipt.Change.ToString("N2")</span></div>
-                }
-                else
-                {
-                    <div class="ticket-row"><span>Payment method</span><span>@Model.Receipt.PaymentMethod</span></div>
-                    @if (!string.IsNullOrEmpty(Model.Receipt.ReferenceNo))
-                    {
-                        <div class="ticket-row"><span>Reference / Txn ID</span><span>@Model.Receipt.ReferenceNo</span></div>
-                    }
-                }
-                <div class="ticket-foot">
-                    Show this receipt in <b>@(string.IsNullOrEmpty(Model.Receipt.DepartmentName) ? "the concerned" : Model.Receipt.DepartmentName)</b> department to receive the service / procedure / test.<br />
-                    Cashier: @Model.Receipt.Cashier &middot; Thank you
-                </div>
-            </div>
-        </div>
-        <div class="perforation"></div>
-        <div class="receipt-ticket">
-            <div class="copy-badge">PATIENT COPY</div>
-            <div class="ticket-body">
-                <div class="ticket-head">
-                    <div class="fw-bold fs-5">@Model.Receipt.HospitalName</div>
-                    <div class="small text-secondary">@Model.Receipt.HospitalNo</div>
-                    <div class="small">CASH PAYMENT RECEIPT</div>
-                    <div class="text-muted small">Receipt No: @Model.Receipt.IndentId &middot; @Model.Receipt.PaidAt?.ToString("dd MMM yyyy HH:mm")</div>
-                </div>
-                <div class="ticket-row"><span>Indent / Invoice</span><span>@(Model.Receipt.InvoiceNumber ?? ("#" + Model.Receipt.IndentId))</span></div>
-                <div class="ticket-row"><span>Patient</span><span>@Model.Receipt.PatientName &middot; PHN @(Model.Receipt.Phn?.ToString() ?? "-")</span></div>
-                <div class="ticket-row"><span>Visit #</span><span>@(Model.Receipt.VisitId?.ToString() ?? "-")</span></div>
-                <div class="ticket-row"><span>Department</span><span>@(string.IsNullOrEmpty(Model.Receipt.DepartmentName) ? "-" : Model.Receipt.DepartmentName)</span></div>
-                <table class="table table-sm mb-2 mt-2">
-                    <thead class="table-light">
-                        <tr><th>Description</th><th class="text-end">Qty</th><th class="text-end">Rate</th><th class="text-end">Amount</th></tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var l in Model.Receipt.Lines)
-                        {
-                            <tr>
-                                <td>@l.Description</td>
-                                <td class="text-end">@(l.Qty?.ToString("N0") ?? "1")</td>
-                                <td class="text-end">@l.Rate.ToString("N2")</td>
-                                <td class="text-end">@l.Amount.ToString("N2")</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-                <div class="ticket-total"><span>Total paid</span><span>Rs @Model.Receipt.Total.ToString("N2")</span></div>
-                @if (Model.Receipt.PaymentMethod == PaymentMethod.Cash)
-                {
-                    <div class="ticket-row"><span>Tendered</span><span>@Model.Receipt.Tendered.ToString("N2")</span></div>
-                    <div class="ticket-row"><span>Change</span><span>@Model.Receipt.Change.ToString("N2")</span></div>
-                }
-                else
-                {
-                    <div class="ticket-row"><span>Payment method</span><span>@Model.Receipt.PaymentMethod</span></div>
-                    @if (!string.IsNullOrEmpty(Model.Receipt.ReferenceNo))
-                    {
-                        <div class="ticket-row"><span>Reference / Txn ID</span><span>@Model.Receipt.ReferenceNo</span></div>
-                    }
-                }
-                <div class="ticket-foot">
-                    Show this receipt in <b>@(string.IsNullOrEmpty(Model.Receipt.DepartmentName) ? "the concerned" : Model.Receipt.DepartmentName)</b> department to receive the service / procedure / test.<br />
-                    Cashier: @Model.Receipt.Cashier &middot; Thank you
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="receipt-thermal" id="thermalBody">
-        <div style="text-align:center;font-weight:bold;font-size:14px;">@Model.Receipt.HospitalName</div>
-        <div style="text-align:center;">@Model.Receipt.HospitalNo</div>
-        <div style="text-align:center;font-weight:bold;">CASH PAYMENT RECEIPT</div>
-        <div>----------------------------------</div>
-        <div>Receipt # : @Model.Receipt.IndentId</div>
-        <div>Invoice   : @(Model.Receipt.InvoiceNumber ?? ("#" + Model.Receipt.IndentId))</div>
-        <div>Date      : @Model.Receipt.PaidAt?.ToString("dd MMM yyyy HH:mm")</div>
-        <div>Patient   : @Model.Receipt.PatientName</div>
-        <div>PHN       : @(Model.Receipt.Phn?.ToString() ?? "-")</div>
-        <div>Visit #   : @(Model.Receipt.VisitId?.ToString() ?? "-")</div>
-        <div>Dept      : @(string.IsNullOrEmpty(Model.Receipt.DepartmentName) ? "-" : Model.Receipt.DepartmentName)</div>
-        <div>----------------------------------</div>
-        @foreach (var l in Model.Receipt.Lines)
-        {
-            <div style="display:flex;justify-content:space-between;"><span>@l.Description @(l.Qty > 1 ? ("x" + ((int)l.Qty.Value).ToString("N0")) : "")</span><span>@l.Amount.ToString("N2")</span></div>
-        }
-        <div>----------------------------------</div>
-        <div style="display:flex;justify-content:space-between;font-weight:bold;"><span>TOTAL</span><span>Rs @Model.Receipt.Total.ToString("N2")</span></div>
-        <div style="display:flex;justify-content:space-between;"><span>Method</span><span>@Model.Receipt.PaymentMethod</span></div>
-        @if (Model.Receipt.PaymentMethod == PaymentMethod.Cash)
-        {
-            <div style="display:flex;justify-content:space-between;"><span>Tendered</span><span>@Model.Receipt.Tendered.ToString("N2")</span></div>
-            <div style="display:flex;justify-content:space-between;"><span>Change</span><span>@Model.Receipt.Change.ToString("N2")</span></div>
-        }
-        else if (!string.IsNullOrEmpty(Model.Receipt.ReferenceNo))
-        {
-            <div>Ref       : @Model.Receipt.ReferenceNo</div>
-        }
-        <div>----------------------------------</div>
-        <div style="text-align:center;">Show in @(string.IsNullOrEmpty(Model.Receipt.DepartmentName) ? "concerned dept." : Model.Receipt.DepartmentName)</div>
-        <div style="text-align:center;">to receive the service</div>
-        <div style="text-align:center;">Cashier: @Model.Receipt.Cashier</div>
-        <div style="text-align:center;">Thank you</div>
-    </div>
-    <iframe id="thermalFrame" title="Thermal printer output" style="display:none"></iframe>
-}
-
 @section Scripts {
-<script src="~/js/cashier-receipt.js"></script>
+    <script>
+        function addLine() {
+            var tbody = document.querySelector('#linesTable tbody');
+            var idx = tbody.rows.length;
+            var row = tbody.insertRow();
+            row.innerHTML = '<td><select name="Input.Lines[' + idx + '].AccNo" class="form-select form-select-sm"><option value="">-- select --</option>@foreach (var a in Model.AccountHeads){<text><option value="@a.AccNo">@a.AccNo - @a.AccDesc</option></text>}</select></td>' +
+                '<td><select name="Input.Lines[' + idx + '].Dept" class="form-select form-select-sm"><option value="">--</option>@foreach (var d in Model.Departments){<text><option value="@d.Code">@d.Code - @d.Name</option></text>}</select></td>' +
+                '<td><input name="Input.Lines[' + idx + '].IndentNo" class="form-control form-control-sm" /></td>' +
+                '<td><input name="Input.Lines[' + idx + '].Remarks" class="form-control form-control-sm" /></td>' +
+                '<td><input name="Input.Lines[' + idx + '].Amount" type="number" step="0.01" class="form-control form-control-sm text-end" /></td>';
+        }
+    </script>
 }

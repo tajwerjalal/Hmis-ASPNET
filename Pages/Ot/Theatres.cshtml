@@ -1,0 +1,119 @@
+@page "/ot/Theatres"
+@model HmisWeb.Pages.Ot.TheatresModel
+@{
+    ViewData["Title"] = "OT Theatre Setup";
+}
+
+<div class="d-flex justify-content-between align-items-end mb-3">
+    <div>
+        <h4 class="mb-0 fw-bold"><i class="bi bi-hospital me-2 text-primary"></i>OT Theatre Setup</h4>
+        <div class="text-secondary small">Operating theatres used by the OT day board, register and utilisation report</div>
+    </div>
+    <a asp-page="/Ot/Index" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>OT Menu</a>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.Success))
+{
+    <div class="alert alert-success">@Model.Success</div>
+}
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger">@Model.ErrorMessage</div>
+}
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-white fw-semibold"><i class="bi bi-plus-circle me-1 text-primary"></i>Add / Edit Theatre</div>
+    <div class="card-body">
+        <form method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="Input.Id" />
+            <div class="row g-3">
+                <div class="col-md-2">
+                    <label class="form-label">Code</label>
+                    <input asp-for="Input.Code" class="form-control form-control-sm" placeholder="OT1" maxlength="30" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Theatre Name <span class="text-danger">*</span></label>
+                    <input asp-for="Input.Name" class="form-control form-control-sm" maxlength="100" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Type</label>
+                    <select asp-for="Input.TheatreType" class="form-select form-select-sm">
+                        <option>Major</option>
+                        <option>Minor</option>
+                        <option>Day Care</option>
+                        <option>Emergency</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Location</label>
+                    <input asp-for="Input.Location" class="form-control form-control-sm" maxlength="150" placeholder="Ground floor" />
+                </div>
+                <div class="col-md-1 d-flex align-items-end">
+                    <div class="form-check ms-2">
+                        <input asp-for="Input.Active" class="form-check-input" />
+                        <label asp-for="Input.Active" class="form-check-label small">Active</label>
+                    </div>
+                </div>
+                <div class="col-md-1 d-grid">
+                    <button type="submit" asp-page-handler="Save" class="btn btn-primary btn-sm"><i class="bi bi-save me-1"></i>Save</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-white fw-semibold">Theatres (@Model.Items.Count)</div>
+    <div class="card-body p-0">
+        <table class="table table-sm table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Code</th>
+                    <th>Theatre</th>
+                    <th>Type</th>
+                    <th>Location</th>
+                    <th class="text-center">Status</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            @if (Model.Items.Count == 0)
+            {
+                <tr><td colspan="6" class="text-center text-secondary py-4">No theatres yet - add the first one above.</td></tr>
+            }
+            else
+            {
+                foreach (var t in Model.Items)
+                {
+                    <tr>
+                        <td>@t.Code</td>
+                        <td class="fw-semibold">@t.Name</td>
+                        <td>@t.TheatreType</td>
+                        <td>@t.Location</td>
+                        <td class="text-center">
+                            @if (t.Active)
+                            {
+                                <span class="badge bg-success">Active</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">Inactive</span>
+                            }
+                        </td>
+                        <td class="text-end">
+                            <a asp-page="/Ot/Theatres" asp-route-id="@t.Id" class="btn btn-outline-primary btn-sm"><i class="bi bi-pencil"></i></a>
+                            <form method="post" asp-page-handler="Delete" class="d-inline"
+                                  onsubmit="return confirm('Delete theatre @t.Name?');">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="id" value="@t.Id" />
+                                <button type="submit" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

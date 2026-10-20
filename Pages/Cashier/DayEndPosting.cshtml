@@ -1,0 +1,42 @@
+@page
+@model HmisWeb.Pages.Cashier.DayEndPostingModel
+@{
+    ViewData["Title"] = "Day End Posting";
+}
+
+<div class="container mt-4">
+    <h3><i class="bi bi-calendar-check"></i> Day End Posting</h3>
+
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+        <div class="alert alert-danger">@Model.ErrorMessage</div>
+    }
+    @if (!string.IsNullOrEmpty(Model.Success))
+    {
+        <div class="alert alert-success">@Model.Success</div>
+    }
+
+    <div class="card">
+        <div class="card-body">
+            <p class="text-muted">
+                This process will post all receipts and payments transactions for the current counter
+                (company/line) into the posted voucher ledger and close the counter. Make sure no other
+                user is running the cash module.
+            </p>
+
+            @if (Model.AlreadyClosed)
+            {
+                <div class="alert alert-warning">This counter has already been closed.</div>
+            }
+            else
+            {
+                <form method="post" asp-page-handler="Post">
+                    <button type="submit" class="btn btn-danger" onclick="return confirm('Post all transactions and close the counter?');">
+                        <i class="bi bi-check-circle"></i> Post &amp; Close Counter
+                    </button>
+                    <a asp-page="/cashier" class="btn btn-secondary">Back</a>
+                </form>
+            }
+        </div>
+    </div>
+</div>

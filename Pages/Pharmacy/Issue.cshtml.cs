@@ -51,6 +51,11 @@ namespace HmisWeb.Pages.Pharmacy
 
         [BindProperty] public string? LinesJson { get; set; }
 
+        /// <summary>Full grid payload (master detail included), echoed back
+        /// when validation fails so the popup reopens with the typed values.
+        /// Developer: Tajwer Jalal 20-Oct-2026 10:05</summary>
+        [BindProperty] public string? LinesDetailJson { get; set; }
+
         [TempData] public string? Message { get; set; }
         [TempData] public string? Error { get; set; }
 
@@ -116,7 +121,11 @@ namespace HmisWeb.Pages.Pharmacy
                     id = h.Id,
                     docNo = h.DocNo,
                     docDate = h.DocDate.ToString("yyyy-MM-dd"),
-                    storeId = h.StoreId,
+                    // For a store-to-store issue the ISSUING store is
+                    // SourceStoreId; StoreId is the receiving store. Show the
+                    // issuing store so the popup reads the way the document
+                    // was written.
+                    storeId = h.SourceStoreId ?? h.StoreId,
                     destination = "SATL",
                     patientName = h.VendorName ?? "",
                     discountAmount = h.DiscountAmount,
@@ -195,6 +204,61 @@ namespace HmisWeb.Pages.Pharmacy
             var storeId = Head.StoreId;
             var docDate = Head.DocDate == default ? DateTime.Today : Head.DocDate;
             var isStoreIssue = Head.Destination == "SATL";
+
+            // A store cannot issue to itself - that would write a zero-sum
+            // pair of movements and confuse the stock ledger.
+            if (isStoreIssue)
+            {
+                var subId = await _db.PhStores.AsNoTracking()
+                    .Where(s => s.StoreType == "SUB" && s.IsActive)
+                    .Select(s => (int?)s.Id)
+                    .FirstOrDefaultAsync();
+
+                if (subId == storeId)
+                {
+                    Error = "The source store is already the satellite store, so it cannot issue to itself.";
+                    await LoadAsync();
+                    return Page();
+                }
+            }
+
+            // ---- never issue more than the source store actually holds ----
+            // Without this an issue quietly drives PHITEMSTOCK.ONHANDQTY
+            // negative, and every valuation derived from the ledger is then
+            // wrong. The store is named in the message so the operator knows
+            // which drawer to check.
+            var itemIds = lines!.Select(l => l.ItemId).Distinct().ToList();
+            var onHand = await _db.PhItemStocks.AsNoTracking()
+                .Where(s => s.StoreId == storeId && itemIds.Contains(s.ItemId) && !s.Retired)
+                .ToDictionaryAsync(s => s.ItemId, s => s.OnHandQty);
+
+            var shortLines = lines
+                .Where(l => l.Qty > (onHand.TryGetValue(l.ItemId, out var oh) ? oh : 0m))
+                .ToList();
+
+            if (shortLines.Count > 0)
+            {
+                var shortIds = shortLines.Select(l => l.ItemId).Distinct().ToList();
+                var codes = await _db.PhItems.AsNoTracking()
+                    .Where(i => shortIds.Contains(i.Id))
+                    .ToDictionaryAsync(i => i.Id, i => i.Code);
+
+                var detail = string.Join("; ", shortLines.Take(5).Select(l =>
+                {
+                    var code = codes.TryGetValue(l.ItemId, out var c) ? c : l.ItemId.ToString();
+                    var have = onHand.TryGetValue(l.ItemId, out var q) ? q : 0m;
+                    return $"{code} needs {l.Qty:0.##}, on hand {have:0.##}";
+                }));
+
+                var storeName = (await _db.PhStores.AsNoTracking()
+                    .Where(s => s.Id == storeId).Select(s => s.Name).FirstOrDefaultAsync()) ?? "store";
+
+                Error = $"Not enough stock at {storeName}: {detail}" +
+                        (shortLines.Count > 5 ? $" (+{shortLines.Count - 5} more)" : "") +
+                        ". Nothing was saved.";
+                await LoadAsync();
+                return Page();
+            }
 
             // ---- recompute the money server-side; never trust the grid ----
             decimal gross = 0, tax = 0, disc = 0;
@@ -410,7 +474,21 @@ namespace HmisWeb.Pages.Pharmacy
             return RedirectToPage(new { StoreId, Search, From, To });
         }
 
-        private async Task ApplyToStockAsync(int storeId, int itemId, decimal qty, decimal unitCost)
+        /// <summary>
+        /// Apply a quantity delta to one (item, store) stock row.
+        ///
+        /// Developer: Tajwer Jalal
+        /// Created: 19-Oct-2026 17:30
+        /// </summary>
+        /// <param name="adjustAvgCost">
+        /// True for a receipt, where the moving average must be recomputed.
+        /// False for reversing an ISSUE: the issue never changed the average,
+        /// so putting the quantity back must not change it either. Recomputing
+        /// here would re-value the store at the document rate and leave a
+        /// permanent drift in the valuation.
+        /// </param>
+        private async Task ApplyToStockAsync(
+            int storeId, int itemId, decimal qty, decimal unitCost, bool adjustAvgCost = true)
         {
             var st = await _db.PhItemStocks.FirstOrDefaultAsync(s => s.ItemId == itemId && s.StoreId == storeId);
             if (st == null)
@@ -430,7 +508,7 @@ namespace HmisWeb.Pages.Pharmacy
             var oldQty = st.OnHandQty;
             var newQty = oldQty + qty;
 
-            if (newQty > 0 && qty > 0)
+            if (adjustAvgCost && newQty > 0 && qty > 0)
             {
                 st.AvgCost = oldQty > 0
                     ? ((oldQty * st.AvgCost) + (qty * unitCost)) / newQty
@@ -438,6 +516,35 @@ namespace HmisWeb.Pages.Pharmacy
             }
 
             st.OnHandQty = newQty;
+        }
+
+        /// <summary>
+        /// Remove a quantity that was received at unitCost and unwind the
+        /// moving average, the same way the posted-purchase reversal does
+        /// (defect D10). Removing at the current average alone would leave the
+        /// store valued at the blended rate for ever.
+        ///
+        /// Developer: Tajwer Jalal
+        /// Created: 20-Oct-2026 11:20
+        /// </summary>
+        private async Task ReverseFromStockAsync(int storeId, int itemId, decimal qtyOut, decimal unitCost)
+        {
+            var st = await _db.PhItemStocks.FirstOrDefaultAsync(s => s.ItemId == itemId && s.StoreId == storeId);
+            if (st == null) return;
+
+            var qtyBefore = st.OnHandQty;
+            var avgBefore = st.AvgCost;
+            var qtyAfter = qtyBefore - qtyOut;
+
+            if (qtyAfter > 0)
+            {
+                var remainingValue = (qtyBefore * avgBefore) - (qtyOut * unitCost);
+                // Never allow a negative average; it would poison every later
+                // valuation of this store.
+                st.AvgCost = remainingValue > 0 ? remainingValue / qtyAfter : 0;
+            }
+
+            st.OnHandQty = qtyAfter;
         }
 
         public async Task<IActionResult> OnPostDeleteAsync(int id, bool isStore)
@@ -453,6 +560,22 @@ namespace HmisWeb.Pages.Pharmacy
                     if (head == null)
                     {
                         Error = "Issue not found.";
+                        return RedirectToPage(new { StoreId, Search, From, To });
+                    }
+
+                    // Migrated documents were carried in as opening balances,
+                    // not as ledger movements. Reversing one would invent
+                    // stock that was never taken out, so retire it without
+                    // touching the ledger.
+                    var moveCount = await _db.PhStockMovements
+                        .CountAsync(m => m.DocNo == head.DocNo);
+                    if (moveCount == 0)
+                    {
+                        head.Retired = true;
+                        await _db.SaveChangesAsync();
+                        await tx.CommitAsync();
+                        Message = $"'{head.DocNo}' is a migrated record with no stock movements, " +
+                                  "so it was retired without changing stock.";
                         return RedirectToPage(new { StoreId, Search, From, To });
                     }
 
@@ -477,7 +600,7 @@ namespace HmisWeb.Pages.Pharmacy
                             StoreId = sourceStoreId,
                             ItemId = l.ItemId,
                             MoveDate = DateTime.Today,
-                            DocType = "PURCHASE",
+                            DocType = "ISSUE",
                             DocId = head.Id,
                             DocNo = head.DocNo,
                             QtyIn = l.Qty,
@@ -492,7 +615,7 @@ namespace HmisWeb.Pages.Pharmacy
                             StoreId = destStoreId,
                             ItemId = l.ItemId,
                             MoveDate = DateTime.Today,
-                            DocType = "SALE",
+                            DocType = "PURCHASE",
                             DocId = head.Id,
                             DocNo = head.DocNo,
                             QtyIn = 0,
@@ -501,8 +624,8 @@ namespace HmisWeb.Pages.Pharmacy
                             Narration = "Reversal of issue " + head.DocNo
                         });
 
-                        await ApplyToStockAsync(sourceStoreId, l.ItemId, l.Qty, l.Rate);
-                        await ApplyToStockAsync(destStoreId, l.ItemId, -l.Qty, l.Rate);
+                        await ApplyToStockAsync(sourceStoreId, l.ItemId, l.Qty, l.Rate, adjustAvgCost: false);
+                        await ReverseFromStockAsync(destStoreId, l.ItemId, l.Qty, l.Rate);
                     }
 
                     head.Retired = true;
@@ -515,6 +638,21 @@ namespace HmisWeb.Pages.Pharmacy
                     if (head == null)
                     {
                         Error = "Issue not found.";
+                        return RedirectToPage(new { StoreId, Search, From, To });
+                    }
+
+                    // Same guard as the store-to-store branch: the 3,521
+                    // migrated satellite slips have no stock movements, so
+                    // reversing one must not add stock back.
+                    var saleMoveCount = await _db.PhStockMovements
+                        .CountAsync(m => m.DocNo == head.SlipNo);
+                    if (saleMoveCount == 0)
+                    {
+                        head.Retired = true;
+                        await _db.SaveChangesAsync();
+                        await tx.CommitAsync();
+                        Message = $"'{head.SlipNo}' is a migrated record with no stock movements, " +
+                                  "so it was retired without changing stock.";
                         return RedirectToPage(new { StoreId, Search, From, To });
                     }
 
@@ -544,7 +682,7 @@ namespace HmisWeb.Pages.Pharmacy
                             Narration = "Reversal of issue " + head.SlipNo
                         });
 
-                        await ApplyToStockAsync(head.StoreId, l.ItemId, l.Qty, l.Rate);
+                        await ApplyToStockAsync(head.StoreId, l.ItemId, l.Qty, l.Rate, adjustAvgCost: false);
                     }
 
                     head.Retired = true;

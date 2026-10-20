@@ -204,9 +204,19 @@
                 <div class="submenu">
                     <a asp-page="/cashier/receipt" class="nav-link sub-link"><i class="bi bi-receipt"></i> Cash Receipts</a>
                     <a asp-page="/cashier/inpatient" class="nav-link sub-link"><i class="bi bi-hospital"></i> Inpatient Payments</a>
-                    <a asp-page="/cashier/indent" class="nav-link sub-link"><i class="bi bi-file-earmark-plus"></i> New Indent</a>
                     <a asp-page="/cashier/miscfee" class="nav-link sub-link"><i class="bi bi-cash-stack"></i> Misc Fees</a>
                     <a asp-page="/cashier/refunds" class="nav-link sub-link"><i class="bi bi-arrow-return-left"></i> Refunds</a>
+                    <a asp-page="/cashier/payment" class="nav-link sub-link"><i class="bi bi-cash"></i> Cash Payments</a>
+                    <a asp-page="/cashier/dayendposting" class="nav-link sub-link"><i class="bi bi-calendar-check"></i> Day End Posting</a>
+                    <a asp-page="/cashier/index" class="nav-link sub-link"><i class="bi bi-grid"></i> Cashier Home</a>
+                    <a asp-page="/cashier/cashaudit" class="nav-link sub-link"><i class="bi bi-journal-check"></i> Cash Audit (Un-posted)</a>
+                    <a asp-page="/cashier/cashbook" class="nav-link sub-link"><i class="bi bi-book"></i> Cash Book</a>
+                    <a asp-page="/cashier/voucherslist" class="nav-link sub-link"><i class="bi bi-list-ul"></i> Vouchers List</a>
+                    <a asp-page="/cashier/patientpayment" class="nav-link sub-link"><i class="bi bi-person"></i> Patient Payment Statement</a>
+                    <a asp-page="/cashier/countersetup" class="nav-link sub-link"><i class="bi bi-hdd-stack"></i> Counter Setup</a>
+                    <a asp-page="/cashier/createcounter" class="nav-link sub-link"><i class="bi bi-plus-circle"></i> Create Counter</a>
+                    <a asp-page="/cashier/setdefault" class="nav-link sub-link"><i class="bi bi-check-circle"></i> Set Default Counter</a>
+                    <a asp-page="/cashier/changekey" class="nav-link sub-link"><i class="bi bi-key"></i> Change Activation Key</a>
                 </div>
             </div>
 
@@ -249,6 +259,9 @@
                             <a asp-page="/inward/Billing" class="nav-link sub-link"><i class="bi bi-cash-stack"></i> IPD Billing</a>
                             <a asp-page="/billing/SlipEntry" asp-route-Type="opd" asp-route-Dept="01" class="nav-link sub-link"><i class="bi bi-journal-text"></i> Department Slip Entry</a>
                             <a asp-page="/billing/GenerateOpdBill" class="nav-link sub-link"><i class="bi bi-file-earmark-text"></i> Generate OPD Bill <small class="text-muted ms-1">GENBILL</small></a>
+                            <!-- OPD Billing (Batch) moved from /opd/Billing to /opd/BillingBatch on 20-Oct-2026
+                                 (Tajwer Jalal) so the legacy Outdoor Patient (OPD Bill) screen owns /opd/Billing. -->
+                            <a asp-page="/opd/BillingBatch" class="nav-link sub-link"><i class="bi bi-file-earmark-text"></i> Generate OPD Bill (PreBill Batch)</a>
                             <a asp-page="/billing/GenerateIpdBill" class="nav-link sub-link"><i class="bi bi-file-earmark-text"></i> Generate IPD Bill <small class="text-muted ms-1">GENBILLI</small></a>
                             <a asp-page="/billing/SearchBill" asp-route-Type="opd" class="nav-link sub-link"><i class="bi bi-search"></i> Search OPD Bill No.</a>
                             <a asp-page="/billing/SearchBill" asp-route-Type="inward" class="nav-link sub-link"><i class="bi bi-search"></i> Search IPD Bill No.</a>
@@ -265,6 +278,13 @@
                             <i class="bi bi-chevron-down"></i>
                         </a>
                         <div class="submenu">
+                            <!-- Recovery phase 4 sprint 1 (20-Oct-2026, Tajwer Jalal): the
+                                 VFP BillSys bs0601 INVOICE port - /Recovery/Invoice owns
+                                 the company Invoice/Letter workflow on RECOVERY_INV.
+                                 The eight remaining legacy forms (recpt, oinvoice,
+                                 orecpt, obilvalue, invoicer, recptr, recledger,
+                                 ostreport) follow one sprint each, per schedule. -->
+                            <a asp-page="/Recovery/Invoice" class="nav-link sub-link"><i class="bi bi-envelope-paper"></i> Company Invoice / Letter <small class="text-muted ms-1">BS0601</small></a>
                             <a asp-page="/cashier/receipt" class="nav-link sub-link"><i class="bi bi-receipt"></i> Cash Receipts</a>
                             <a asp-page="/cashier/refunds" class="nav-link sub-link"><i class="bi bi-arrow-return-left"></i> Refunds</a>
                         </div>
@@ -466,32 +486,6 @@
                         </div>
                     </div>
 
-                    <div class="menu-group">
-                        <a href="javascript:void(0)" class="nav-link menu-parent">
-                            <span><i class="bi bi-database"></i> Administration</span>
-                            <i class="bi bi-chevron-down"></i>
-                        </a>
-                        <div class="submenu">
-                            <a asp-page="/lab/IndentPosting" class="nav-link sub-link"><i class="bi bi-send"></i> Indent Posting</a>
-                            <a asp-page="/lab/UnPostIndent" class="nav-link sub-link"><i class="bi bi-arrow-counterclockwise"></i> Un-Post Indent</a>
-                            <a asp-page="/lab/Backup" class="nav-link sub-link"><i class="bi bi-hdd"></i> Backup</a>
-                            <a asp-page="/lab/Restore" class="nav-link sub-link"><i class="bi bi-cloud-arrow-up"></i> Restore</a>
-                            <a asp-page="/lab/Rebuild" class="nav-link sub-link"><i class="bi bi-tools"></i> Rebuild DBC / Reindex</a>
-                            <a asp-page="/lab/ChangePassword" class="nav-link sub-link"><i class="bi bi-key"></i> Change Login Password</a>
-                            <a asp-page="/lab/Login" class="nav-link sub-link"><i class="bi bi-box-arrow-in-right"></i> Login</a>
-                            <a asp-page="/lab/UserManagement" class="nav-link sub-link"><i class="bi bi-people"></i> User Management</a>
-                        </div>
-                    </div>
-
-                    <div class="menu-group">
-                        <a href="javascript:void(0)" class="nav-link menu-parent">
-                            <span><i class="bi bi-question-circle"></i> Help</span>
-                            <i class="bi bi-chevron-down"></i>
-                        </a>
-                        <div class="submenu">
-                            <a asp-page="/lab/About" class="nav-link sub-link"><i class="bi bi-info-square"></i> About Lab System</a>
-                        </div>
-                    </div>
 
                     <div class="menu-group">
                         <a href="javascript:void(0)" class="nav-link menu-parent">
@@ -500,7 +494,6 @@
                         </a>
                         <div class="submenu">
                             <a asp-page="/lab/Investigation" class="nav-link sub-link"><i class="bi bi-droplet"></i> Investigations</a>
-                            <a asp-page="/lab/NewItem" class="nav-link sub-link"><i class="bi bi-plus-square"></i> New Lab Item</a>
                             <a asp-page="/lab/Results" class="nav-link sub-link"><i class="bi bi-clipboard2-check"></i> Results</a>
                         </div>
                     </div>
@@ -733,6 +726,110 @@
             </div>
             <div class="menu-group">
                 <a href="javascript:void(0)" class="nav-link menu-parent">
+                    <span><i class="bi bi-emoji-smile"></i> Dental Services</span>
+                    <i class="bi bi-chevron-down"></i>
+                </a>
+                <div class="submenu">
+
+                    <div class="menu-group">
+                        <a href="javascript:void(0)" class="nav-link menu-parent">
+                            <span><i class="bi bi-file-earmark-plus"></i> Transactions</span>
+                            <i class="bi bi-chevron-down"></i>
+                        </a>
+                        <div class="submenu">
+                            <a asp-page="/dental/Indent" class="nav-link sub-link"><i class="bi bi-receipt"></i> Indent Entry</a>
+                        </div>
+                    </div>
+
+                    <div class="menu-group">
+                        <a href="javascript:void(0)" class="nav-link menu-parent">
+                            <span><i class="bi bi-graph-up"></i> Reports</span>
+                            <i class="bi bi-chevron-down"></i>
+                        </a>
+                        <div class="submenu">
+                            <a asp-page="/dental/Reports/AuditStatement" class="nav-link sub-link"><i class="bi bi-journal-check"></i> Audit Statement</a>
+                            <a asp-page="/dental/Reports/TestCharges" class="nav-link sub-link"><i class="bi bi-cash-coin"></i> Test Charges Report</a>
+                            <a asp-page="/dental/Reports/ServiceList" class="nav-link sub-link"><i class="bi bi-list-ul"></i> Service/Procedure List</a>
+                            <a asp-page="/dental/Reports/IndentPrintout" class="nav-link sub-link"><i class="bi bi-receipt-cutoff"></i> Indent Printout</a>
+                        </div>
+                    </div>
+
+                    <div class="menu-group">
+                        <a href="javascript:void(0)" class="nav-link menu-parent">
+                            <span><i class="bi bi-gear"></i> Setup</span>
+                            <i class="bi bi-chevron-down"></i>
+                        </a>
+                        <div class="submenu">
+                            <a asp-page="/Items" class="nav-link sub-link"><i class="bi bi-gear"></i> Test Setup</a>
+                            <a asp-page="/dental/CompanyCharges" class="nav-link sub-link"><i class="bi bi-building"></i> Test Charges Setup</a>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+            <div class="menu-group">
+                <a href="javascript:void(0)" class="nav-link menu-parent">
+                    <span><i class="bi bi-scissors"></i> Operation Theatre</span>
+                    <i class="bi bi-chevron-down"></i>
+                </a>
+                <div class="submenu">
+
+                    <div class="menu-group">
+                        <a href="javascript:void(0)" class="nav-link menu-parent">
+                            <span><i class="bi bi-file-earmark-plus"></i> Transactions</span>
+                            <i class="bi bi-chevron-down"></i>
+                        </a>
+                        <div class="submenu">
+                            <a asp-page="/ot/Indent" class="nav-link sub-link"><i class="bi bi-receipt"></i> Indent Entry</a>
+                            <a asp-page="/ot/Cases" class="nav-link sub-link"><i class="bi bi-calendar3"></i> OT Day Board</a>
+                            <a asp-page="/ot/CaseEntry" class="nav-link sub-link"><i class="bi bi-clipboard2-pulse"></i> Case Entry</a>
+                        </div>
+                    </div>
+
+                    <div class="menu-group">
+                        <a href="javascript:void(0)" class="nav-link menu-parent">
+                            <span><i class="bi bi-graph-up"></i> Reports</span>
+                            <i class="bi bi-chevron-down"></i>
+                        </a>
+                        <div class="submenu">
+                            <a asp-page="/ot/Reports/AuditStatement" class="nav-link sub-link"><i class="bi bi-journal-check"></i> Audit Statement</a>
+                            <a asp-page="/ot/Reports/TestCharges" class="nav-link sub-link"><i class="bi bi-cash-coin"></i> Test Charges Report</a>
+                            <a asp-page="/ot/Reports/ServiceList" class="nav-link sub-link"><i class="bi bi-list-ul"></i> Service List</a>
+                            <a asp-page="/ot/Reports/OtRegister" class="nav-link sub-link"><i class="bi bi-journal-text"></i> OT Register</a>
+                            <a asp-page="/ot/Reports/OtUtilization" class="nav-link sub-link"><i class="bi bi-speedometer2"></i> OT Utilization Report</a>
+
+                            <div class="menu-group">
+                                <a href="javascript:void(0)" class="nav-link menu-parent">
+                                    <span><i class="bi bi-cash-stack"></i> Collection Reports</span>
+                                    <i class="bi bi-chevron-down"></i>
+                                </a>
+                                <div class="submenu">
+                                    <a asp-page="/ot/Reports/CollectionPeriodic" class="nav-link sub-link"><i class="bi bi-calendar-range"></i> Periodic Collection Report</a>
+                                    <a asp-page="/ot/Reports/CollectionCompany" class="nav-link sub-link"><i class="bi bi-building"></i> Company Wise Collection Report</a>
+                                    <a asp-page="/ot/Reports/CollectionPatient" class="nav-link sub-link"><i class="bi bi-person"></i> Patient Wise Collection Report</a>
+                                    <a asp-page="/ot/Reports/CollectionService" class="nav-link sub-link"><i class="bi bi-heart-pulse"></i> Service Wise Collection Report</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="menu-group">
+                        <a href="javascript:void(0)" class="nav-link menu-parent">
+                            <span><i class="bi bi-gear"></i> Setup</span>
+                            <i class="bi bi-chevron-down"></i>
+                        </a>
+                        <div class="submenu">
+                            <a asp-page="/Items" class="nav-link sub-link"><i class="bi bi-gear"></i> Services Setup</a>
+                            <a asp-page="/ot/CompanyCharges" class="nav-link sub-link"><i class="bi bi-building"></i> Company wise Charges Setup</a>
+                            <a asp-page="/Categories" class="nav-link sub-link"><i class="bi bi-collection"></i> Services Group Setup</a>
+                            <a asp-page="/ot/Theatres" class="nav-link sub-link"><i class="bi bi-hospital"></i> OT Theatre Setup</a>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+            <div class="menu-group">
+                <a href="javascript:void(0)" class="nav-link menu-parent">
                     <span><i class="bi bi-person-badge"></i> HR &amp; Payroll</span>
                     <i class="bi bi-chevron-down"></i>
                 </a>
@@ -746,17 +843,6 @@
                     <a asp-page="/hr/Grades" class="nav-link sub-link"><i class="bi bi-bar-chart"></i> Grades</a>
                     <a asp-page="/hr/Salary" class="nav-link sub-link"><i class="bi bi-currency-dollar"></i> Payroll</a>
                     <a asp-page="/hr/NewSalary" class="nav-link sub-link"><i class="bi bi-plus-circle"></i> New Salary</a>
-                </div>
-            </div>
-
-            <div class="menu-group">
-                <a href="javascript:void(0)" class="nav-link menu-parent">
-                    <span><i class="bi bi-cash-coin"></i> Finance</span>
-                    <i class="bi bi-chevron-down"></i>
-                </a>
-                <div class="submenu">
-                    <a asp-page="/cash/CashBook" class="nav-link sub-link"><i class="bi bi-wallet2"></i> Cash Book</a>
-                    <a asp-page="/cash/Transactions" class="nav-link sub-link"><i class="bi bi-arrow-left-right"></i> Transactions</a>
                 </div>
             </div>
 

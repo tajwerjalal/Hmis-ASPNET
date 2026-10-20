@@ -1,0 +1,403 @@
+@page "/ot/CaseEntry"
+@model HmisWeb.Pages.Ot.CaseEntryModel
+@{
+    ViewData["Title"] = "OT Case Entry";
+    var isNew = Model.IsNew;
+}
+
+<div class="d-flex justify-content-between align-items-end mb-3">
+    <div>
+        <h4 class="mb-0 fw-bold">
+            <i class="bi bi-clipboard2-pulse me-2 text-primary"></i>OT Case Entry
+            @if (!isNew)
+            {
+                <span class="fs-6 text-secondary">— @Model.Case.CaseNo</span>
+            }
+        </h4>
+        <div class="text-secondary small">Book the patient into a theatre and record the operation</div>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-page="/Ot/Cases" class="btn btn-outline-secondary btn-sm"><i class="bi bi-calendar3 me-1"></i>Day Board</a>
+        <a asp-page="/Ot/Index" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>OT Menu</a>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.Success))
+{
+    <div class="alert alert-success">@Model.Success</div>
+}
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger">@Model.ErrorMessage</div>
+}
+
+@* ---------- patient ---------- *@
+<div class="card shadow-sm border-0 mb-3">
+    <div class="card-header bg-white fw-semibold"><i class="bi bi-person me-1 text-primary"></i>Patient</div>
+    <div class="card-body">
+        @if (Model.Input.PatientId != null && Model.Case.Patient != null)
+        {
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <span class="fw-semibold">@((Model.Case.Patient.Person?.NameWithInitials ?? Model.Case.Patient.Person?.Name ?? ""))</span>
+                    <span class="text-secondary small ms-2">
+                        PHN: @(Model.Case.Patient.PatientId?.ToString() ?? Model.Case.Patient.Phn ?? "-")
+                        @if (!string.IsNullOrEmpty(Model.Case.Patient.Code))
+                        {
+                            <span class="ms-2">Code: @Model.Case.Patient.Code</span>
+                        }
+                    </span>
+                </div>
+                <form method="post" asp-page-handler="ClearPatient">
+                    <button type="submit" class="btn btn-outline-warning btn-sm"><i class="bi bi-person-x me-1"></i>Change patient</button>
+                </form>
+            </div>
+        }
+        else
+        {
+            @* PatientId is set by the select button but no patient object is loaded yet on a fresh POST - *@
+            @* fall back to a lookup so the card still renders. *@
+            var selId = Model.Input.PatientId;
+            if (selId != null)
+            {
+                <div class="text-secondary small">Selected patient ID: @selId</div>
+            }
+            <form method="post" asp-page-handler="SearchPatients" class="d-flex gap-2 mb-2">
+                <input asp-for="PatientSearch" class="form-control form-control-sm" placeholder="Search by PHN, mobile or name..." />
+                <button type="submit" class="btn btn-primary btn-sm text-nowrap"><i class="bi bi-search me-1"></i>Search</button>
+            </form>
+
+            @if (Model.PatientResults.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr><th>PHN</th><th>Name</th><th></th></tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var p in Model.PatientResults)
+                        {
+                            <tr>
+                                <td>@(p.PatientId?.ToString() ?? p.Phn ?? "-")</td>
+                                <td>@(p.Person?.NameWithInitials ?? p.Person?.Name ?? "")</td>
+                                <td class="text-end">
+                                    <form method="post" asp-page-handler="SelectPatient">
+                                        <input type="hidden" name="patientId" value="@p.Id" />
+                                        <button type="submit" class="btn btn-sm btn-outline-primary">Select</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else if (!string.IsNullOrWhiteSpace(Model.PatientSearch))
+            {
+                <div class="text-secondary small">No patient matched "@Model.PatientSearch".</div>
+            }
+        }
+    </div>
+</div>
+
+<form method="post" asp-page-handler="Save">
+    <input type="hidden" name="id" value="@(Model.Id?.ToString() ?? "")" />
+    <input type="hidden" asp-for="Input.PatientId" />
+
+    @* ---------- booking ---------- *@
+    <div class="card shadow-sm border-0 mb-3">
+        <div class="card-header bg-white fw-semibold"><i class="bi bi-calendar-event me-1 text-primary"></i>Booking</div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">Theatre <span class="text-danger">*</span></label>
+                    <select asp-for="Input.TheatreId" asp-items="Model.TheatreList" class="form-select form-select-sm">
+                        <option value="">-- Select theatre --</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">Planned procedure (service master)</label>
+                    <select asp-for="Input.ProcedureItemId" asp-items="Model.ProcedureList" class="form-select form-select-sm">
+                        <option value="">-- Select service --</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small mb-1">Procedure description</label>
+                    <input asp-for="Input.ProcedurePlanned" class="form-control form-control-sm" maxlength="250" placeholder="e.g. Laparoscopic appendectomy" />
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">Surgeon</label>
+                    <select asp-for="Input.SurgeonId" asp-items="Model.SurgeonList" class="form-select form-select-sm">
+                        <option value="">-- Select surgeon --</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">Anaesthetist</label>
+                    <select asp-for="Input.AnesthetistId" asp-items="Model.AnesthetistList" class="form-select form-select-sm">
+                        <option value="">-- Select doctor --</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1">Case type</label>
+                    <select asp-for="Input.CaseType" class="form-select form-select-sm">
+                        <option>Elective</option>
+                        <option>Emergency</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1">OT date <span class="text-danger">*</span></label>
+                    <input asp-for="Input.ScheduledDate" type="date" class="form-control form-control-sm" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1">Slot time</label>
+                    <input asp-for="Input.SlotTime" type="time" class="form-control form-control-sm" />
+                </div>
+
+                <div class="col-md-2">
+                    <label class="form-label small mb-1">Planned mins</label>
+                    <input asp-for="Input.DurationMins" type="number" min="0" class="form-control form-control-sm" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1">Status</label>
+                    <select asp-for="Input.Status" class="form-select form-select-sm">
+                        @foreach (var s in CaseEntryModel.Statuses)
+                        {
+                            <option value="@s" selected="@(Model.Input.Status == s)">@s</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">Anaesthesia planned</label>
+                    <select asp-for="Input.AnesthesiaPlanned" class="form-select form-select-sm">
+                        @foreach (var a in CaseEntryModel.Anesthetics)
+                        {
+                            <option value="@a" selected="@(Model.Input.AnesthesiaPlanned == a)">@a</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1">ASA grade</label>
+                    <select asp-for="Input.AsaGrade" class="form-select form-select-sm">
+                        @foreach (var g in CaseEntryModel.AsaGrades)
+                        {
+                            <option value="@g" selected="@(Model.Input.AsaGrade == g)">@(string.IsNullOrEmpty(g) ? "--" : g)</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">Pre-anaesthesia fitness</label>
+                    <select asp-for="Input.Fitness" class="form-select form-select-sm">
+                        @foreach (var f in CaseEntryModel.FitnessStates)
+                        {
+                            <option value="@f" selected="@(Model.Input.Fitness == f)">@f</option>
+                        }
+                    </select>
+                </div>
+
+                @if (Model.Input.Status == "Cancelled")
+                {
+                    <div class="col-md-6">
+                        <label class="form-label small mb-1 text-danger">Cancel reason <span class="text-danger">*</span></label>
+                        <input asp-for="Input.CancelReason" class="form-control form-control-sm" maxlength="250" />
+                    </div>
+                }
+                <div class="col-md-4">
+                    <label class="form-label small mb-1">Bill / receipt no. (reference)</label>
+                    <input asp-for="Input.BillNo" class="form-control form-control-sm" maxlength="50" placeholder="raised via cashier / indent" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* ---------- operation record ---------- *@
+    <div class="card shadow-sm border-0 mb-3">
+        <div class="card-header bg-white fw-semibold"><i class="bi bi-activity me-1 text-danger"></i>Operation Record</div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">Actual start</label>
+                    <input asp-for="Input.ActualStart" type="datetime-local" class="form-control form-control-sm"
+                           value="@(Model.Input.ActualStart?.ToString("yyyy-MM-ddTHH:mm"))" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">Actual end</label>
+                    <input asp-for="Input.ActualEnd" type="datetime-local" class="form-control form-control-sm"
+                           value="@(Model.Input.ActualEnd?.ToString("yyyy-MM-ddTHH:mm"))" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">Anaesthesia given</label>
+                    <select asp-for="Input.AnesthesiaGiven" class="form-select form-select-sm">
+                        <option value="">-- not recorded --</option>
+                        @foreach (var a in CaseEntryModel.Anesthetics.Where(a => a != "None" || Model.Input.AnesthesiaGiven == "None"))
+                        {
+                            <option value="@a" selected="@(Model.Input.AnesthesiaGiven == a)">@a</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">Outcome</label>
+                    <select asp-for="Input.Outcome" class="form-select form-select-sm">
+                        <option value="">-- not recorded --</option>
+                        @foreach (var o in CaseEntryModel.Outcomes.Where(o => o.Length > 0))
+                        {
+                            <option value="@o" selected="@(Model.Input.Outcome == o)">@o</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label small mb-1">Procedure performed</label>
+                    <input asp-for="Input.ProcedurePerformed" class="form-control form-control-sm" maxlength="250" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small mb-1">Findings</label>
+                    <input asp-for="Input.Findings" class="form-control form-control-sm" maxlength="500" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small mb-1">Complications</label>
+                    <input asp-for="Input.Complications" class="form-control form-control-sm" maxlength="500" placeholder="nil if none" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small mb-1">Post-op instructions</label>
+                    <input asp-for="Input.PostOpInstructions" class="form-control form-control-sm" maxlength="500" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small mb-1">Remarks</label>
+                    <input asp-for="Input.Remarks" class="form-control form-control-sm" maxlength="500" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2 mb-4">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i>@(isNew ? "Create Case" : "Save Changes")</button>
+        <a asp-page="/Ot/Cases" class="btn btn-outline-secondary">Back to Day Board</a>
+        @if (!isNew)
+        {
+            <a asp-page="/Ot/Reports/OtRegister" class="btn btn-outline-secondary"><i class="bi bi-journal-text me-1"></i>Register</a>
+        }
+    </div>
+</form>
+
+@* ---------- consumables / implants ---------- *@
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-white fw-semibold">
+        <i class="bi bi-box-seam me-1 text-primary"></i>Consumables &amp; Implants Used
+        @if (Model.CaseItems.Any())
+        {
+            <span class="badge bg-secondary ms-1">@Model.CaseItems.Count</span>
+        }
+    </div>
+    <div class="card-body">
+        @if (isNew)
+        {
+            <div class="text-secondary small mb-0">Save the case first, then record the consumables and implants used.</div>
+        }
+        else
+        {
+            <form method="post" asp-page-handler="AddItem" class="row g-2 align-items-end mb-3">
+                <input type="hidden" name="caseId" value="@Model.Id" />
+                <div class="col-md-4">
+                    <label class="form-label small mb-1">Stock item</label>
+                    <select name="AddItemId" id="addItemId" class="form-select form-select-sm" onchange="otFillRate()">
+                        <option value="">-- select from stock master --</option>
+                        @foreach (var o in Model.ConsumableList)
+                        {
+                            <option value="@o.Id" data-rate="@o.Rate.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture)">@o.Text</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">Item name (free text, if not in stock master)</label>
+                    <input asp-for="AddItemName" class="form-control form-control-sm" maxlength="150" placeholder="e.g. Nylon mesh" />
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label small mb-1">Qty</label>
+                    <input asp-for="AddQty" type="number" step="0.01" min="0" class="form-control form-control-sm" />
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label small mb-1">Rate</label>
+                    <input asp-for="AddRate" id="addRate" type="number" step="0.01" min="0" class="form-control form-control-sm" />
+                </div>
+                <div class="col-md-1">
+                    <div class="form-check ms-1 mt-4">
+                        <input asp-for="AddChargeable" class="form-check-input" />
+                        <label asp-for="AddChargeable" class="form-check-label small">Chg.</label>
+                    </div>
+                </div>
+                <div class="col-md-2 d-grid">
+                    <button type="submit" class="btn btn-outline-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Add Line</button>
+                </div>
+                <div class="col-12">
+                    <input asp-for="AddRemarks" class="form-control form-control-sm" placeholder="Remarks (optional) - leave rate blank to use the stock master rate" maxlength="200" />
+                </div>
+            </form>
+
+            @if (Model.CaseItems.Any())
+            {
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Item</th>
+                            <th class="text-end">Qty</th>
+                            <th class="text-end">Rate</th>
+                            <th class="text-end">Amount</th>
+                            <th class="text-center">Chargeable</th>
+                            <th>Remarks</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var li in Model.CaseItems)
+                    {
+                        <tr>
+                            <td>@li.ItemName</td>
+                            <td class="text-end">@li.Qty.ToString("0.##")</td>
+                            <td class="text-end">@li.Rate.ToString("N2")</td>
+                            <td class="text-end fw-semibold">@li.Amount.ToString("N2")</td>
+                            <td class="text-center">
+                                @(li.Chargeable ? "Yes" : "No")
+                            </td>
+                            <td>@li.Remarks</td>
+                            <td class="text-end">
+                                <form method="post" asp-page-handler="DeleteItem"
+                                      onsubmit="return confirm('Remove this line?');">
+                                    <input type="hidden" name="itemId" value="@li.Id" />
+                                    <input type="hidden" name="caseId" value="@Model.Id" />
+                                    <button type="submit" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                    </tbody>
+                    <tfoot>
+                    <tr class="table-light fw-semibold">
+                        <td colspan="3" class="text-end">Total</td>
+                        <td class="text-end">@Model.CaseItems.Sum(i => i.Amount).ToString("N2")</td>
+                        <td colspan="3"></td>
+                    </tr>
+                    </tfoot>
+                </table>
+            }
+            else
+            {
+                <div class="text-secondary small">No consumables recorded for this case.</div>
+            }
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Copy the selected stock item's retail rate into the rate box (user can override).
+        function otFillRate() {
+            var sel = document.getElementById('addItemId');
+            var box = document.getElementById('addRate');
+            if (!sel || !box || !sel.value) return;
+            var opt = sel.options[sel.selectedIndex];
+            var rate = opt && opt.getAttribute('data-rate');
+            if (rate && parseFloat(rate) > 0) box.value = rate;
+        }
+    </script>
+}

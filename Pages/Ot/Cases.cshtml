@@ -1,0 +1,223 @@
+@page "/ot/Cases"
+@model HmisWeb.Pages.Ot.CasesModel
+@{
+    ViewData["Title"] = "OT Day Board";
+    var day = Model.Date ?? DateTime.Today;
+}
+
+<div class="d-flex justify-content-between align-items-end mb-3">
+    <div>
+        <h4 class="mb-0 fw-bold"><i class="bi bi-calendar3 me-2 text-primary"></i>OT Day Board</h4>
+        <div class="text-secondary small">@day.ToString("dddd, dd MMMM yyyy") — theatres running today</div>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-page="/Ot/CaseEntry" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>New OT Case</a>
+        <a asp-page="/Ot/Index" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>OT Menu</a>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.Success))
+{
+    <div class="alert alert-success">@Model.Success</div>
+}
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger">@Model.ErrorMessage</div>
+}
+
+<form method="get" class="card shadow-sm border-0 mb-3">
+    <div class="card-body py-2">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small mb-1">Date</label>
+                <input asp-for="Date" type="date" class="form-control form-control-sm" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small mb-1">Theatre</label>
+                <select asp-for="TheatreId" asp-items="Model.TheatreList" class="form-select form-select-sm">
+                    <option value="">-- all theatres --</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small mb-1">Status</label>
+                <select asp-for="StatusFilter" class="form-select form-select-sm">
+                    <option value="">-- all statuses --</option>
+                    @foreach (var s in CasesModel.StatusesRequired.Split(','))
+                    {
+                        <option value="@s" selected="@(Model.StatusFilter == s)">@s</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-funnel me-1"></i>Apply</button>
+                <a asp-page="/Ot/Cases" class="btn btn-outline-secondary btn-sm">Today</a>
+                <a asp-page="/Ot/Reports/OtRegister" class="btn btn-outline-secondary btn-sm"><i class="bi bi-journal-text me-1"></i>Register</a>
+            </div>
+        </div>
+    </div>
+</form>
+
+<div class="row g-2 mb-3">
+    <div class="col"><div class="card shadow-sm border-0 text-center py-2"><div class="fs-4 fw-bold">@Model.Total</div><div class="text-secondary small text-uppercase">Cases</div></div></div>
+    <div class="col"><div class="card shadow-sm border-0 text-center py-2"><div class="fs-4 fw-bold text-secondary">@Model.ScheduledCount</div><div class="text-secondary small text-uppercase">Scheduled</div></div></div>
+    <div class="col"><div class="card shadow-sm border-0 text-center py-2"><div class="fs-4 fw-bold text-info">@Model.InTheatreCount</div><div class="text-secondary small text-uppercase">In Theatre</div></div></div>
+    <div class="col"><div class="card shadow-sm border-0 text-center py-2"><div class="fs-4 fw-bold text-success">@Model.CompletedCount</div><div class="text-secondary small text-uppercase">Completed</div></div></div>
+    <div class="col"><div class="card shadow-sm border-0 text-center py-2"><div class="fs-4 fw-bold text-danger">@Model.CancelledCount</div><div class="text-secondary small text-uppercase">Cancelled</div></div></div>
+    <div class="col"><div class="card shadow-sm border-0 text-center py-2"><div class="fs-4 fw-bold text-warning">@Model.PostponedCount</div><div class="text-secondary small text-uppercase">Postponed</div></div></div>
+    <div class="col"><div class="card shadow-sm border-0 text-center py-2"><div class="fs-4 fw-bold text-danger">@Model.EmergencyCount</div><div class="text-secondary small text-uppercase">Emergency</div></div></div>
+    @if (Model.TotalMinutes.HasValue)
+    {
+        <div class="col"><div class="card shadow-sm border-0 text-center py-2"><div class="fs-4 fw-bold">@Model.TotalMinutes.Value</div><div class="text-secondary small text-uppercase">OT minutes</div></div></div>
+    }
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-white fw-semibold d-flex justify-content-between">
+        <span><i class="bi bi-people me-1 text-primary"></i>Cases (@Model.Total)</span>
+        <span class="text-secondary small fw-normal">Sorted by slot time</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Slot</th>
+                        <th>Case No.</th>
+                        <th>Patient</th>
+                        <th>Theatre</th>
+                        <th>Procedure</th>
+                        <th>Surgeon</th>
+                        <th class="text-center">Type</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-center">Actual</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @if (Model.Rows.Count == 0)
+                {
+                    <tr><td colspan="10" class="text-center text-secondary py-5">
+                        <i class="bi bi-calendar-x d-block fs-3 mb-1"></i>No OT cases for this date / filter.
+                    </td></tr>
+                }
+                else
+                {
+                    foreach (var r in Model.Rows)
+                    {
+                        <tr>
+                            <td class="fw-semibold">@(string.IsNullOrEmpty(r.SlotTime) ? "—" : r.SlotTime)</td>
+                            <td>@r.CaseNo</td>
+                            <td>
+                                <div class="fw-semibold">@r.PatientName</div>
+                                <div class="text-secondary small">@r.PatientId</div>
+                            </td>
+                            <td>
+                                @r.TheatreName
+                                @if (!string.IsNullOrEmpty(r.TheatreType))
+                                {
+                                    <div class="text-secondary small">@r.TheatreType</div>
+                                }
+                            </td>
+                            <td>
+                                @r.Procedure
+                                @if (!string.IsNullOrEmpty(r.AnesthesiaPlanned) && r.AnesthesiaPlanned != "None")
+                                {
+                                    <div class="text-secondary small"><i class="bi bi-droplet me-1"></i>@r.AnesthesiaPlanned</div>
+                                }
+                                @if (r.Status == "Cancelled" && !string.IsNullOrEmpty(r.CancelReason))
+                                {
+                                    <div class="text-danger small"><i class="bi bi-x-circle me-1"></i>@r.CancelReason</div>
+                                }
+                            </td>
+                            <td>@r.SurgeonName</td>
+                            <td class="text-center">
+                                @if (r.CaseType == "Emergency")
+                                {
+                                    <span class="badge bg-danger">EMG</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">Elective</span>
+                                }
+                            </td>
+                            <td class="text-center">
+                                @switch (r.Status)
+                                {
+                                    case "Scheduled":
+                                        <span class="badge bg-secondary">Scheduled</span>
+                                        break;
+                                    case "In Theatre":
+                                        <span class="badge bg-info text-dark">In Theatre</span>
+                                        break;
+                                    case "Completed":
+                                        <span class="badge bg-success">Completed</span>
+                                        break;
+                                    case "Cancelled":
+                                        <span class="badge bg-danger">Cancelled</span>
+                                        break;
+                                    default:
+                                        <span class="badge bg-warning text-dark">@r.Status</span>
+                                        break;
+                                }
+                            </td>
+                            <td class="text-center small">
+                                @if (r.ActualStart.HasValue)
+                                {
+                                    <div>@r.ActualStart.Value.ToString("HH:mm") – @(r.ActualEnd?.ToString("HH:mm") ?? "?")</div>
+                                    if (r.Minutes.HasValue)
+                                    {
+                                        <div class="text-secondary">@r.Minutes.Value min</div>
+                                    }
+                                }
+                                else
+                                {
+                                    <span class="text-secondary">—</span>
+                                }
+                            </td>
+                            <td class="text-end text-nowrap">
+                                @if (r.Status == "Scheduled" || r.Status == "Postponed")
+                                {
+                                    <form method="post" asp-page-handler="Start" class="d-inline">
+                                        <input type="hidden" name="id" value="@r.Id" />
+                                        <button type="submit" class="btn btn-outline-success btn-sm"
+                                                title="Mark the case as started (stamps the actual start time)">
+                                            <i class="bi bi-play-fill"></i> Start
+                                        </button>
+                                    </form>
+                                }
+                                <a asp-page="/Ot/CaseEntry" asp-route-id="@r.Id" class="btn btn-outline-primary btn-sm"
+                                   title="Open the case sheet / operation record">
+                                    <i class="bi bi-pencil"></i> Record
+                                </a>
+                                @if (r.Status != "Completed" && r.Status != "Cancelled")
+                                {
+                                    <form method="post" asp-page-handler="Cancel" class="d-inline"
+                                          onsubmit="return otAskCancel(event, @r.Id);">
+                                        <input type="hidden" name="id" value="@r.Id" />
+                                        <input type="hidden" name="reason" id="otCancelReason_@r.Id" value="" />
+                                        <button type="submit" class="btn btn-outline-danger btn-sm" title="Cancel this case">
+                                            <i class="bi bi-x-lg"></i>
+                                        </button>
+                                    </form>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function otAskCancel(e, id) {
+            var reason = prompt('Cancel reason?');
+            if (reason === null) return false;              // user aborted
+            if (!reason || !reason.trim()) reason = 'No reason given';
+            document.getElementById('otCancelReason_' + id).value = reason;
+            return true;
+        }
+    </script>
+}

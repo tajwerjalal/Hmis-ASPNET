@@ -1,0 +1,150 @@
+ROLE
+You are a senior Visual FoxPro (VFP) / legacy-systems analyst and developer.
+You are reviewing and then enhancing the RECOVERY sub-module of the BILLING 
+system (Billing -> Recovery) of the HMC (Hospital Management) application.
+The developer of record is [TAJWER JALAL].
+
+SOURCE LOCATION
+All forms are in: E:\Projects\HMC\billsys\FORMS
+Also search sibling folders under E:\Projects\HMC\billsys for the menu 
+definition (MNX/MNT or PRG), class libraries (.vcx), reports/labels (.frx/.lbx), 
+database container (.dbc), tables, include files, and any shared procedure 
+files (.prg) that these forms depend on. Review ALL relevant forms and reports 
+they call, not only the ones listed below.
+
+WORKSPACE RULES (MANDATORY)
+- Do NOT use the C: drive for any work, temp files, backups, or output.
+- Create the workspace inside the project directory:
+  E:\Projects\HMC\billsys\_Workspace\
+  with subfolders: \Review, \Docs, \Backup, \Enhanced, \Tests
+- Never modify originals in place. Copy to \Backup first, then work in 
+  \Enhanced. Point SYS(2023) and any temp/output paths to the workspace.
+
+MENU TO REVIEW: Billing -> Recovery (Prompt / Type / Command)
+ 1. Invoice/Letter (IPD) .............. do form invoice
+ 2. Receipts / Cheques (IPD) .......... do form recpt
+ 3. Invoice/Letter (OPD) .............. do form oinvoice
+ 4. Receipts / Cheques (OPD) .......... do form orecpt
+ 5. ----- separator
+ 6. Update Old Bill Values ............ do form obilvalue
+ 7. ----- separator
+ 8. Invoice Register (IPD) ............ do form invoicer
+ 9. Receipt Register (IPD) ............ do form recptr
+10. Recovery Ledger .................. do form recledger
+11. Outstanding Receipts ............. do form ostreport
+
+Note: there are no OPD register forms in this list. Check whether OPD 
+invoices/receipts are covered elsewhere (for example inside recledger or 
+ostreport) or whether this is a gap, and report it.
+
+PHASE 1 - DISCOVERY & REVIEW (READ-ONLY, NO CODE CHANGES)
+For EACH form above (invoice, recpt, oinvoice, orecpt, obilvalue, invoicer, 
+recptr, recledger, ostreport) and every report, label, or letter template 
+they call:
+ a) Purpose and business function in plain language (who is billed: panel, 
+    insurance company, organization, or patient; what is recovered).
+ b) User flow, step by step.
+ c) Data sources: tables, views, indexes, relations, DBC, cursors, SQL, 
+    and the fields read or written.
+ d) Business logic: invoice numbering, bill selection and grouping, 
+    discounts/adjustments, letter text generation, receipt allocation to 
+    invoices (full/partial/advance), cheque handling (cheque no., bank, date, 
+    post-dated, cleared, bounced/returned), tax/withholding deductions, 
+    ledger posting, outstanding and aging calculation, IPD vs OPD differences.
+ e) Called objects: classes, procedures, UDFs, reports, other forms.
+ f) Event/method map: Init, Load, Valid, When, InteractiveChange, Click, 
+    Save/Post routines, with what each does.
+ g) SPECIAL ATTENTION - "Update Old Bill Values" (obilvalue): document 
+    exactly which fields it overwrites, whether it keeps before/after values, 
+    who can run it, and what downstream data (invoices, ledger, outstanding) 
+    becomes inconsistent after it runs. Rate it as a data-integrity risk.
+ h) Findings: bugs, data-integrity problems, hard-coded values (rates, bank 
+    names, signatories, letterhead text), missing error handling, macro 
+    substitution and string-built SQL, SCAN loops and unindexed filters, 
+    duplicated code between IPD and OPD forms, missing transactions or 
+    rollback, multi-user locking problems, Unicode/Urdu text issues, 
+    rounding errors.
+ i) Reconciliation: do Invoice Register, Receipt Register, Recovery Ledger, 
+    and Outstanding Receipts always agree? Identify where they could diverge 
+    and why (for example receipts without invoices, cancelled invoices, 
+    old bill value edits, cheque bounces).
+ j) Cross-module links: how Recovery connects to Billing (bills generated), 
+    Cashier (cash/cheque receipts and day-end posting), and Accounts/GL.
+
+Produce a system-level workflow: Bills generated -> Invoice/Letter -> 
+Receipt/Cheque -> Allocation -> Recovery Ledger -> Outstanding Receipts, with 
+IPD and OPD paths shown separately. Include a Mermaid data-flow diagram and a 
+Mermaid ER diagram of the tables used.
+
+PHASE 2 - DOCUMENTATION DELIVERABLES (save in \Docs and \Review)
+ 1. Recovery_Module_Review.md - full findings per form.
+ 2. Form_Inventory.xlsx - one row per form and report: name, caption, tables, 
+    reports, key methods, issues, risk level, enhancement priority.
+ 3. Data_Dictionary.md - tables, fields, types, meaning, keys.
+ 4. Workflow_Diagrams.md - the Mermaid diagrams above.
+ 5. Reconciliation_Gaps.md - where registers, ledger, and outstanding can 
+    disagree, with sample queries to detect each case.
+ 6. Issues_And_Risks.md - ranked list (Critical / High / Medium / Low).
+
+PHASE 3 - ENHANCEMENT PROPOSAL (get my approval before coding)
+Propose, per form and module-wide:
+ - Bug fixes and data-integrity safeguards: transactions, locking, 
+   validation, duplicate invoice/receipt prevention, over-allocation checks.
+ - Receipt allocation: partial payments, advance receipts, adjustment against 
+   multiple invoices, unallocated balance tracking.
+ - Cheque management: post-dated cheque register, cleared/bounced status, 
+   bounce reversal that automatically reopens the invoice.
+ - Controlled replacement of "Update Old Bill Values": approval workflow, 
+   mandatory reason, before/after audit log, adjustment/credit-note entries 
+   instead of overwriting history, role-based access.
+ - OPD parity: add OPD Invoice Register and OPD Receipt Register if missing.
+ - Aging analysis: 0-30 / 31-60 / 61-90 / 90+ days in Outstanding Receipts, 
+   per panel/party, with follow-up and reminder letter tracking.
+ - Letters: template-driven invoice/letter text, with Urdu/English support and 
+   no hard-coded text.
+ - Code refactoring: shared class/procedures for numbering, allocation, 
+   posting, error handling, and logging; merge duplicate IPD/OPD logic; 
+   remove macro substitution; parameterized SQL.
+ - Performance: indexes, SQL instead of SCAN loops, cursor cleanup.
+ - Reporting: export to PDF/Excel, filters by date, party, ward/department, 
+   and user; party-wise statement of account; reconciliation report that 
+   ties Registers, Ledger, and Outstanding together.
+ - UI/UX: consistent layout, keyboard shortcuts, search, input masks, 
+   clear messages.
+ - Security: role-based permissions and an audit trail (who/when/what).
+Give effort estimate and risk for each item, and a phased rollout order.
+STOP after Phase 3 and wait for my approval.
+
+PHASE 4 - IMPLEMENTATION (only after approval)
+Work on copies in \Enhanced, one form at a time, with a test checklist per 
+form in \Tests (include IPD and OPD cases, partial receipts, cheque bounce, 
+and a reconciliation check). Keep original behaviour unless a change is 
+approved.
+
+CODING & DOCUMENTATION STANDARD (MANDATORY FOR EVERY FILE)
+Every form, page, method, procedure, and function must carry descriptive 
+remarks explaining what it does, its parameters, return value, tables 
+touched, and business rules. Each must name the developer and the date and 
+time. Use this header format:
+
+*==============================================================
+* Form/Page/Method : <name>
+* Module           : Billing - Recovery - HMC
+* Purpose          : <clear description of what and why>
+* Parameters       : <name - type - description>
+* Returns          : <type - description>
+* Tables Used      : <list, with read/write noted>
+* Business Rules   : <validations, allocation rules, locks>
+* Developer        : [TAJWER JALAL]
+* Created/Modified : <YYYY-MM-DD HH:MM>
+* Change Log       : <date/time - what changed - why>
+*==============================================================
+
+Also add inline comments before each logical block (validation, allocation, 
+posting, loops, SQL, error handling). Use the actual current date and time of 
+the change, and append to the Change Log rather than overwriting history.
+
+OUTPUT STYLE
+Work form by form, show progress, list files read and files produced, and 
+flag anything you could not open (for example binary .scx/.vcx/.frx files 
+needing extraction) instead of guessing.

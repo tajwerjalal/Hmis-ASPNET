@@ -143,6 +143,24 @@ public DbSet<ConsultantSettlement> ConsultantSettlements { get; set; }
         public DbSet<ConsultantCommission> ConsultantCommissions { get; set; }
         public DbSet<UnsettleRequest> UnsettleRequests { get; set; }
 
+        // ===== Operation Theatre module (added 20-Oct-2026) =====
+        // Additive only: theatre master, planned/performed cases and the
+        // consumables used in each case. Nothing existing was changed.
+        public DbSet<OtTheatre> OtTheatres { get; set; }
+        public DbSet<OtCase> OtCases { get; set; }
+        public DbSet<OtCaseItem> OtCaseItems { get; set; }
+
+        // ===== Cashier module (migrated from legacy VFP Register/Cashier app) =====
+        public DbSet<AccountHead> AccountHeads { get; set; }
+        public DbSet<CashControl> CashControls { get; set; }
+        public DbSet<CashCounter> CashCounters { get; set; }
+        public DbSet<CashCounterSession> CashCounterSessions { get; set; }
+        public DbSet<CashReceipt> CashReceipts { get; set; }
+        public DbSet<CashReceiptDetail> CashReceiptDetails { get; set; }
+        public DbSet<CashPayment> CashPayments { get; set; }
+        public DbSet<CashPaymentDetail> CashPaymentDetails { get; set; }
+        public DbSet<CashHistory> CashHistories { get; set; }
+        public DbSet<CashHistoryDetail> CashHistoryDetails { get; set; }
         // ===== Pharmacy multi-store inventory (ported VFP BASEMENT + Satell, 19-Oct-2026) =====
         // The legacy system kept a separate copy of every table per store. Here the
         // drug master is stored once and everything store-specific hangs off
@@ -175,6 +193,19 @@ public DbSet<ConsultantSettlement> ConsultantSettlements { get; set; }
         public DbSet<HmisWeb.Models.Legacy.Bcontrol> Bcontrols { get; set; }
         public DbSet<HmisWeb.Models.Legacy.IpdBillAudit> IpdBillAudits { get; set; }
         public DbSet<HmisWeb.Models.Legacy.LegacyDepartment> LegacyDepartments { get; set; }
+
+        // ===== Legacy OPD bill form (VFP BS0101 / GENBILL) =====
+        public DbSet<HmisWeb.Models.Legacy.ObilMst> ObilMsts { get; set; }
+        public DbSet<HmisWeb.Models.Legacy.ObilDet> ObilDets { get; set; }
+        public DbSet<HmisWeb.Models.Legacy.OpdBillHeader> OpdBillHeaders { get; set; }
+        public DbSet<HmisWeb.Models.Legacy.OpdBillAudit> OpdBillAudits { get; set; }
+
+        // ===== Recovery module (VFP BillSys bs06 - phase 4 sprint 1) =====
+        // Company Invoice/Letter screens; schemas in workspace/temp/
+        // recovery_invoice_schema.sql (executed 20-Oct-2026).
+        public DbSet<HmisWeb.Models.Recovery.RecoveryInvoice> RecoveryInvoices { get; set; }
+        public DbSet<HmisWeb.Models.Recovery.RecoveryInvoiceDet> RecoveryInvoiceDets { get; set; }
+        public DbSet<HmisWeb.Models.Recovery.RecoveryAudit> RecoveryAudits { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -1543,6 +1574,49 @@ modelBuilder.Entity<Token>()
             modelBuilder.Entity<HmisWeb.Models.Legacy.LegacyDepartment>()
                 .HasIndex(d => d.Code).IsUnique();
 
+            // ===== Legacy OPD bill form (VFP BS0101 / GENBILL) =====
+            // REGISTER / OBIL_MST / OBIL_DET are shared legacy tables - no keys are
+            // dropped and no data is migrated here (see db migrations).
+            modelBuilder.Entity<HmisWeb.Models.Legacy.ObilMst>()
+                .HasIndex(m => new { m.HosCode, m.Dept });
+            modelBuilder.Entity<HmisWeb.Models.Legacy.ObilDet>()
+                .HasIndex(d => new { d.Dept, d.SlipNo });
+            modelBuilder.Entity<HmisWeb.Models.Legacy.OpdBillHeader>()
+                .HasKey(h => h.BillNo);
+            modelBuilder.Entity<HmisWeb.Models.Legacy.OpdBillHeader>()
+                .HasIndex(h => h.HosCode);
+            modelBuilder.Entity<HmisWeb.Models.Legacy.OpdBillAudit>()
+                .HasIndex(a => new { a.RegNo, a.CreatedAt });
+            modelBuilder.Entity<HmisWeb.Models.Legacy.OpdBillAudit>()
+                .HasIndex(a => new { a.Entity, a.EntityKey, a.CreatedAt });
+
+            // ===== Recovery module (phase 4 sprint 1) =====
+            // Keys / indexes / checks already exist in
+            // workspace/temp/recovery_invoice_schema.sql; EF only pinpoints the
+            // shape so migrations are not generated for these tables.
+            modelBuilder.Entity<HmisWeb.Models.Recovery.RecoveryInvoice>(e =>
+            {
+                e.HasKey(x => x.Id);
+                e.HasIndex(x => x.DocNo).IsUnique();
+                e.HasIndex(x => x.CompanyCode);
+                e.HasIndex(x => new { x.BillYear, x.BillMonth });
+                e.HasIndex(x => x.InvoiceDate);
+                e.Property(x => x.RowVer).IsRowVersion();
+            });
+            modelBuilder.Entity<HmisWeb.Models.Recovery.RecoveryInvoiceDet>(e =>
+            {
+                e.HasKey(x => x.Id);
+                e.HasIndex(x => new { x.InvoiceId, x.RegNo }).IsUnique();
+                e.HasIndex(x => x.RegNo);
+                e.Property(x => x.RegNo).HasMaxLength(16);
+            });
+            modelBuilder.Entity<HmisWeb.Models.Recovery.RecoveryAudit>(e =>
+            {
+                e.HasKey(x => x.Id);
+                e.HasIndex(x => new { x.Entity, x.EntityKey, x.CreatedAt });
+                e.HasIndex(x => x.InvoiceId);
+            });
+
             // ===== Pharmacy multi-store inventory (ported VFP BASEMENT + Satell) =====
             // Created by db/migrations/03_pharmacy_inventory_schema.sql, which already
             // declares keys and indexes. EF must not try to recreate them, so every
@@ -1681,6 +1755,62 @@ modelBuilder.Entity<Token>()
             // values look like "PV30699" / "RV94426"). Indexed for the join.
             modelBuilder.Entity<PhPurchase>().HasIndex(p => p.GLNo);
             modelBuilder.Entity<PhSale>().HasIndex(s => s.GLNo);
+
+            // ===== Operation Theatre module (added 20-Oct-2026) =====
+            // Cases are read theatre-by-theatre for a date (the day board) and by
+            // date range for the register / utilisation reports, so those two
+            // combinations carry indexes. Case numbers are one per day and must
+            // not clash. Consumables cascade with their case; the lookup FKs
+            // (patient, theatre, surgeon, item) are Restrict so a master is never
+            // silently deleted from under a clinical record.
+            modelBuilder.Entity<OtCase>().HasIndex(c => new { c.ScheduledDate, c.TheatreId });
+            modelBuilder.Entity<OtCase>().HasIndex(c => c.CaseNo).IsUnique();
+            modelBuilder.Entity<OtCase>().HasIndex(c => c.PatientId);
+            modelBuilder.Entity<OtCase>().HasIndex(c => c.Status);
+
+            modelBuilder.Entity<OtCase>()
+                .HasOne(c => c.Patient).WithMany()
+                .HasForeignKey(c => c.PatientId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<OtCase>()
+                .HasOne(c => c.Theatre).WithMany()
+                .HasForeignKey(c => c.TheatreId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<OtCase>()
+                .HasOne(c => c.Surgeon).WithMany()
+                .HasForeignKey(c => c.SurgeonId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<OtCase>()
+                .HasOne(c => c.Anesthetist).WithMany()
+                .HasForeignKey(c => c.AnesthetistId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<OtCase>()
+                .HasOne(c => c.ProcedureItem).WithMany()
+                .HasForeignKey(c => c.ProcedureItemId).OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<OtCaseItem>()
+                .HasOne(i => i.Case).WithMany(c => c.Items)
+                .HasForeignKey(i => i.CaseId).OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<OtCaseItem>()
+                .HasOne(i => i.Item).WithMany()
+                .HasForeignKey(i => i.ItemId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<OtCaseItem>().HasIndex(i => i.CaseId);
+
+            // ===== Cashier module (migrated from legacy VFP Register/Cashier app) =====
+            // Composite key for the session table (ccode + lcode); single-row control table.
+            modelBuilder.Entity<CashCounterSession>().HasKey(s => new { s.CCode, s.LCode });
+            modelBuilder.Entity<CashControl>().HasKey(c => c.Id);
+            modelBuilder.Entity<CashReceipt>().HasKey(r => r.TrNo);
+            modelBuilder.Entity<CashPayment>().HasKey(p => p.TrNo);
+            modelBuilder.Entity<CashHistory>().HasKey(h => h.VouNo);
+            modelBuilder.Entity<CashReceiptDetail>().HasKey(d => new { d.TrNo, d.AccNo, d.Dept });
+            modelBuilder.Entity<CashPaymentDetail>().HasKey(d => new { d.TrNo, d.AccNo, d.Dept });
+            modelBuilder.Entity<CashHistoryDetail>().HasKey(d => new { d.TrType, d.TrNo, d.AccNo, d.Dept });
+
+            // Indexes for the common query patterns (counter scope, date, posted flag).
+            modelBuilder.Entity<CashReceipt>().HasIndex(r => new { r.CCode, r.LCode, r.TrDate });
+            modelBuilder.Entity<CashReceipt>().HasIndex(r => r.Settle);
+            modelBuilder.Entity<CashPayment>().HasIndex(p => new { p.CCode, p.LCode, p.TrDate });
+            modelBuilder.Entity<CashPayment>().HasIndex(p => p.Settle);
+            modelBuilder.Entity<CashHistory>().HasIndex(h => new { h.VouDate, h.TrType });
+            modelBuilder.Entity<CashHistory>().HasIndex(h => h.TrNo);
+            modelBuilder.Entity<CashCounterSession>().HasIndex(s => s.Status);
         }
     }
 }

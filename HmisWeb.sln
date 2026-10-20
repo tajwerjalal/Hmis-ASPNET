@@ -8,6 +8,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{969614D1-56D8-4DC0-9C08-1847C878E27D}"
 	ProjectSection(SolutionItems) = preProject
 		Bill Prompt.txt = Bill Prompt.txt
+		RecoveryPrompt.txt = RecoveryPrompt.txt
 	EndProjectSection
 EndProject
 Global

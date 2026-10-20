@@ -95,7 +95,7 @@
         </div>
     </div>
     <div class="card-footer bg-white small text-muted">
-        Showing @Model.Rows.Count document(s). Click any row to open it.
+        Showing @Model.Rows.Count document(s)@(Model.Rows.Count >= 300 ? " — newest 300; narrow the dates to reach older ones" : ""). Click any row to open it.
     </div>
 </div>
 
@@ -106,6 +106,7 @@
             <form method="post" asp-page-handler="Save" id="issForm">
                 <input type="hidden" asp-for="Head.Id" id="Edit_Id" />
                 <input type="hidden" asp-for="LinesJson" id="LinesJson" />
+                <input type="hidden" asp-for="LinesDetailJson" id="LinesDetailJson" />
                 <input type="hidden" asp-for="StoreId" />
                 <input type="hidden" asp-for="Search" />
                 <input type="hidden" asp-for="From" />
@@ -150,7 +151,7 @@
                         <div class="col-md-2">
                             <label class="form-label small">Doc discount</label>
                             <input asp-for="Head.DiscountAmount" id="Edit_DiscountAmount" type="number" step="any"
-                                   class="form-control form-control-sm" value="0" />
+                                   class="form-control form-control-sm" />
                         </div>
                     </div>
 
@@ -609,6 +610,10 @@
                         discountAmount: l.discount || 0, batchNo: l.batchNo || null
                     };
                 }));
+                // Full copy of the grid, master detail included, so a
+                // validation failure can put the popup back exactly as the
+                // operator left it.
+                document.getElementById('LinesDetailJson').value = JSON.stringify(lines);
             });
 
             document.getElementById('Edit_DiscountAmount').addEventListener('input', totals);
@@ -618,6 +623,26 @@
                     render();
                 }
             });
+
+            // Validation failed on the server: the page came back with the
+            // header fields already filled (asp-for) and the grid in
+            // LinesDetailJson. Put the popup back exactly as it was so the
+            // operator does not have to retype the document.
+            @if (Model.Error != null && !string.IsNullOrWhiteSpace(Model.LinesDetailJson))
+            {
+                <text>
+            try {
+                var restored = JSON.parse(document.getElementById('LinesDetailJson').value);
+                if (restored && restored.length) {
+                    lines = restored;
+                    applyMode();
+                    render();
+                    titleEl.textContent = 'New Issue (not saved)';
+                    showModal();
+                }
+            } catch (e) { }
+                </text>
+            }
         })();
     </script>
 }

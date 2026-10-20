@@ -1,5 +1,5 @@
 @page "/cnp/indent"
-@model HmisWeb.Pages.Cashier.IndentModel
+@model HmisWeb.Pages.Cnp.IndentModel
 @using HmisWeb.Data.Enums
 @{
     ViewData["Title"] = "New Indent";
@@ -310,9 +310,9 @@
                                 </div>
                             </div>
                             <div class="card-footer bg-white d-flex gap-2">
-                                <button type="submit" formaction="@Url.Page("/Cashier/Indent", "Save")" class="btn btn-success"><i class="bi bi-save me-1"></i>Raise Indent (patient pays at Cashier)</button>
+                                <button type="submit" formaction="@Url.Page("/cnp/indent", "Save")" class="btn btn-success"><i class="bi bi-save me-1"></i>Raise Indent (patient pays at Cashier)</button>
                                 <button type="submit" class="btn btn-outline-secondary"><i class="bi bi-arrow-repeat me-1"></i>Recalculate</button>
-                                <button type="submit" formaction="@Url.Page("/Cashier/Indent", "Clear")" class="btn btn-outline-danger ms-auto"><i class="bi bi-trash me-1"></i>Clear items</button>
+                                <button type="submit" formaction="@Url.Page("/cnp/indent", "Clear")" class="btn btn-outline-danger ms-auto"><i class="bi bi-trash me-1"></i>Clear items</button>
                             </div>
                         </form>
                     </div>

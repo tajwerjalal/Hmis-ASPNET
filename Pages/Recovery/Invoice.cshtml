@@ -1,0 +1,594 @@
+@page "/Recovery/Invoice"
+@model HmisWeb.Pages.Recovery.InvoiceModel
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Xsrf
+@{
+    // COMPANY INVOICE / LETTER (/Recovery/Invoice)
+    // Phase 4 sprint 1 - ports VFP BillSys INVOICE (bs0601) onto RECOVERY_INV.
+    // List + popup entry, red-trash soft-cancel with confirmation, covering
+    // letter PDF. See Invoice.cshtml.cs for business rules and review refs.
+    //
+    // Developer: Tajwer Jalal | Date: 20-Oct-2026 | Time: 19:10
+    ViewData["Title"] = "Recovery - Company Invoice / Letter";
+    var token = Xsrf.GetAndStoreTokens(ViewContext.HttpContext).RequestToken;
+}
+
+<meta name="RequestVerificationToken" content="@token" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert2/11.10.1/sweetalert2.all.min.js"></script>
+
+<h4 class="mb-3"><i class="fa-solid fa-file-invoice-dollar me-2"></i>Recovery - Company Invoice / Letter</h4>
+
+@if (Model.Success != null)
+{
+    <div class="alert alert-success py-2"><i class="fa-solid fa-circle-check"></i> @Model.Success</div>
+}
+@if (Model.Error != null)
+{
+    <div class="alert alert-danger py-2"><i class="fa-solid fa-circle-exclamation"></i> @Model.Error</div>
+}
+
+<div class="card mb-3">
+    <div class="card-header bg-white d-flex align-items-center justify-content-between">
+        <strong><i class="fa-solid fa-list me-2"></i>Invoices (@Model.SearchResult.TotalRows)</strong>
+        <span>
+            @if (Model.CanEdit)
+            {
+                <button type="button" class="btn btn-sm btn-primary" id="btnAddNew">
+                    <i class="fa-solid fa-plus me-1"></i>Add New Invoice
+                </button>
+            }
+            else
+            {
+                <span class="text-muted small"><i class="fa-solid fa-lock"></i> read-only (RECOVERY_INVOICE_EDIT required)</span>
+            }
+        </span>
+    </div>
+    <div class="card-body py-2">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small mb-0">Company</label>
+                <select name="Company" class="form-select form-select-sm">
+                    <option value="">All companies</option>
+                    @foreach (var c in Model.Companies)
+                    {
+                        var sel = Model.Company == c.Id;
+                        <option value="@c.Id" selected="@sel">@c.Id - @c.Name@(c.Status == "N" ? " (inactive)" : "")</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-0">Bill month</label>
+                <select name="Month" class="form-select form-select-sm">
+                    <option value=""></option>
+                    @for (var m = 1; m <= 12; m++)
+                    {
+                        var sel = Model.Month == m;
+                        <option value="@m" selected="@sel">@(System.Globalization.CultureInfo.InvariantCulture.DateTimeFormat.GetAbbreviatedMonthName(m))</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-0">Bill year</label>
+                <input name="Year" type="number" min="1990" max="2100" class="form-control form-control-sm"
+                       value="@Model.Year" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-0">Status</label>
+                <select name="Status" class="form-select form-select-sm">
+                    <option value="">All</option>
+                    @{ var sOpen = Model.Status == "O"; var sCxl = Model.Status == "C"; }
+                    <option value="O" selected="@sOpen">Open</option>
+                    <option value="C" selected="@sCxl">Cancelled</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-0">Search</label>
+                <input name="Term" class="form-control form-control-sm" value="@Model.Term"
+                       placeholder="Doc no / code / remarks" />
+            </div>
+            <div class="col-md-1">
+                <button class="btn btn-sm btn-outline-primary w-100" type="submit"><i class="fa-solid fa-filter"></i></button>
+            </div>
+        </form>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm table-striped table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Doc No</th>
+                        <th>Company</th>
+                        <th>Date</th>
+                        <th>Submitted</th>
+                        <th>Period</th>
+                        <th class="text-center">Lines</th>
+                        <th class="text-end">Total (Rs.)</th>
+                        <th>Status</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.SearchResult.Rows.Count == 0)
+                    {
+                        <tr><td colspan="9" class="text-center text-muted py-4">
+                            No invoices matched the filters @if (Model.CanEdit)
+                            {<span> - press <strong>Add New Invoice</strong> to raise one</span>}.
+                        </td></tr>
+                    }
+                    @foreach (var r in Model.SearchResult.Rows)
+                    {
+                        <tr data-id="@r.Id" class="inv-row" style="cursor:pointer">
+                            <td><code>@r.DocNo</code> <small class="text-muted">@r.DocType</small></td>
+                            <td>@r.CompanyCode <span class="text-muted">- @r.CompanyName</span></td>
+                            <td>@r.InvoiceDate.ToString("dd/MM/yyyy")</td>
+                            <td>@(r.SubmissionDate == null ? "-" : r.SubmissionDate.Value.ToString("dd/MM/yyyy"))</td>
+                            <td>@(r.BillMonth == null ? "-" : System.Globalization.CultureInfo
+                                .InvariantCulture.DateTimeFormat.GetAbbreviatedMonthName(r.BillMonth.Value))
+                                @(r.BillYear == null ? "" : "/ " + r.BillYear)</td>
+                            <td class="text-center">@r.LineCount</td>
+                            <td class="text-end">@r.TotAmt.ToString("N2")</td>
+                            <td>
+                                @if (r.Status == "O")
+                                {
+                                    <span class="badge text-bg-success">Open</span>
+                                }
+                                else
+                                {
+                                    <span class="badge text-bg-secondary">Cancelled</span>
+                                }
+                            </td>
+                            <td class="text-end">
+                                @if (Model.CanLetter)
+                                {
+                                    <a class="btn btn-sm btn-outline-success me-1"
+                                       asp-page="/Recovery/Invoice" asp-page-handler="LetterPdf" asp-route-id="@r.Id"
+                                       title="Print covering letter (IPDCOVLT port)">
+                                        <i class="fa-solid fa-envelope"></i>
+                                    </a>
+                                }
+                                <button type="button" class="btn btn-sm btn-outline-danger"
+                                        data-del-id="@r.Id" data-doc="@r.DocNo" title="Cancel invoice">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card-body py-2 d-flex justify-content-between align-items-center border-top">
+        <span class="text-muted small">
+            Showing @Model.SearchResult.FirstRowOnPage-@Model.SearchResult.LastRowOnPage of
+            @Model.SearchResult.TotalRows
+        </span>
+        <nav>
+            <ul class="pagination pagination-sm mb-0">
+                @{ var p = Model.SearchResult; }
+                <li class="page-item @(p.PageIndex <= 1 ? "disabled" : "")">
+                    <a class="page-link" asp-page="/Recovery/Invoice"
+                       asp-route-PageIndex="@(p.PageIndex - 1)"
+                       asp-route-Company="@Model.Company" asp-route-Month="@Model.Month"
+                       asp-route-Year="@Model.Year" asp-route-Status="@Model.Status"
+                       asp-route-Term="@Model.Term">&laquo;</a>
+                </li>
+                <li class="page-item disabled"><span class="page-link">@p.PageIndex / @p.TotalPages</span></li>
+                <li class="page-item @(p.PageIndex >= p.TotalPages ? "disabled" : "")">
+                    <a class="page-link" asp-page="/Recovery/Invoice"
+                       asp-route-PageIndex="@(p.PageIndex + 1)"
+                       asp-route-Company="@Model.Company" asp-route-Month="@Model.Month"
+                       asp-route-Year="@Model.Year" asp-route-Status="@Model.Status"
+                       asp-route-Term="@Model.Term">&raquo;</a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+</div>
+
+@* ==================== ENTRY POPUP (add/edit) ==================== *@
+<div class="modal fade" id="invModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="invModalTitle"><i class="fa-solid fa-plus me-2"></i>Add New Invoice</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-2 mb-2">
+                    <div class="col-md-4">
+                        <label class="form-label small mb-0">Company *</label>
+                        <select id="ed_Company" class="form-select form-select-sm"></select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small mb-0">Invoice date *</label>
+                        <input id="ed_InvoiceDate" type="date" class="form-control form-control-sm" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small mb-0">Submitted</label>
+                        <input id="ed_SubmissionDate" type="date" class="form-control form-control-sm" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small mb-0">Bill month</label>
+                        <select id="ed_BillMonth" class="form-select form-select-sm"></select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small mb-0">Bill year</label>
+                        <input id="ed_BillYear" type="number" class="form-control form-control-sm"
+                               value="@DateTime.Now.Year" />
+                    </div>
+                </div>
+                <div class="row g-2 mb-2">
+                    <div class="col-md-8">
+                        <label class="form-label small mb-0">Remarks</label>
+                        <input id="ed_Remarks" class="form-control form-control-sm" maxlength="200" />
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <label class="form-label small mb-0">Doc No (system)</label>
+                        <input id="ed_DocNo" class="form-control form-control-sm bg-light" readonly
+                               placeholder="assigned on save" />
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mt-2 mb-1">
+                    <strong class="small"><i class="fa-solid fa-users me-1"></i>Patient lines</strong>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="btnLineSearch">
+                        <i class="fa-solid fa-user-plus me-1"></i>Add Patient
+                    </button>
+                </div>
+                <div class="table-responsive border rounded">
+                    <table class="table table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:110px">Reg No</th>
+                                <th>Patient</th>
+                                <th style="width:140px">Amount (Rs.)</th>
+                                <th style="width:180px">Line remark</th>
+                                <th style="width:48px"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="lineRows"></tbody>
+                    </table>
+                </div>
+                <div class="d-flex justify-content-end mt-1">
+                    <strong class="small">Total: <span id="invTotal" class="text-primary">0.00</span></strong>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Close</button>
+                <button class="btn btn-primary" id="btnSaveInv" type="button">
+                    <i class="fa-solid fa-floppy-disk me-1"></i>Save Invoice
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* ==================== PATIENT SEARCH POPUP ==================== *@
+<div class="modal fade" id="patModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fa-solid fa-search me-2"></i>Add Billed Inpatient</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <label class="form-label small mb-1">Company (from the invoice)</label>
+                <input id="patCompany" class="form-control form-control-sm bg-light mb-2" readonly />
+                <div class="input-group input-group-sm mb-2">
+                    <input id="patTerm" class="form-control" placeholder="Reg no / patient code" />
+                    <button class="btn btn-outline-primary" id="btnPatSearch" type="button"><i class="fa-solid fa-search"></i></button>
+                </div>
+                <div class="table-responsive border rounded" style="max-height:320px">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light">
+                            <tr><th>Reg No</th><th>Patient</th><th>Last bill</th><th class="text-end">Billed value (Rs.)</th><th></th></tr>
+                        </thead>
+                        <tbody id="patRows"><tr><td colspan="5" class="text-center text-muted py-3">Search for a billed inpatient of the company.</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* ==================== CANCEL REASON POPUP ==================== *@
+<div class="modal fade" id="cxlModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger bg-opacity-25">
+                <h5 class="modal-title"><i class="fa-solid fa-trash me-2"></i>Cancel Invoice <span id="cxlDoc" class="text-danger"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning py-2 small">
+                    Cancelling keeps the invoice on file (status Cancelled) - the letter can no
+                    longer be printed and totals stay for the audit trail. A reason is recorded.
+                </div>
+                <input id="cxlId" type="hidden" />
+                <label class="form-label small mb-0">Reason (min 5 characters) *</label>
+                <textarea id="cxlReason" class="form-control form-control-sm" rows="3" maxlength="300"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Close</button>
+                <button class="btn btn-danger" id="btnCxlConfirm" type="button">
+                    <i class="fa-solid fa-trash me-1"></i>Cancel Invoice
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    'use strict';
+
+    var tokenMeta = document.querySelector('meta[name="RequestVerificationToken"]');
+    var TOKEN = tokenMeta ? tokenMeta.content : '';
+    var COMPANIES = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+        Model.Companies.Select(c => new { id = c.Id, name = c.Name, status = c.Status })));
+    var CANEDIT = @Html.Raw(Model.CanEdit ? "true" : "false");
+
+    function hdr() { return { 'RequestVerificationToken': TOKEN, 'Content-Type': 'application/json' }; }
+
+    function SwalInfo(title, text, icon, cb) {
+        if (window.Swal) {
+            window.Swal.fire({ title: title, text: text || '', icon: icon || 'info',
+                customClass: { popup: 'hmis-swal' } }).then(function () { if (cb) cb(); });
+        } else { alert(title + (text ? '\n' + text : '')); if (cb) cb(); }
+    }
+
+    function fillCompany(selectEl, includeInactive) {
+        selectEl.innerHTML = '';
+        COMPANIES.forEach(function (c) {
+            if (c.status === 'N' && !includeInactive) return;
+            var o = document.createElement('option');
+            o.value = c.id; o.textContent = c.id + ' - ' + c.name;
+            selectEl.appendChild(o);
+        });
+    }
+
+    function modal(el) {
+        var api = (typeof bootstrap !== 'undefined' && bootstrap.Modal) ? new bootstrap.Modal(el) : null;
+        function open() { api ? api.show() : el.classList.add('show') && (el.style.display = 'block'); }
+        function close() { api ? api.hide() : (el.style.display = 'none', el.classList.remove('show')); }
+        return { open: open, close: close };
+    }
+
+    // ---------------- invoice popup state ----------------
+    var invM = null, patM = null, cxlM = null;
+    var editingId = 0, lines = [];
+
+    var months = ['', 'January','February','March','April','May','June',
+        'July','August','September','October','November','December'];
+
+    function initStatics() {
+        fillCompany(document.getElementById('ed_Company'), false);
+        var msel = document.getElementById('ed_BillMonth');
+        msel.innerHTML = '';
+        for (var m = 1; m <= 12; m++) {
+            var o = document.createElement('option');
+            o.value = m; o.textContent = months[m];
+            msel.appendChild(o);
+        }
+        document.getElementById('ed_InvoiceDate').value = new Date().toISOString().substr(0, 10);
+        document.getElementById('ed_SubmissionDate').value = new Date().toISOString().substr(0, 10);
+    }
+
+    function renderLines() {
+        var tb = document.getElementById('lineRows');
+        tb.innerHTML = '';
+        lines.forEach(function (l, idx) {
+            var tr = document.createElement('tr');
+            tr.innerHTML = '<td><code>' + esc(l.regNo) + '</code></td>'
+                + '<td>' + esc(l.patientName) + '</td>'
+                + '<td><input class="form-control form-control-sm text-end line-amt" '
+                + 'data-i="' + idx + '" value="' + esc(Number(l.billAmt).toFixed(2)) + '"></td>'
+                + '<td><input class="form-control form-control-sm line-rem" '
+                + 'data-i="' + idx + '" value="' + esc(l.remarks || '') + '"></td>'
+                + '<td class="text-end">'
+                + '<button type="button" class="btn btn-sm border-0 text-danger" data-del-line="' + idx + '">'
+                + '<i class="fa-solid fa-trash"></i></button></td>';
+            tb.appendChild(tr);
+        });
+        if (lines.length === 0) {
+            tb.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">'
+                + 'No patient lines - press Add Patient to look up billed inpatients.</td></tr>';
+        }
+        document.getElementById('invTotal').textContent =
+            lines.reduce(function (s, l) { return s + l.billAmt; }, 0).toFixed(2);
+    }
+
+    document.addEventListener('input', function (e) {
+        if (e.target.classList.contains('line-amt')) {
+            var v = parseFloat(e.target.value);
+            var l = lines[parseInt(e.target.dataset.i, 10)];
+            if (l) { l.billAmt = isNaN(v) ? 0 : v; document.getElementById('invTotal').textContent =
+                lines.reduce(function (s, x) { return s + x.billAmt; }, 0).toFixed(2); }
+        }
+        if (e.target.classList && e.target.classList.contains('line-rem')) {
+            var l2 = lines[parseInt(e.target.dataset.i, 10)];
+            if (l2) l2.remarks = e.target.value;
+        }
+    });
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-del-line]');
+        if (!btn) return;
+        e.preventDefault(); e.stopPropagation();
+        SwalConfirm('Delete this patient line?', '', 'warning', function () {
+            lines.splice(parseInt(btn.dataset.delLine, 10), 1);
+            renderLines();
+        });
+    });
+
+    // ---------------- popup open ----------------
+    document.querySelectorAll('.inv-row').forEach(function (tr) {
+        tr.addEventListener('click', function () {
+            if (!CANEDIT) return;
+            var id = parseInt(tr.dataset.id, 10);
+            fetch('?handler=Detail&id=' + id, { headers: { 'RequestVerificationToken': TOKEN } })
+                .then(function (r) { return r.json(); })
+                .then(function (d) {
+                    if (!d || !d.header) { SwalInfo('Not found', '', 'error'); return; }
+                    fillCompany(document.getElementById('ed_Company'), true);
+                    editingId = d.header.id;
+                    document.getElementById('invModalTitle').innerHTML =
+                        '<i class="fa-solid fa-pen me-2"></i>Edit Invoice ' + esc(d.header.docNo);
+                    document.getElementById('ed_Company').value = d.header.companyCode;
+                    document.getElementById('ed_InvoiceDate').value =
+                        (d.header.invoiceDate || '').substr(0, 10);
+                    document.getElementById('ed_SubmissionDate').value =
+                        (d.header.submissionDate || '').substr(0, 10);
+                    document.getElementById('ed_BillMonth').value = d.header.billMonth || '';
+                    document.getElementById('ed_BillYear').value = d.header.billYear || '';
+                    document.getElementById('ed_Remarks').value = d.header.remarks || '';
+                    document.getElementById('ed_DocNo').value = d.header.docNo || '';
+                    lines = d.lines.map(function (l) {
+                        return { id: l.id, regNo: l.regNo, patientName: l.patientName,
+                            billAmt: l.billAmt, remarks: l.remarks };
+                    });
+                    renderLines();
+                    invM.open();
+                });
+        });
+    });
+
+    document.getElementById('btnAddNew') && document.getElementById('btnAddNew').addEventListener('click', function () {
+        editingId = 0;
+        document.getElementById('invModalTitle').innerHTML =
+            '<i class="fa-solid fa-plus me-2"></i>Add New Invoice';
+        document.getElementById('ed_DocNo').value = '';
+        document.getElementById('ed_Company').value = '@Model.Company' || '';
+        document.getElementById('ed_Remarks').value = '';
+        document.getElementById('ed_BillYear').value = new Date().getFullYear();
+        document.getElementById('ed_InvoiceDate').value = new Date().toISOString().substr(0, 10);
+        document.getElementById('ed_SubmissionDate').value = new Date().toISOString().substr(0, 10);
+        var ms = document.getElementById('ed_BillMonth');
+        ms.value = String(new Date().getMonth() + 1);
+        lines = [];
+        renderLines();
+        invM.open();
+    });
+
+    // ---------------- patient search popup ----------------
+    function searchPatients() {
+        var company = document.getElementById('ed_Company').value;
+        if (!company) { SwalInfo('Pick a company first', 'The patient lookup is company-keyed like the legacy child grid.', 'warning'); return; }
+        document.getElementById('patCompany').value = company;
+        var term = document.getElementById('patTerm').value;
+        fetch('?handler=PatientSearch&company=' + encodeURIComponent(company) + '&term=' + encodeURIComponent(term || ''),
+            { headers: { 'RequestVerificationToken': TOKEN } })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                var tb = document.getElementById('patRows');
+                tb.innerHTML = '';
+                if (!d.length) {
+                    tb.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No billed inpatient matched - Registered patients appear once a bill is generated for them.</td></tr>';
+                    return;
+                }
+                d.forEach(function (p) {
+                    var tr = document.createElement('tr');
+                    tr.style.cursor = 'pointer';
+                    tr.innerHTML = '<td><code>' + esc(p.regNo) + '</code></td>'
+                        + '<td>' + esc(p.patientName) + '</td>'
+                        + '<td class="text-muted">' + (p.billNo ? '#' + p.billNo : '-') + '</td>'
+                        + '<td class="text-end">' + Number(p.defaultAmt).toFixed(2) + '</td>'
+                        + '<td class="text-end"><span class="badge text-bg-primary">Add</span></td>';
+                    tr.addEventListener('click', function () {
+                        lines.push({ id: 0, regNo: p.regNo, patientName: p.patientName,
+                            billAmt: p.defaultAmt, remarks: '' });
+                        renderLines();
+                        patM.close();
+                    });
+                    tb.appendChild(tr);
+                });
+            });
+    }
+    document.getElementById('btnLineSearch').addEventListener('click', function () { patM.open(); searchPatients(); });
+    document.getElementById('btnPatSearch').addEventListener('click', searchPatients);
+    document.getElementById('patTerm').addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); searchPatients(); }
+    });
+
+    // ---------------- save ----------------
+    document.getElementById('btnSaveInv').addEventListener('click', function () {
+        var input = {
+            id: editingId,
+            companyCode: document.getElementById('ed_Company').value,
+            invoiceDate: document.getElementById('ed_InvoiceDate').value,
+            submissionDate: document.getElementById('ed_SubmissionDate').value || null,
+            billMonth: parseInt(document.getElementById('ed_BillMonth').value, 10) || null,
+            billYear: parseInt(document.getElementById('ed_BillYear').value, 10) || null,
+            remarks: document.getElementById('ed_Remarks').value,
+            lines: lines.map(function (l) {
+                return { id: l.id, regNo: l.regNo, billAmt: l.billAmt, remarks: l.remarks };
+            })
+        };
+        fetch('?handler=Save', { method: 'POST', headers: hdr(), body: JSON.stringify(input) })
+            .then(function (r) { return r.json(); })
+            .then(function (res) {
+                if (res.ok) {
+                    invM.close();
+                    SwalInfo('Saved', res.docNo ? 'Invoice ' + res.docNo + ' saved.' : 'Saved.', 'success',
+                        function () { window.location.reload(); });
+                } else {
+                    SwalInfo('Not saved', res.message, 'error');
+                }
+            })
+            .catch(function (e) { SwalInfo('Error', String(e), 'error'); });
+    });
+
+    // ---------------- cancel (red trash) ----------------
+    document.querySelectorAll('[data-del-id]').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+            e.preventDefault(); e.stopPropagation();
+            document.getElementById('cxlId').value = btn.dataset.delId;
+            document.getElementById('cxlDoc').textContent = btn.dataset.doc;
+            document.getElementById('cxlReason').value = '';
+            cxlM.open();
+        });
+    });
+    document.getElementById('btnCxlConfirm').addEventListener('click', function () {
+        var id = document.getElementById('cxlId').value;
+        var reason = document.getElementById('cxlReason').value;
+        var body = new URLSearchParams();
+        body.append('id', id); body.append('reason', reason);
+        fetch('?handler=Cancel', {
+            method: 'POST',
+            headers: { 'RequestVerificationToken': TOKEN,
+                'Content-Type': 'application/x-www-form-urlencoded' },
+            body: body.toString()
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (res) {
+            if (res.ok) {
+                cxlM.close();
+                SwalInfo('Cancelled', 'Invoice ' + res.docNo + ' cancelled.', 'success',
+                    function () { window.location.reload(); });
+            } else {
+                SwalInfo('Not cancelled', res.message, 'error');
+            }
+        })
+        .catch(function (e) { SwalInfo('Error', String(e), 'error'); });
+    });
+
+    // ---------------- helpers ----------------
+    function esc(s) {
+        return String(s === null || s === undefined ? '' : s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+    function SwalConfirm(title, text, icon, cb) {
+        if (window.Swal) {
+            window.Swal.fire({ title: title, text: text || '', icon: icon || 'warning',
+                showCancelButton: true, confirmButtonText: 'Yes, delete',
+                confirmButtonColor: '#dc3545', reverseButtons: true,
+                customClass: { popup: 'hmis-swal' } }).then(function (r) {
+                    if (r.isConfirmed) cb();
+                });
+        } else if (window.confirm(title + '\n' + (text || ''))) { cb(); }
+    }
+
+    invM = modal(document.getElementById('invModal'));
+    patM = modal(document.getElementById('patModal'));
+    cxlM = modal(document.getElementById('cxlModal'));
+    initStatics();
+})();
+</script>

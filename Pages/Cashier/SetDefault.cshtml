@@ -1,0 +1,31 @@
+@page
+@model HmisWeb.Pages.Cashier.SetDefaultModel
+@{
+    ViewData["Title"] = "Set Default Cash Counter";
+}
+<div class="container mt-4">
+    <h3><i class="bi bi-check-circle"></i> Set Default Cash Counter</h3>
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage)) { <div class="alert alert-danger">@Model.ErrorMessage</div> }
+    @if (!string.IsNullOrEmpty(Model.Success)) { <div class="alert alert-success">@Model.Success</div> }
+
+    <form method="post" asp-page-handler="Claim" class="row g-2 mb-3">
+        <div class="col-md-4">
+            <label class="form-label">Activation Key</label>
+            <input asp-for="SelectedKey" class="form-control" required />
+        </div>
+        <div class="col-md-2 align-self-end">
+            <button type="submit" class="btn btn-primary">Claim Counter</button>
+        </div>
+    </form>
+
+    <table class="table table-sm table-striped">
+        <thead><tr><th>Code</th><th>Description</th><th>Active Date</th><th>Status</th></tr></thead>
+        <tbody>
+            @foreach (var s in Model.Sessions)
+            {
+                <tr><td>@s.CCode</td><td>@s.Desc</td><td>@s.ActiveDt?.ToString("dd-MM-yyyy")</td><td>@s.Status</td></tr>
+            }
+        </tbody>
+    </table>
+    <a asp-page="/cashier" class="btn btn-secondary">Back</a>
+</div>

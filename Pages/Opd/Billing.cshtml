@@ -1,181 +1,838 @@
 @page "/opd/Billing"
 @model HmisWeb.Pages.Opd.BillingModel
+@*
+ * Page/Method : Outdoor Patient (OPD Bill) - /opd/Billing
+ * Purpose     : Port of the legacy VFP form BS0101 (frmopdtran) against the legacy
+ *               tables REGISTER (TYPE='O') / OBIL_MST / OBIL_DET / OPDBILL.
+ *               Mirrors the IPD Billing screen (/inward/Billing) for outpatient files.
+ * Notes       : * Tab=update (default): find patient -> file header card, bill actions
+ *                  (Generate with optional slip-date period / Reverse with reason),
+ *                  generated bills, department summary, per-department indent lines
+ *                  (inline add / edit / retire) and the audit trail.
+ *               * Tab=list: searchable, paged list of outpatient files with a
+ *                  derived status filter (Open / Generated / Reversed / Settled).
+ *               * Lines are editable only while the file is NOT billed
+ *                  (REGISTER.BillGen != true); the server enforces the same guard.
+ *               * The status badge is derived: Open -> Generated -> Reversed -> Settled.
+ * Developer   : Tajwer Jalal
+ * Date/Time   : 20-Oct-2026 17:10
+ *@
 @{
-    ViewData["Title"] = "Generate OPD Bill";
+    ViewData["Title"] = "Outdoor Patient (OPD Bill)";
+    var st = Model.StatusText;
+    var statusBadge = st switch
+    {
+        "Settled" => ("Settled", "bg-success"),
+        "Reversed" => ("Reversed", "bg-warning text-dark"),
+        "Generated" => ("Generated", "bg-primary"),
+        "Open" => ("Open", "bg-secondary"),
+        _ => ("-", "bg-light text-dark")
+    };
+    // Lines are editable only while the file is not billed; the service re-checks.
+    var editable = Model.CanAddIndent && Model.Header != null && Model.Header.BillGen != true;
 }
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <div>
-        <h4 class="mb-0">Generate OPD Bill</h4>
-        <div class="text-muted small">Batch-generate OPD bills from PreBill / outstanding slips within a period. Mark patients to bill, then click Generate.</div>
+@*
+ * Style block : OPD bill page skin (scoped to .opd-page so no other screen is affected).
+ * Purpose     : Cards, teal gradient headers, sticky/zebra tables, entry-row highlight,
+ *               icon action buttons, focus states, loader and toast styling.
+ * Developer   : Tajwer Jalal
+ * Date/Time   : 20-Oct-2026 17:10
+ *@
+<style>
+    .opd-page { --opd-radius: .65rem; --opd-shadow: 0 2px 12px rgba(16,24,40,.07); --opd-teal:#0f766e; }
+    .opd-page .opd-card { border: 0; border-radius: var(--opd-radius); box-shadow: var(--opd-shadow); overflow: hidden; background:#fff; }
+    .opd-page .opd-card + .opd-card, .opd-page .opd-card.mb-stack { margin-top: 1rem; }
+    .opd-page .opd-card-header {
+        background: linear-gradient(90deg,#0f766e 0%,#14919b 55%,#06b6d4 100%);
+        color: #fff; display: flex; align-items: center; justify-content: space-between;
+        gap: .5rem; padding: .55rem .9rem; flex-wrap: wrap;
+    }
+    .opd-page .opd-card-header .opd-title { font-weight: 600; font-size: .95rem; display: inline-flex; align-items: center; gap: .5rem; }
+    .opd-page .opd-card-header i { color: #fff; }
+    .opd-page .opd-card-header .opd-chevron { transition: transform .2s ease; }
+    .opd-page .opd-card-header[aria-expanded="true"] .opd-chevron { transform: rotate(180deg); }
+    .opd-page .opd-header-link { cursor: pointer; }
+
+    /* Sticky, scrollable tables */
+    .opd-page .opd-table-wrap { max-height: 460px; overflow: auto; }
+    .opd-page .opd-table { margin-bottom: 0; font-size: .875rem; }
+    .opd-page .opd-table thead th {
+        position: sticky; top: 0; z-index: 3; background: #f0fdfa; color: #134e4a;
+        font-size: .72rem; text-transform: uppercase; letter-spacing: .04em;
+        border-bottom: 1px solid #99f6e4; white-space: nowrap;
+    }
+    .opd-page .opd-table tbody tr { transition: background-color .12s ease; }
+    .opd-page .opd-table tbody tr:nth-child(even) { background: #fafcfd; }
+    .opd-page .opd-table.table-hover tbody tr:hover { background: #f0fdfa; }
+    .opd-page .opd-table td { vertical-align: middle; }
+
+    /* Department summary */
+    .opd-page .opd-dept-row { cursor: pointer; }
+    .opd-page .opd-dept-row.selected { background: #ccfbf1 !important; box-shadow: inset 4px 0 0 var(--opd-teal); font-weight: 600; }
+    .opd-page .opd-dept-row:focus-visible { outline: 2px solid var(--opd-teal); outline-offset: -2px; }
+
+    /* Inline entry / edit row */
+    .opd-page .opd-entry-row { background: #fff7e6 !important; }
+    .opd-page .opd-entry-row td { border-top: 2px solid #f59e0b; }
+    .opd-page .opd-amount { font-weight: 600; color: #0f766e; }
+
+    /* Icon action buttons */
+    .opd-page .opd-act {
+        width: 30px; height: 30px; padding: 0; display: inline-flex; align-items: center;
+        justify-content: center; border-radius: .45rem; border: 1px solid transparent;
+        background: transparent; line-height: 1; font-size: .85rem;
+    }
+    .opd-page .opd-act:focus-visible { outline: 2px solid var(--opd-teal); outline-offset: 1px; }
+    .opd-page .opd-act-edit { color: #2563eb; }
+    .opd-page .opd-act-edit:hover { background: #dbeafe; }
+    .opd-page .opd-act-del { color: #dc2626; }
+    .opd-page .opd-act-del:hover { background: #fee2e2; }
+    .opd-page .opd-act-save { color: #16a34a; }
+    .opd-page .opd-act-save:hover { background: #dcfce7; }
+    .opd-page .opd-act-cancel { color: #6b7280; }
+    .opd-page .opd-act-cancel:hover { background: #e5e7eb; }
+    .opd-page .opd-act-search { color: #0f766e; }
+
+    /* Hide number spinners on Qty / Rate */
+    .opd-page input.opd-num::-webkit-outer-spin-button,
+    .opd-page input.opd-num::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .opd-page input.opd-num { -moz-appearance: textfield; appearance: textfield; }
+
+    /* Inline validation */
+    .opd-page .opd-errors { background:#fef2f2; color:#b91c1c; border:1px solid #fecaca;
+        border-radius:.5rem; padding:.4rem .6rem; font-size:.8rem; margin:.5rem .9rem; }
+    .opd-page .opd-errors[hidden] { display:none; }
+    .opd-page .opd-field-invalid { border-color:#dc2626 !important; box-shadow:0 0 0 .15rem rgba(220,38,38,.15) !important; }
+
+    /* Loader overlay */
+    .opd-loader { position: fixed; inset: 0; background: rgba(15,23,42,.35); display: flex;
+        align-items: center; justify-content: center; z-index: 2050; }
+    .opd-loader[hidden] { display: none; }
+
+    /* Small helpers */
+    .opd-page .opd-money { font-variant-numeric: tabular-nums; }
+    .opd-page .opd-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .03em; color: #6b7280; }
+    .opd-page .opd-kv { font-weight: 600; }
+    .opd-page .form-select-sm.opd-dept-select { width: auto; min-width: 12rem; }
+    .opd-page .opd-empty { text-align: center; color: #9ca3af; padding: 1.25rem; }
+</style>
+
+<div class="container-fluid opd-page py-3">
+
+    @* ============ HEADER BAR ============ *@
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <h4 class="mb-0"><i class="fa-solid fa-notes-medical me-2"></i>Outdoor Patient &mdash; OPD Bill</h4>
+        <ul class="nav nav-pills nav-sm">
+            <li class="nav-item"><a class="nav-link py-1 px-3 @(Model.Tab!="list"?"active":"")" href="?Tab=update">Update</a></li>
+            <li class="nav-item"><a class="nav-link py-1 px-3 @(Model.Tab=="list"?"active":"")" href="?Tab=list">List</a></li>
+        </ul>
     </div>
-</div>
 
-@if (TempData["Success"] != null)
-{
-    <div class="alert alert-success py-2"><i class="bi bi-check-circle me-1"></i>@TempData["Success"]</div>
-}
-@if (!string.IsNullOrEmpty(Model.Message))
-{
-    <div class="alert alert-warning py-2"><i class="bi bi-exclamation-triangle me-1"></i>@Model.Message</div>
-}
+    @* ============ LIST TAB ============ *@
+    @if (string.Equals(Model.Tab, "list", StringComparison.OrdinalIgnoreCase))
+    {
+        @* Filter change restarts at page 1 (hidden PageIndex=1). *@
+        <form method="get" class="opd-card mb-3">
+            <input type="hidden" name="Tab" value="list" />
+            <input type="hidden" name="PageIndex" value="1" />
+            <div class="opd-card-header"><span class="opd-title"><i class="fa-solid fa-list-ul"></i> Outdoor Patient Files</span></div>
+            <div class="card-body py-2 d-flex gap-2 flex-wrap">
+                <input asp-for="SearchTerm" class="form-control form-control-sm" style="max-width:280px" placeholder="Reg No / Patient Code / Company" />
+                <select asp-for="StatusFilter" class="form-select form-select-sm" style="max-width:180px">
+                    <option value="">All statuses</option>
+                    <option value="0">Open</option>
+                    <option value="1">Generated</option>
+                    <option value="2">Reversed</option>
+                    <option value="3">Settled</option>
+                </select>
+                <button class="btn btn-sm btn-primary"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
+            </div>
+        </form>
 
-<form method="post">
-    <div class="card mb-3">
-        <div class="card-body">
-            <div class="row g-3 align-items-end">
-                <div class="col-auto">
-                    <label class="form-label mb-1 small fw-bold">Bill Date</label>
-                    <input asp-for="BillDate" type="date" class="form-control form-control-sm" style="width:140px;" />
+        <div class="opd-card mb-3">
+            <div class="opd-card-header">
+                <span class="opd-title">
+                    <i class="fa-solid fa-list-ul"></i>Outpatient files (@Model.SearchResult.TotalRows)
+                    @if (Model.SearchResult.TotalRows > 0)
+                    {
+                        <span class="fw-normal small opacity-75">&mdash; rows @Model.SearchResult.FirstRowOnPage&ndash;@Model.SearchResult.LastRowOnPage of @Model.SearchResult.TotalRows</span>
+                    }
+                </span>
+            </div>
+            <div class="opd-table-wrap">
+                <table class="table table-sm table-hover opd-table mb-0">
+                    <thead><tr>
+                        <th>Reg No</th><th>Patient Code</th><th>Reg Date</th>
+                        <th>Status</th><th>Bill No</th><th class="text-end">Billed</th>
+                        <th class="text-end">Used</th><th class="text-end">Due</th><th></th>
+                    </tr></thead>
+                    <tbody>
+                    @foreach (var f in Model.SearchResult.Rows)
+                    {
+                        <tr>
+                            <td class="fw-semibold">@f.RegNo</td>
+                            <td>@f.PCode</td>
+                            <td>@f.RDate?.ToString("dd-MMM-yyyy")</td>
+                            <td><span class="badge @(f.Status==3?"bg-success":f.Status==2?"bg-warning text-dark":f.Status==1?"bg-primary":"bg-secondary")">
+                                @(f.Status==3?"Settled":f.Status==2?"Reversed":f.Status==1?"Generated":"Open")</span></td>
+                            <td>@(f.BillNo?.ToString() ?? "-")</td>
+                            <td class="text-end opd-money">@((f.BillAmt ?? 0).ToString("N2"))</td>
+                            <td class="text-end opd-money">@f.UsedAmt.ToString("N2")</td>
+                            <td class="text-end opd-money">@f.Due.ToString("N2")</td>
+                            <td><a class="btn btn-sm btn-outline-primary" href="?Tab=update&RegNo=@f.RegNo">Open</a></td>
+                        </tr>
+                    }
+                    @if (!Model.SearchResult.Rows.Any())
+                    {
+                        <tr><td colspan="9" class="opd-empty">No outpatient files match the filter.</td></tr>
+                    }
+                    </tbody>
+                </table>
+            </div>
+            @if (Model.SearchResult.TotalPages > 1)
+            {
+                var listBase = "?Tab=list&SearchTerm=" + Uri.EscapeDataString(Model.SearchTerm ?? "") +
+                               "&StatusFilter=" + (Model.StatusFilter?.ToString() ?? "");
+                <div class="card-footer bg-white d-flex justify-content-between align-items-center">
+                    <span class="text-secondary small">Page @Model.SearchResult.PageIndex of @Model.SearchResult.TotalPages</span>
+                    <nav aria-label="Outpatient file pages">
+                        <ul class="pagination pagination-sm mb-0">
+                            <li class="page-item @(Model.SearchResult.PageIndex <= 1 ? "disabled" : "")">
+                                <a class="page-link" href="@(listBase)&PageIndex=@(Model.SearchResult.PageIndex - 1)">&laquo; Prev</a>
+                            </li>
+                            @for (var p = Math.Max(1, Model.SearchResult.PageIndex - 3); p <= Math.Min(Model.SearchResult.TotalPages, Model.SearchResult.PageIndex + 3); p++)
+                            {
+                                <li class="page-item @(p == Model.SearchResult.PageIndex ? "active" : "")">
+                                    <a class="page-link" href="@(listBase)&PageIndex=@p">@p</a>
+                                </li>
+                            }
+                            <li class="page-item @(Model.SearchResult.PageIndex >= Model.SearchResult.TotalPages ? "disabled" : "")">
+                                <a class="page-link" href="@(listBase)&PageIndex=@(Model.SearchResult.PageIndex + 1)">Next &raquo;</a>
+                            </li>
+                        </ul>
+                    </nav>
                 </div>
-                <div class="col-auto">
-                    <label class="form-label mb-1 small fw-bold">Period</label>
-                    <div class="input-group input-group-sm">
-                        <span class="input-group-text">From :</span>
-                        <input asp-for="FromDate" type="date" class="form-control" style="width:135px;" />
+            }
+        </div>
+    }
+    else
+    {
+        @* ============ UPDATE TAB ============ *@
+        @* ---- patient search ---- *@
+        <form method="get" class="opd-card mb-3">
+            <input type="hidden" name="Tab" value="update" />
+            <div class="opd-card-header"><span class="opd-title"><i class="fa-solid fa-magnifying-glass"></i>Find Patient</span></div>
+            <div class="card-body py-2 d-flex gap-2 flex-wrap">
+                <input name="RegNo" value="@Model.RegNo" class="form-control form-control-sm" style="max-width:220px" placeholder="Registration No." />
+                <button class="btn btn-sm btn-primary"><i class="fa-solid fa-arrow-right-to-bracket"></i> Open File</button>
+                <a class="btn btn-sm btn-outline-secondary" href="?Tab=list"><i class="fa-solid fa-list"></i> Browse all</a>
+            </div>
+        </form>
+
+        @if (Model.Header != null)
+        {
+            @* ---- patient info card ---- *@
+            <div class="opd-card mb-3">
+                <div class="opd-card-header">
+                    <span class="opd-title"><i class="fa-solid fa-id-card-clip"></i>Patient File</span>
+                    <span class="badge @statusBadge.Item2">@statusBadge.Item1</span>
+                </div>
+                <div class="card-body py-3">
+                    <div class="row g-3 small">
+                        <div class="col-6 col-md-3"><div class="opd-label">Registration No.</div><div class="opd-kv">@Model.Header.RegNo</div></div>
+                        <div class="col-6 col-md-3"><div class="opd-label">Patient Code</div><div class="opd-kv">@Model.Header.PCode</div></div>
+                        <div class="col-6 col-md-3"><div class="opd-label">Name</div><div class="opd-kv">@(Model.PatientName ?? "-")</div></div>
+                        <div class="col-6 col-md-3"><div class="opd-label">Company / Panel (CID)</div><div>@(Model.Header.Cid ?? "-")</div></div>
+                        <div class="col-6 col-md-2"><div class="opd-label">Reg Date</div><div>@Model.Header.RDate?.ToString("dd-MMM-yyyy") @Model.Header.RTime</div></div>
+                        <div class="col-6 col-md-2"><div class="opd-label">Card No</div><div>@(Model.Header.CardNo ?? "-")</div></div>
+                        <div class="col-6 col-md-2"><div class="opd-label">Status (company)</div><div>@(Model.Header.CStat ?? "-")</div></div>
+                        <div class="col-6 col-md-2"><div class="opd-label">Consultant</div><div>@(Model.Header.ConCode ?? "-")</div></div>
+                        <div class="col-6 col-md-2"><div class="opd-label">Employee Code</div><div>@(Model.Header.ECode ?? "-")</div></div>
+                        <div class="col-6 col-md-2"><div class="opd-label">Guarantor</div><div>@(Model.Header.GName ?? "-") @(string.IsNullOrEmpty(Model.Header.GRelation) ? "" : "(" + Model.Header.GRelation + ")")</div></div>
+                        <div class="col-6 col-md-2"><div class="opd-label">Ref No</div><div>@(Model.Header.RefNo ?? "-")</div></div>
+                        <div class="col-6 col-md-2"><div class="opd-label">Valid Upto</div><div>@(Model.Header.RefValid ?? "-")</div></div>
+                        <div class="col-6 col-md-3"><div class="opd-label">Diagnosis</div><div>@(Model.Header.Diagnose ?? "-")</div></div>
                     </div>
-                </div>
-                <div class="col-auto">
-                    <label class="form-label mb-1 small fw-bold" style="visibility:hidden">To</label>
-                    <div class="input-group input-group-sm">
-                        <span class="input-group-text">To :</span>
-                        <input asp-for="ToDate" type="date" class="form-control" style="width:135px;" />
+                    <hr class="my-3" />
+                    <div class="row g-3 small">
+                        <div class="col-6 col-md-2"><div class="opd-label">Used Amount</div><div class="opd-kv opd-money">@(Model.IndentDetailMissing ? "-" : Model.UsedAmount.ToString("N2"))</div></div>
+                        <div class="col-6 col-md-2"><div class="opd-label">Billed Amount</div><div class="opd-kv opd-money">@Model.BilledAmount.ToString("N2")</div></div>
+                        <div class="col-6 col-md-2"><div class="opd-label">Receipts</div><div class="opd-money">@Model.Receipts.ToString("N2")</div></div>
+                        <div class="col-6 col-md-2"><div class="opd-label">Payment</div><div class="opd-money">@Model.Payments.ToString("N2")</div></div>
+                        <div class="col-6 col-md-2"><div class="opd-label">Discount</div><div class="opd-money">@Model.Discount.ToString("N2") @(Model.Header.DiscBy!=null? "("+Model.Header.DiscBy+")":"")</div></div>
+                        @* Amt. Due is emphasised in red only when something is actually owed. *@
+                        <div class="col-6 col-md-2"><div class="opd-label">Amt. Due</div>
+                            <div class="fw-bold opd-money @(Model.AmountDue > 0 ? "text-danger" : "")">@Model.AmountDue.ToString("N2")</div>
+                        </div>
                     </div>
-                </div>
-                <div class="col-auto">
-                    <div class="form-check mb-1">
-                        <input asp-for="FilterByCompany" class="form-check-input" type="checkbox" id="chkcid" />
-                        <label class="form-check-label small" for="chkcid">Company</label>
-                    </div>
-                    <select asp-for="CompanyId" class="form-select form-select-sm" style="width:220px;">
-                        <option value="">-- All Companies --</option>
-                        @foreach (var c in Model.CompanyList)
-                        {
-                            <option value="@c.Value">@c.Text</option>
-                        }
-                    </select>
-                </div>
-                <div class="col-auto ms-auto">
-                    <button type="submit" asp-page-handler="UpdateList" class="btn btn-primary">
-                        <i class="bi bi-arrow-clockwise me-1"></i>Update List
-                    </button>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <div class="row g-3">
-        <div class="col-lg-11">
-            <div class="card">
-                <div class="card-body p-0">
-                    @if (Model.Rows.Any())
-                    {
-                        <div class="table-responsive">
-                            <table class="table table-hover align-middle mb-0" id="billGrid">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Reg. No.</th>
-                                        <th>Patient Name</th>
-                                        <th>Company</th>
-                                        <th class="text-end">Net Amount</th>
-                                        <th class="text-center">Selected</th>
-                                    </tr>
-                                </thead>
+            @* ---- workflow actions (Generate / Reverse) ---- *@
+            @if (Model.CanGenerate || Model.CanReverse)
+            {
+                <div class="opd-card mb-3">
+                    <div class="opd-card-header"><span class="opd-title"><i class="fa-solid fa-gears"></i>Bill Actions</span></div>
+                    <div class="card-body py-2 d-flex gap-2 flex-wrap align-items-end">
+                        @if (Model.CanGenerate)
+                        {
+                            <form method="post" asp-page-handler="Generate" class="d-flex gap-2 align-items-end flex-wrap">
+                                <input type="hidden" name="RegNo" value="@Model.RegNo" />
+                                <div><label class="opd-label d-block">Bill Date</label><input asp-for="BillDate" type="date" class="form-control form-control-sm" /></div>
+                                <div><label class="opd-label d-block">Slips From</label><input asp-for="PeriodStart" type="date" class="form-control form-control-sm" /></div>
+                                <div><label class="opd-label d-block">To</label><input asp-for="PeriodEnd" type="date" class="form-control form-control-sm" /></div>
+                                <button class="btn btn-primary btn-sm"><i class="fa-solid fa-file-circle-check"></i> Generate Bill</button>
+                            </form>
+                        }
+                        @if (Model.CanReverse)
+                        {
+                            <form method="post" asp-page-handler="Reverse" class="d-flex gap-2 align-items-end ms-auto flex-wrap">
+                                <input type="hidden" name="RegNo" value="@Model.RegNo" />
+                                @* A file may have more than one generated bill; the bill to reverse is chosen here. *@
+                                @if (Model.BillHeaders.Any())
+                                {
+                                    <div><label class="opd-label d-block">Bill No</label>
+                                        <select asp-for="ReverseBillNo" class="form-select form-select-sm" style="min-width:150px">
+                                            @foreach (var b in Model.BillHeaders)
+                                            {
+                                                <option value="@b.BillNo">@b.BillNo &nbsp;(@b.BDate?.ToString("dd-MMM-yyyy"), @b.NTot?.ToString("N2"))</option>
+                                            }
+                                        </select>
+                                    </div>
+                                }
+                                <div><label class="opd-label d-block">Reason (required)</label><input asp-for="Reason" class="form-control form-control-sm" style="min-width:260px" /></div>
+                                <button class="btn btn-warning btn-sm"><i class="fa-solid fa-rotate-left"></i> Reverse</button>
+                            </form>
+                        }
+                    </div>
+                </div>
+            }
+
+            @* ---- generated bills (collapsible, only when present) ---- *@
+            @if (Model.BillHeaders.Any())
+            {
+                <div class="opd-card mb-3">
+                    <div class="opd-card-header opd-header-link" data-bs-toggle="collapse" data-bs-target="#billsCollapse" aria-expanded="false" role="button">
+                        <span class="opd-title"><i class="fa-solid fa-file-invoice-dollar"></i>Generated Bills (@Model.BillHeaders.Count)</span>
+                        <i class="fa-solid fa-chevron-down opd-chevron"></i>
+                    </div>
+                    <div class="collapse" id="billsCollapse">
+                        <div class="opd-table-wrap">
+                            <table class="table table-sm opd-table mb-0">
+                                <thead><tr><th>Bill No</th><th>Bill Date</th><th class="text-end">Net</th><th>Period</th></tr></thead>
                                 <tbody>
-                                    @for (int i = 0; i < Model.Rows.Count; i++)
-                                    {
-                                        var r = Model.Rows[i];
-                                        <tr>
-                                            <td class="fw-semibold">@r.RegNo</td>
-                                            <td>@r.PatientName</td>
-                                            <td>@r.CompanyName</td>
-                                            <td class="text-end fw-semibold">@r.NetAmount.ToString("N2")</td>
-                                            <td class="text-center">
-                                                <input class="form-check-input row-check" type="checkbox"
-                                                       name="SelectedIds" value="@r.EncounterId" checked="checked" />
-                                            </td>
-                                        </tr>
-                                    }
+                                @foreach (var b in Model.BillHeaders)
+                                {
+                                    <tr>
+                                        <td>@b.BillNo</td>
+                                        <td>@b.BDate?.ToString("dd-MMM-yyyy")</td>
+                                        <td class="text-end opd-money">@b.NTot?.ToString("N2")</td>
+                                        <td>@(b.SDate?.ToString("dd-MMM-yy") ?? "-") &ndash; @(b.EDate?.ToString("dd-MMM-yy") ?? "-")</td>
+                                    </tr>
+                                }
                                 </tbody>
                             </table>
                         </div>
-                        <div class="card-footer bg-light d-flex justify-content-between align-items-center">
-                            <span class="text-secondary small">
-                                @Model.Rows.Count patient(s) listed. Check/uncheck rows or use the buttons on the right.
-                            </span>
-                            <span class="fw-bold">
-                                Total: @Model.Rows.Sum(r => r.NetAmount).ToString("N2")
-                            </span>
-                        </div>
-                    }
-                    else
-                    {
-                        <div class="text-center py-5">
-                            <i class="bi bi-inbox text-secondary" style="font-size:2.2rem;"></i>
-                            <p class="text-secondary mt-2 mb-0">No unbilled slips in the selected period. Set dates and click Update List.</p>
-                        </div>
-                    }
+                    </div>
+                </div>
+            }
+
+            @* ---- locked notice (bill generated) ---- *@
+            @if (Model.Header.BillGen == true)
+            {
+                <div class="alert alert-warning py-2 opd-card mb-3">
+                    <i class="fa-solid fa-lock me-1"></i>
+                    <strong>This file is locked (bill generated).</strong> Indent lines are read-only.
+                    Reverse the bill (with a reason) to edit the slips again.
+                </div>
+            }
+
+            @* ---- department summary (full width) ---- *@
+            <div class="opd-card mb-3">
+                <div class="opd-card-header">
+                    <span class="opd-title"><i class="fa-solid fa-table-list"></i>Department Summary</span>
+                    <span class="small opacity-75">Click a row to open that department below</span>
+                </div>
+                <div class="opd-table-wrap">
+                    <table class="table table-sm table-hover opd-table mb-0">
+                        <thead><tr>
+                            <th style="width:120px">Dept Code</th>
+                            <th>Department Name</th>
+                            <th class="text-end" style="width:140px">Total Slips</th>
+                            <th class="text-end" style="width:160px">Total Amount</th>
+                        </tr></thead>
+                        <tbody>
+                        @foreach (var d in Model.DeptTotals)
+                        {
+                            <tr class="opd-dept-row @(d.Dept == Model.Dept ? "selected" : "")"
+                                data-dept="@d.Dept"
+                                data-href="?Tab=update&RegNo=@Model.RegNo&Dept=@d.Dept"
+                                tabindex="0" role="button"
+                                aria-label="Open department @Model.DeptDisplay(d.Dept)"
+                                onclick="opdSelectDept(this)"
+                                onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();opdSelectDept(this);}">
+                                <td class="fw-semibold">@d.Dept</td>
+                                <td>@Model.DeptDisplay(d.Dept)</td>
+                                <td class="text-end">@d.SlipCount</td>
+                                <td class="text-end opd-money">@d.Amount.ToString("N2")</td>
+                            </tr>
+                        }
+                        @if (!Model.DeptTotals.Any())
+                        {
+                            <tr><td colspan="4" class="opd-empty">No slips yet</td></tr>
+                        }
+                        </tbody>
+                        @if (Model.DeptTotals.Any())
+                        {
+                            <tfoot>
+                                <tr class="fw-bold" style="background:#f1f5f9">
+                                    <td colspan="2" class="text-end">Grand Total</td>
+                                    <td class="text-end">@Model.DeptTotals.Sum(d => d.SlipCount)</td>
+                                    <td class="text-end opd-money">@Model.DeptTotals.Sum(d => d.Amount).ToString("N2")</td>
+                                </tr>
+                            </tfoot>
+                        }
+                    </table>
+                </div>
+                @if (Model.IndentDetailMissing)
+                {
+                    <div class="alert alert-warning rounded-0 mb-0 small">
+                        <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                        <strong>No slip detail available for this file.</strong>
+                        The legacy slip tables (<code>OBIL_MST</code> / <code>OBIL_DET</code>) hold no
+                        department slips for Reg. No @Model.RegNo, so the department breakdown
+                        cannot be shown. This file was billed a total of
+                        <strong>@Model.BilledAmount.ToString("N2")</strong> in the source system;
+                        the figure is kept on the header above and is not lost.
+                    </div>
+                }
+            </div>
+
+            @* ---- indent lines grid (full width) ---- *@
+            <div class="opd-card mb-3">
+                <div class="opd-card-header">
+                    <span class="opd-title"><i class="fa-solid fa-list-check"></i>Indent Slips &mdash; Dept @Model.Dept</span>
+                    <div class="d-flex align-items-center gap-2">
+                        <select asp-for="Dept" asp-items="Model.DeptList" class="form-select form-select-sm opd-dept-select"
+                                aria-label="Department" id="Dept"
+                                onchange="opdShowLoader();location.href='?Tab=update&RegNo=@Model.RegNo&Dept='+encodeURIComponent(this.value)"></select>
+                        @if (editable)
+                        {
+                            <button type="button" class="btn btn-sm btn-light" id="opdAddRowBtn" title="Add new row" aria-label="Add new row" onclick="opdShowEntry()">
+                                <i class="fa-solid fa-circle-plus text-primary"></i>
+                            </button>
+                        }
+                    </div>
+                </div>
+
+                <form method="post" id="lineForm">
+                    <input type="hidden" name="RegNo" value="@Model.RegNo" />
+                    <input type="hidden" name="Dept" value="@Model.Dept" />
+                    <input type="hidden" name="LineId" value="" />
+                    <div class="opd-table-wrap">
+                        <table class="table table-sm table-hover opd-table mb-0 align-middle">
+                            <thead><tr>
+                                <th style="width:60px">Id</th>
+                                <th style="width:90px">Slip No</th>
+                                <th style="width:140px">Date</th>
+                                <th style="width:150px">Code</th>
+                                <th>Description</th>
+                                <th class="text-end" style="width:90px">Qty</th>
+                                <th class="text-end" style="width:100px">Rate</th>
+                                <th class="text-end" style="width:110px">Amount (auto)</th>
+                                <th style="width:170px">Remarks</th>
+                                <th style="width:1%">Actions</th>
+                            </tr></thead>
+                            <tbody id="opdLinesBody">
+                            @foreach (var l in Model.Lines)
+                            {
+                                <tr>
+                                    <td class="text-muted">@l.Id</td>
+                                    <td>@l.SlipNo</td>
+                                    <td>@l.SlipDate?.ToString("dd-MM-yy")</td>
+                                    <td>@l.Code</td>
+                                    <td>@l.Description</td>
+                                    <td class="text-end">@l.Qty</td>
+                                    <td class="text-end opd-money">@l.Rate.ToString("N2")</td>
+                                    <td class="text-end opd-money opd-amount">@l.Amount.ToString("N2")</td>
+                                    <td>@l.Remarks</td>
+                                    <td class="text-nowrap">
+                                        @if (l.IsReturn)
+                                        {
+                                            <span class="badge bg-danger" title="Return slip (TYPE='R')">R</span>
+                                        }
+                                        @if (l.SlipBillNo != null && l.SlipBillNo > 0)
+                                        {
+                                            <span class="badge bg-info text-dark" title="Billed on bill @l.SlipBillNo">Bill @l.SlipBillNo</span>
+                                        }
+                                        @if (editable)
+                                        {
+                                            <button type="button" class="opd-act opd-act-edit" title="Edit" aria-label="Edit line"
+                                                    data-edit='@System.Text.Json.JsonSerializer.Serialize(new { l.Id, l.SlipNo, SlipDate = l.SlipDate?.ToString("yyyy-MM-dd"), l.Code, l.Qty, l.Rate, l.Description, l.Remarks })'
+                                                    onclick="opdFillEdit(this)"><i class="fa-solid fa-pencil"></i></button>
+                                            <button type="submit" class="opd-act opd-act-del" title="Delete" aria-label="Delete line"
+                                                    name="retireLineId" value="@l.Id" formaction="?handler=RetireLine"
+                                                    onclick="return confirm('Delete this indent line?')"><i class="fa-solid fa-trash"></i></button>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                            @if (Model.Lines.Any() == false)
+                            {
+                                <tr id="opdEmptyHint"><td colspan="10" class="opd-empty">@(editable ? $"No indent lines yet for Dept {Model.Dept} \u2014 click the + Add new row button to begin." : $"No indent lines recorded for Dept {Model.Dept}.")</td></tr>
+                            }
+
+                            @if (editable)
+                            {
+                                @* ---- inline add / edit row (hidden until Add new row or Edit) ---- *@
+                                <tr class="opd-entry-row d-none" id="opdEntryRow">
+                                    <td class="text-muted fw-semibold">new</td>
+                                    <td><input name="SlipNo" class="form-control form-control-sm" value="@Model.SlipNo" title="Slip No (auto, editable)" aria-label="Slip number" /></td>
+                                    <td><input name="SlipDate" type="date" class="form-control form-control-sm" value="@(Model.SlipDate?.ToString("yyyy-MM-dd") ?? DateTime.Today.ToString("yyyy-MM-dd"))" title="Date" aria-label="Date" /></td>
+                                    <td>
+                                        <div class="input-group input-group-sm">
+                                            <input name="ItemCode" class="form-control" placeholder="Select" readonly aria-label="Item code" />
+                                            <button type="button" class="btn btn-outline-secondary opd-act-search" data-bs-toggle="modal" data-bs-target="#serviceModal" title="Search item/code" aria-label="Search item or code"><i class="fa-solid fa-magnifying-glass"></i></button>
+                                        </div>
+                                    </td>
+                                    <td><input name="Description" class="form-control form-control-sm" placeholder="Selected service" readonly aria-label="Description" /></td>
+                                    <td><input name="Qty" type="number" step="0.01" min="0" class="form-control form-control-sm text-end opd-num" title="Quantity" aria-label="Quantity" /></td>
+                                    <td><input name="Rate" type="number" step="0.01" min="0" class="form-control form-control-sm text-end opd-num" title="Rate" aria-label="Rate" /></td>
+                                    <td class="text-end opd-amount" id="opdEntryAmount">0.00</td>
+                                    <td><input name="Remarks" class="form-control form-control-sm" title="Remarks" aria-label="Remarks" /></td>
+                                    <td class="text-nowrap">
+                                        <button type="submit" class="opd-act opd-act-save" id="opdSaveBtn" formaction="?handler=AddLine" title="Save" aria-label="Save"><i class="fa-solid fa-check"></i></button>
+                                        <button type="button" class="opd-act opd-act-cancel" title="Cancel" aria-label="Cancel" onclick="opdCancel()"><i class="fa-solid fa-xmark"></i></button>
+                                    </td>
+                                </tr>
+                            }
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="opd-errors" id="opdEntryErrors" role="alert" hidden></div>
+                </form>
+            </div>
+
+            @* ---- audit trail (full width, collapsible, collapsed by default) ---- *@
+            <div class="opd-card mb-3">
+                <div class="opd-card-header opd-header-link" data-bs-toggle="collapse" data-bs-target="#auditCollapse" aria-expanded="false" role="button">
+                    <span class="opd-title"><i class="fa-solid fa-clock-rotate-left"></i>Audit Trail (@Model.Audit.Count)</span>
+                    <i class="fa-solid fa-chevron-down opd-chevron"></i>
+                </div>
+                <div class="collapse" id="auditCollapse">
+                    <div class="opd-table-wrap">
+                        <table class="table table-sm opd-table mb-0">
+                            <thead><tr><th>When (UTC)</th><th>Action</th><th>Entity</th><th>Key</th><th>Old</th><th>New</th><th>Reason</th><th>User</th></tr></thead>
+                            <tbody>
+                            @foreach (var a in Model.Audit)
+                            {
+                                <tr><td>@a.CreatedAt.ToString("dd-MMM-yyyy HH:mm")</td><td>@a.Action</td><td>@a.Entity</td><td>@a.EntityKey</td><td>@a.OldValue</td><td>@a.NewValue</td><td>@a.Reason</td><td>@a.UserName</td></tr>
+                            }
+                            @if (!Model.Audit.Any())
+                            {
+                                <tr><td colspan="8" class="opd-empty">No audit entries.</td></tr>
+                            }
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
-        </div>
-
-        <div class="col-lg-1">
-            <div class="card">
-                <div class="card-body p-2 d-flex flex-column gap-2">
-                    <button type="button" class="btn btn-outline-success btn-sm" onclick="selectActive()">Select</button>
-                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="deselectActive()">De-Select</button>
-                    <button type="button" class="btn btn-outline-success btn-sm" onclick="selectAll()">Select All</button>
-                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="deselectAll()">De-Select All</button>
+        }
+        else if (string.IsNullOrEmpty(Model.Message))
+        {
+            <div class="opd-card">
+                <div class="card-body text-center py-5">
+                    <i class="fa-solid fa-notes-medical text-secondary" style="font-size:2.2rem"></i>
+                    <p class="text-secondary mt-2 mb-0">Enter a registration number to load a file, or browse the list.</p>
                 </div>
             </div>
+        }
+    }
+</div>
+
+@* ============ LOADER + TOASTS ============ *@
+<div class="opd-loader" id="opdLoader" hidden>
+    <div class="text-center text-white">
+        <div class="spinner-border" role="status" aria-hidden="true"></div>
+        <div class="small mt-2">Loading&hellip;</div>
+    </div>
+</div>
+
+<div class="toast-container position-fixed top-0 end-0 p-3" id="opdToasts" style="z-index:2060"></div>
+@if (!string.IsNullOrEmpty(Model.Success))
+{
+    <div data-opd-toast="success" data-opd-msg="@Model.Success" hidden></div>
+}
+@if (!string.IsNullOrEmpty(Model.Message))
+{
+    <div data-opd-toast="danger" data-opd-msg="@Model.Message" hidden></div>
+}
+
+@* ============ SERVICE LOOKUP MODAL ============ *@
+<div class="modal fade" id="serviceModal" tabindex="-1" aria-labelledby="serviceModalTitle" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="serviceModalTitle"><i class="fa-solid fa-magnifying-glass me-2"></i>Select Service / Investigation</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="input-group mb-2">
+          <span class="input-group-text"><i class="fa-solid fa-magnifying-glass"></i></span>
+          <input id="serviceSearch" class="form-control" placeholder="Search by code or name" aria-label="Search services" />
+          <button class="btn btn-outline-secondary" type="button" id="serviceSearchBtn">Search</button>
         </div>
+        <div class="table-responsive" style="max-height:400px;overflow:auto">
+          <table class="table table-sm table-hover mb-0">
+            <thead class="table-light"><tr><th>Code</th><th>Name</th><th class="text-end">Rate</th><th></th></tr></thead>
+            <tbody id="serviceTableBody"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
+  </div>
+</div>
 
-    <div class="d-flex justify-content-center gap-3 mt-3">
-        <button type="submit" asp-page-handler="Generate" class="btn btn-success px-4">
-            <i class="bi bi-cash-coin me-1"></i>Generate
-        </button>
-        <a asp-page="/opd/Billing" class="btn btn-outline-secondary px-4">Cancel</a>
-    </div>
-</form>
+@*
+ * Script : OPD bill client behaviour
+ * Purpose: Department row selection, inline entry-row show/edit/cancel, live amount,
+ *          inline validation (Date required, Qty > 0, Rate >= 0), Enter=save/Esc=cancel,
+ *          service lookup, loader overlay and toast notifications.
+ * Notes  : Loaded inline after the layout's form markup. All DOM wiring happens on
+ *          DOMContentLoaded so bootstrap (loaded at the end of the layout) is ready.
+ * Developer: Tajwer Jalal
+ * Date/Time: 20-Oct-2026 17:10
+ *@
+<script>
+    (function () {
+        'use strict';
 
-@section Scripts {
-    <script>
-        var grid = document.getElementById('billGrid');
-        var activeRow = null;
+        /* ---------- loader ---------- */
+        function showLoader() { var el = document.getElementById('opdLoader'); if (el) el.hidden = false; }
+        function hideLoader() { var el = document.getElementById('opdLoader'); if (el) el.hidden = true; }
+        window.opdShowLoader = showLoader;
 
-        if (grid) {
-            grid.querySelectorAll('tbody tr').forEach(function (tr) {
-                tr.addEventListener('click', function () {
-                    if (grid.querySelector('tr.row-active')) {
-                        grid.querySelector('tr.row-active').classList.remove('row-active');
-                    }
-                    tr.classList.add('row-active');
-                    activeRow = tr;
-                });
+        /* ---------- toast ---------- */
+        function showToast(message, type) {
+            var host = document.getElementById('opdToasts');
+            if (!host || !message) return;
+            var bg = type === 'success' ? 'text-bg-success' : (type === 'danger' ? 'text-bg-danger' : 'text-bg-secondary');
+            var wrap = document.createElement('div');
+            wrap.className = 'toast align-items-center border-0 ' + bg;
+            wrap.setAttribute('role', 'alert');
+            wrap.setAttribute('aria-live', 'assertive');
+            wrap.setAttribute('aria-atomic', 'true');
+            var ico = type === 'success' ? 'fa-circle-check' : 'fa-circle-exclamation';
+            wrap.innerHTML =
+                '<div class="d-flex">' +
+                '  <div class="toast-body"><i class="fa-solid ' + ico + ' me-2"></i>' + message + '</div>' +
+                '  <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>' +
+                '</div>';
+            host.appendChild(wrap);
+            var t = new bootstrap.Toast(wrap, { delay: 4000 });
+            t.show();
+            wrap.addEventListener('hidden.bs.toast', function () { wrap.remove(); });
+        }
+
+        /* ---------- department selection ---------- */
+        function selectDept(row) {
+            var href = row && row.getAttribute('data-href');
+            if (href) { showLoader(); window.location.href = href; }
+        }
+        window.opdSelectDept = selectDept;
+
+        /* ---------- entry row ---------- */
+        function entryRow() { return document.getElementById('opdEntryRow'); }
+        function form() { return document.getElementById('lineForm'); }
+        function q(sel) { var f = form(); return f ? f.querySelector(sel) : null; }
+
+        function clearErrors() {
+            var box = document.getElementById('opdEntryErrors');
+            if (box) { box.hidden = true; box.innerHTML = ''; }
+            ['ItemCode', 'Qty', 'Rate', 'Remarks', 'SlipDate'].forEach(function (n) {
+                var el = q('[name=' + n + ']'); if (el) el.classList.remove('opd-field-invalid');
             });
         }
-
-        function rowCheck(r) {
-            return r ? r.querySelector('.row-check') : null;
+        function showErrors(msgs) {
+            var box = document.getElementById('opdEntryErrors');
+            if (!box) { alert(msgs.join('\n')); return; }
+            box.innerHTML = msgs.map(function (m) { return '<div><i class="fa-solid fa-circle-exclamation me-1"></i>' + m + '</div>'; }).join('');
+            box.hidden = false;
         }
 
-        function selectAll() {
-            if (grid) grid.querySelectorAll('.row-check').forEach(function (c) { c.checked = true; });
+        function recalc() {
+            var qty = parseFloat(q('[name=Qty]').value) || 0;
+            var rate = parseFloat(q('[name=Rate]').value) || 0;
+            var out = document.getElementById('opdEntryAmount');
+            if (out) out.textContent = (qty * rate).toFixed(2);
         }
 
-        function deselectAll() {
-            if (grid) grid.querySelectorAll('.row-check').forEach(function (c) { c.checked = false; });
+        function showEntry(focusEl) {
+            var row = entryRow(); if (!row) return;
+            row.classList.remove('d-none');
+            var hint = document.getElementById('opdEmptyHint'); if (hint) hint.classList.add('d-none');
+            row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            var target = focusEl || q('[name=ItemCode]');
+            if (target) { try { target.focus(); } catch (e) { } }
+        }
+        window.opdShowEntry = showEntry;
+
+        function resetFields() {
+            var f = form(); if (!f) return;
+            f.querySelectorAll('[name=SlipNo],[name=SlipDate],[name=ItemCode],[name=Description],[name=Qty],[name=Rate],[name=Remarks]')
+                .forEach(function (el) { el.value = ''; });
+            q('[name=LineId]').value = '';
+            var save = document.getElementById('opdSaveBtn');
+            if (save) save.setAttribute('formaction', '?handler=AddLine');
+            recalc(); clearErrors();
         }
 
-        function selectActive() {
-            var c = rowCheck(activeRow);
-            if (c) c.checked = true;
+        function cancel() {
+            var row = entryRow(); if (!row) return;
+            row.classList.add('d-none');
+            resetFields();
+            var hint = document.getElementById('opdEmptyHint'); if (hint) hint.classList.remove('d-none');
+        }
+        window.opdCancel = cancel;
+
+        function fillEdit(btn) {
+            var d; try { d = JSON.parse(btn.getAttribute('data-edit')); } catch (e) { return; }
+            var f = form(); if (!f) return;
+            q('[name=SlipNo]').value = d.SlipNo || '';
+            q('[name=SlipDate]').value = d.SlipDate || '';
+            q('[name=ItemCode]').value = d.Code || '';
+            q('[name=Description]').value = d.Description || '';
+            q('[name=Qty]').value = d.Qty;
+            q('[name=Rate]').value = d.Rate;
+            q('[name=Remarks]').value = d.Remarks || '';
+            q('[name=LineId]').value = d.Id;
+            var save = document.getElementById('opdSaveBtn');
+            if (save) save.setAttribute('formaction', '?handler=EditLine');
+            recalc(); clearErrors();
+            showEntry(q('[name=Qty]'));
+        }
+        window.opdFillEdit = fillEdit;
+
+        /* ---------- validation ---------- */
+        function validate() {
+            clearErrors();
+            var msgs = [];
+            var date = q('[name=SlipDate]');
+            var qtyEl = q('[name=Qty]');
+            var rateEl = q('[name=Rate]');
+            var qty = parseFloat(qtyEl.value);
+            var rate = parseFloat(rateEl.value);
+
+            if (!date.value) { msgs.push('Date is required.'); date.classList.add('opd-field-invalid'); }
+            if (isNaN(qty) || qty <= 0) { msgs.push('Quantity must be greater than 0.'); qtyEl.classList.add('opd-field-invalid'); }
+            if (isNaN(rate) || rate < 0) { msgs.push('Rate must be 0 or greater.'); rateEl.classList.add('opd-field-invalid'); }
+
+            if (msgs.length) { showErrors(msgs); return false; }
+            return true;
         }
 
-        function deselectActive() {
-            var c = rowCheck(activeRow);
-            if (c) c.checked = false;
+        /* ---------- service lookup ---------- */
+        function loadServices(search) {
+            // Read the department from the header dropdown explicitly (#Dept). There is
+            // also a hidden <input name="Dept"> inside #lineForm for POST binding;
+            // querying '[name=Dept]' could pick the wrong one, so target the select.
+            var deptEl = document.getElementById('Dept') || q('[name=Dept]');
+            var dept = deptEl ? deptEl.value : '';
+            var body = document.getElementById('serviceTableBody');
+            if (body) body.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3"><span class="spinner-border spinner-border-sm me-2"></span>Loading&hellip;</td></tr>';
+            fetch('?handler=DeptServices&dept=' + encodeURIComponent(dept) + '&search=' + encodeURIComponent(search || ''))
+                .then(function (r) { return r.json(); })
+                .then(function (d) {
+                    var tb = document.getElementById('serviceTableBody');
+                    tb.innerHTML = '';
+                    if (!d || !d.length) {
+                        tb.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">No services found.</td></tr>';
+                        return;
+                    }
+                    d.forEach(function (x) {
+                        var tr = document.createElement('tr');
+                        var tdCode = document.createElement('td'); tdCode.textContent = x.code || '';
+                        var tdName = document.createElement('td'); tdName.textContent = x.name || '';
+                        var tdRate = document.createElement('td'); tdRate.className = 'text-end';
+                        tdRate.textContent = (Number(x.rate) || 0).toFixed(2);
+                        var tdBtn = document.createElement('td');
+                        var btn = document.createElement('button');
+                        btn.type = 'button'; btn.className = 'btn btn-sm btn-primary';
+                        btn.innerHTML = '<i class="fa-solid fa-plus me-1"></i>Select';
+                        btn.addEventListener('click', function () { pickService(x.code, x.name, x.rate); });
+                        tdBtn.appendChild(btn);
+                        tr.appendChild(tdCode); tr.appendChild(tdName); tr.appendChild(tdRate); tr.appendChild(tdBtn);
+                        tb.appendChild(tr);
+                    });
+                })
+                .catch(function () {
+                    var tb = document.getElementById('serviceTableBody');
+                    if (tb) tb.innerHTML = '<tr><td colspan="4" class="text-center text-danger py-3">Failed to load services.</td></tr>';
+                });
         }
-    </script>
-}
+
+        function pickService(code, name, rate) {
+            q('[name=ItemCode]').value = code || '';
+            q('[name=Description]').value = name || '';
+            q('[name=Rate]').value = (Number(rate) || 0);
+            recalc();
+            clearErrors();
+            var el = document.getElementById('serviceModal');
+            var inst = bootstrap.Modal.getInstance(el) || new bootstrap.Modal(el);
+            inst.hide();
+            var qtyEl = q('[name=Qty]');
+            if (qtyEl) { qtyEl.focus(); try { qtyEl.select(); } catch (e) { } }   // auto-focus Qty after pick
+        }
+
+        /* ---------- init ---------- */
+        document.addEventListener('DOMContentLoaded', function () {
+            // Toasts from server-side Success / Message.
+            document.querySelectorAll('[data-opd-toast]').forEach(function (el) {
+                showToast(el.getAttribute('data-opd-msg'), el.getAttribute('data-opd-toast'));
+            });
+            hideLoader();
+
+            var f = form();
+            var save = document.getElementById('opdSaveBtn');
+
+            // Live amount.
+            var qtyEl = q('[name=Qty]'), rateEl = q('[name=Rate]');
+            if (qtyEl) qtyEl.addEventListener('input', recalc);
+            if (rateEl) rateEl.addEventListener('input', recalc);
+            recalc();
+
+            // Save: validate before submitting; show loader when valid.
+            if (save) {
+                save.addEventListener('click', function (e) {
+                    if (!validate()) { e.preventDefault(); }
+                });
+            }
+
+            // Enter = save, Esc = cancel (within the entry row).
+            var row = entryRow();
+            if (row) {
+                row.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (save && validate()) { showLoader(); f.submit(); }
+                    } else if (e.key === 'Escape') {
+                        e.preventDefault();
+                        cancel();
+                    }
+                });
+            }
+
+            // Loader on any real submit.
+            if (f) f.addEventListener('submit', function () { showLoader(); });
+
+            // Service lookup modal wiring.
+            var inp = document.getElementById('serviceSearch');
+            var sbtn = document.getElementById('serviceSearchBtn');
+            if (inp) inp.addEventListener('input', function () { loadServices(this.value); });
+            if (sbtn) sbtn.addEventListener('click', function () { loadServices(inp ? inp.value : ''); });
+            var modal = document.getElementById('serviceModal');
+            if (modal) modal.addEventListener('show.bs.modal', function () { loadServices(''); });
+        });
+    })();
+</script>

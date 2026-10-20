@@ -30,6 +30,15 @@ builder.Services.AddScoped<HmisWeb.Services.Pharmacy.PhService>();
 builder.Services.AddScoped<HmisWeb.Services.Billing.IpdBillQueryService>();
 builder.Services.AddScoped<HmisWeb.Services.Billing.IpdBillLineService>();
 builder.Services.AddScoped<HmisWeb.Services.Billing.IpdBillWorkflowService>();
+// Outdoor Patient (OPD Bill) form - VFP BS0101 replacement (/opd/Billing)
+builder.Services.AddScoped<HmisWeb.Services.Billing.OpdBillQueryService>();
+builder.Services.AddScoped<HmisWeb.Services.Billing.OpdBillLineService>();
+builder.Services.AddScoped<HmisWeb.Services.Billing.OpdBillWorkflowService>();
+builder.Services.AddScoped<HmisWeb.Services.Billing.OpdBillGenerateService>();
+// Recovery module - phase 4 sprint 1: company Invoice/Letter (/Recovery/Invoice)
+builder.Services.AddScoped<HmisWeb.Services.Billing.RecoveryInvoiceQueryService>();
+builder.Services.AddScoped<HmisWeb.Services.Billing.RecoveryInvoiceService>();
+builder.Services.AddScoped<HmisWeb.Services.Billing.RecoveryInvoiceReportService>();
 
 builder.Services.AddAuthentication("HmisAuth")
     .AddCookie("HmisAuth", options =>
