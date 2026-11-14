@@ -13,7 +13,7 @@
 </div>
 
 <div class="card">
-    <div class="card-header bg-white fw-semibold">Active Institutions (@Model.Institutions.Count)</div>
+    <div class="card-header bg-white fw-semibold">Active Institutions (@Model.TotalCount)</div>
     <div class="card-body p-0">
         @if (!Model.Institutions.Any())
         {
@@ -62,3 +62,5 @@
         }
     </div>
 </div>
+
+<partial name="_Pager" model="Model" />

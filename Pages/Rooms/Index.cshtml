@@ -1,97 +1,509 @@
 @page
 @model HmisWeb.Pages.Rooms.IndexModel
+@*
+    Rooms & Beds - ward and bed master built on the legacy wards.DBF / bed_pos.DBF
+    (SQL tables WARD and BED_POS).
+
+    Developer : [TAJWER JALAL]
+    Date      : 22-Oct-2026
+    Time      : 14:10
+    Change Log: 22-Oct-2026 14:10 - rewritten on WARD + BED_POS: ward card with
+                bed counters, paged bed grid with ward/status/search filters,
+                add/edit popups, soft-retire with reason (SweetAlert) and
+                server-side privilege gates.
+*@
 @{
     ViewData["Title"] = "Rooms & Beds";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="d-flex justify-content-between align-items-end mb-3 flex-wrap gap-2">
     <div>
-        <h4 class="mb-0">Rooms & Beds</h4>
-        <div class="text-muted small">Manage Rooms & Beds records.</div>
+        <h4 class="mb-0 fw-bold"><i class="bi bi-door-closed me-2 text-primary"></i>Rooms &amp; Beds</h4>
+        <div class="text-muted small">
+            Ward and bed masters of the hospital - <code>WARD</code> (wards.DBF) and
+            <code>BED_POS</code> (bed_pos.DBF). A bed belongs to a ward through the ward code.
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        <span class="badge bg-primary rounded-pill align-self-center">@Model.WardCount wards</span>
+        <span class="badge bg-success rounded-pill align-self-center">@Model.VacantCount vacant</span>
+        <span class="badge bg-danger rounded-pill align-self-center">@Model.OccupiedCount occupied</span>
+        @if (Model.CanEdit)
+        {
+            <button type="button" class="btn btn-outline-primary btn-sm" id="btnAddWard"
+                    data-bs-toggle="modal" data-bs-target="#wardModal">
+                <i class="bi bi-plus-circle me-1"></i>Add Ward
+            </button>
+            <button type="button" class="btn btn-primary btn-sm" id="btnAddBed"
+                    data-bs-toggle="modal" data-bs-target="#bedModal" @(Model.WardList.Count == 0 ? "disabled" : "")>
+                <i class="bi bi-plus-circle me-1"></i>Add Bed
+            </button>
+        }
     </div>
 </div>
 
-<div class="row g-4">
-    <div class="col-lg-7 col-12">
-        <div class="card">
-            <div class="card-header bg-white d-flex align-items-center justify-content-between">
-                <strong>Rooms & Beds</strong>
-                <span class="badge bg-primary rounded-pill">@Model.Items.Count</span>
-            </div>
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead>
-                        <tr>
-                            <th>Name</th>
-                            <th>Description</th>
-                            <th>Category</th>
-                            <th>Department</th>
-                            <th class="text-end">Actions</th>
+@if (!string.IsNullOrEmpty(Model.Success))
+{
+    <div class="alert alert-success alert-dismissible fade show py-2" role="alert">
+        @Model.Success
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (!string.IsNullOrEmpty(Model.Error))
+{
+    <div class="alert alert-danger alert-dismissible fade show py-2" role="alert">
+        @Model.Error
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<!-- ------------------------------------------------------------- wards -->
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header bg-white d-flex align-items-center justify-content-between">
+        <strong><i class="bi bi-diagram-3 me-1"></i>Wards</strong>
+        <span class="badge bg-primary rounded-pill">@Model.Wards.Count</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width:90px">Code</th>
+                        <th>Ward</th>
+                        <th style="width:80px" class="text-center">Beds</th>
+                        <th style="width:95px" class="text-center">Occupied</th>
+                        <th style="width:90px">Status</th>
+                        <th class="text-end" style="width:130px">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var w in Model.Wards)
+                    {
+                        <tr class="@(w.Retired ? "table-secondary" : "")">
+                            <td class="fw-semibold">@w.Code</td>
+                            <td>@w.Name</td>
+                            <td class="text-center">@w.BedCount</td>
+                            <td class="text-center">
+                                @if (w.OccupiedCount > 0)
+                                {
+                                    <span class="badge bg-danger">@w.OccupiedCount</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">0</span>
+                                }
+                            </td>
+                            <td>
+                                @if (w.Retired)
+                                {
+                                    <span class="badge bg-secondary" title="@w.RetireComments">Retired</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-success">Active</span>
+                                }
+                            </td>
+                            <td class="text-end text-nowrap">
+                                @if (Model.CanEdit)
+                                {
+                                    <button type="button" class="btn btn-outline-primary btn-sm btn-edit-ward"
+                                            data-id="@w.Id" data-code="@w.Code" data-name="@w.Name"
+                                            data-bs-toggle="modal" data-bs-target="#wardModal" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    @if (w.Retired)
+                                    {
+                                        <form method="post" asp-page-handler="RestoreWard" class="d-inline">
+                                            <input type="hidden" name="id" value="@w.Id" />
+                                            <button type="submit" class="btn btn-outline-success btn-sm"
+                                                    onclick="return confirm('Restore this ward?');" title="Restore">
+                                                <i class="bi bi-arrow-counterclockwise"></i>
+                                            </button>
+                                        </form>
+                                    }
+                                    else
+                                    {
+                                        <button type="button" class="btn btn-outline-danger btn-sm btn-retire-ward"
+                                                data-id="@w.Id" data-name="@w.Code - @w.Name" title="Retire">
+                                            <i class="bi bi-slash-circle"></i>
+                                        </button>
+                                    }
+                                }
+                            </td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        @if (Model.Items.Count == 0)
-                        {
-                            <tr><td colspan="5" class="text-center text-muted py-3">No records yet. Add the first one on the right.</td></tr>
-                        }
-                        @foreach (var item in Model.Items)
-                        {
-                            <tr>
-                                <td>@item.Name</td>
-                                <td>@(item.Description ?? "-")</td>
-                                <td>@(item.RoomCategory?.Name ?? "-")</td>
-                                <td>@(item.Department?.Name ?? "-")</td>
-                                <td class="text-end">
-                                    <form method="post">
-                                        @Html.AntiForgeryToken()
-                                        <input type="hidden" name="handler" value="Delete" />
-                                        <input type="hidden" name="id" value="@item.Id" />
-                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Retire" onclick="return confirm('Retire this record?');"><i class="bi bi-trash"></i></button>
-                                    </form>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
+                    }
+                    @if (!Model.Wards.Any())
+                    {
+                        <tr>
+                            <td colspan="6" class="text-center text-secondary py-4">No ward defined yet.</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
         </div>
     </div>
+</div>
 
-    <div class="col-lg-5 col-12">
-        <div class="card">
-            <div class="card-header bg-white fw-semibold">Add New</div>
-            <div class="card-body">
-                @if (!string.IsNullOrEmpty(Model.ErrorMessage))
-                {
-                    <div class="alert alert-danger py-2">@Model.ErrorMessage</div>
-                }
-                <form method="post">
-                    @Html.AntiForgeryToken()
+<!-- -------------------------------------------------------------- beds -->
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-white d-flex align-items-center justify-content-between">
+        <strong><i class="bi bi-grid-3x3-gap me-1"></i>Beds</strong>
+        <span class="badge bg-primary rounded-pill">@Model.TotalCount</span>
+    </div>
+    <div class="card-body py-2 border-bottom">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small text-secondary mb-1">Ward</label>
+                <select name="Ward" class="form-select form-select-sm">
+                    <option value="">-- all wards --</option>
+                    @foreach (var w in Model.WardList)
+                    {
+                        <option value="@w.Value" selected="@(Model.WardCode == w.Value)">@w.Text</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small text-secondary mb-1">Status</label>
+                <select name="Status" class="form-select form-select-sm">
+                    <option value="">-- all --</option>
+                    <option value="Vacant" selected="@(Model.Status == "Vacant")">Vacant</option>
+                    <option value="Occupied" selected="@(Model.Status == "Occupied")">Occupied</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small text-secondary mb-1">Search</label>
+                <input name="Q" value="@Model.Q" class="form-control form-control-sm"
+                       placeholder="bed no, patient or description" />
+            </div>
+            <div class="col-md-2">
+                <div class="form-check mt-3">
+                    <input class="form-check-input" type="checkbox" name="ShowRetired" value="true"
+                           id="showRetired" @(Model.ShowRetired ? "checked" : "") />
+                    <label class="form-check-label small" for="showRetired">Include retired</label>
+                </div>
+            </div>
+            <div class="col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-search me-1"></i>Search
+                </button>
+                <a asp-page="/Rooms/Index" class="btn btn-sm btn-outline-secondary">Reset</a>
+            </div>
+        </form>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width:80px">Ward</th>
+                        <th style="width:100px">Bed</th>
+                        <th>Description</th>
+                        <th style="width:100px">Status</th>
+                        <th style="width:140px">Patient</th>
+                        <th style="width:90px">Charge</th>
+                        <th class="text-end" style="width:130px">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var b in Model.Beds)
+                    {
+                        <tr class="@(b.Retired ? "table-secondary" : "")">
+                            <td class="small">@b.WardCode</td>
+                            <td class="fw-semibold">@b.BedCode</td>
+                            <td class="small">@(string.IsNullOrWhiteSpace(b.Description) ? "-" : b.Description)</td>
+                            <td>
+                                @if (b.Retired)
+                                {
+                                    <span class="badge bg-secondary" title="@b.RetireComments">Retired</span>
+                                }
+                                else
+                                {
+                                    <span class="badge @HmisWeb.Pages.Rooms.IndexModel.BedStatusCss(b.Status)">@b.Status</span>
+                                }
+                            </td>
+                            <td class="small">@(string.IsNullOrWhiteSpace(b.PatientCode) ? "-" : b.PatientCode)</td>
+                            <td class="small text-muted">@(string.IsNullOrWhiteSpace(b.ServiceCode) ? "-" : b.ServiceCode)</td>
+                            <td class="text-end text-nowrap">
+                                @if (Model.CanEdit)
+                                {
+                                    <button type="button" class="btn btn-outline-primary btn-sm btn-edit-bed"
+                                            data-id="@b.Id" data-ward="@b.WardCode" data-bed="@b.BedCode"
+                                            data-desc="@b.Description" data-status="@b.Status"
+                                            data-patient="@b.PatientCode" data-service="@b.ServiceCode"
+                                            data-bs-toggle="modal" data-bs-target="#bedModal" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    @if (b.Retired)
+                                    {
+                                        <form method="post" asp-page-handler="RestoreBed" class="d-inline">
+                                            <input type="hidden" name="id" value="@b.Id" />
+                                            <button type="submit" class="btn btn-outline-success btn-sm"
+                                                    onclick="return confirm('Restore this bed?');" title="Restore">
+                                                <i class="bi bi-arrow-counterclockwise"></i>
+                                            </button>
+                                        </form>
+                                    }
+                                    else
+                                    {
+                                        <button type="button" class="btn btn-outline-danger btn-sm btn-retire-bed"
+                                                data-id="@b.Id" data-name="@b.BedCode - @b.Description" title="Retire">
+                                            <i class="bi bi-slash-circle"></i>
+                                        </button>
+                                    }
+                                }
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.Beds.Any())
+                    {
+                        <tr>
+                            <td colspan="7" class="text-center text-secondary py-4">No bed matches this filter.</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<partial name="_Pager" model="Model" />
+
+@if (Model.CanEdit)
+{
+    <!-- ward popup -->
+    <div class="modal fade" id="wardModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <form method="post" asp-page-handler="SaveWard" class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="wardModalTitle">Add ward</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" asp-for="WardInput.Id" id="wId" />
                     <div class="row g-3">
-                        <div class="col-md-6">
-                            <label asp-for="Input.Name" class="form-label">Name *</label>
-                            <input asp-for="Input.Name" class="form-control" required />
+                        <div class="col-md-4">
+                            <label class="form-label">Code <span class="text-danger">*</span></label>
+                            <input asp-for="WardInput.Code" class="form-control" id="wCode" maxlength="10"
+                                   placeholder="PW" />
                         </div>
-                        <div class="col-md-6">
-                            <label asp-for="Input.Description" class="form-label">Description</label>
-                            <input asp-for="Input.Description" class="form-control" />
-                        </div>
-                        <div class="col-md-6">
-                            <label asp-for="Input.RoomCategoryId" class="form-label">Room Category</label>
-                            <select asp-for="Input.RoomCategoryId" asp-items="Model.RoomCategoryIdList" class="form-select">
-                                <option value="">-- Select --</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
-                            <label asp-for="Input.DepartmentId" class="form-label">Department</label>
-                            <select asp-for="Input.DepartmentId" asp-items="Model.DepartmentIdList" class="form-select">
-                                <option value="">-- Select --</option>
-                            </select>
+                        <div class="col-md-8">
+                            <label class="form-label">Ward name <span class="text-danger">*</span></label>
+                            <input asp-for="WardInput.Name" class="form-control" id="wName" maxlength="50"
+                                   placeholder="PRIVATE ROOM" />
                         </div>
                     </div>
-                    <button type="submit" class="btn btn-primary mt-3 w-100"><i class="bi bi-plus-lg"></i> Save</button>
-                </form>
-            </div>
+                    <div class="text-muted small mt-3">
+                        The code is the first part of every bed code of the ward (PW + 102 = PW102).
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-save me-1"></i>Save ward</button>
+                </div>
+            </form>
         </div>
     </div>
-</div>
+
+    <!-- bed popup -->
+    <div class="modal fade" id="bedModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <form method="post" asp-page-handler="SaveBed" class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="bedModalTitle">Add bed</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" asp-for="BedInput.Id" id="bId" />
+                    <div class="row g-3">
+                        <div class="col-md-5">
+                            <label class="form-label">Ward <span class="text-danger">*</span></label>
+                            <select asp-for="BedInput.WardCode" asp-items="Model.WardList" class="form-select" id="bWard">
+                                <option value="">-- select ward --</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Bed code <span class="text-danger">*</span></label>
+                            <input asp-for="BedInput.BedCode" class="form-control" id="bCode" maxlength="10"
+                                   placeholder="PW102" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Status</label>
+                            <select asp-for="BedInput.Status" class="form-select" id="bStatus">
+                                <option value="Vacant">Vacant</option>
+                                <option value="Occupied">Occupied</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Description</label>
+                            <input asp-for="BedInput.Description" class="form-control" id="bDesc" maxlength="50"
+                                   placeholder="defaults to the ward name" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Charge code</label>
+                            <input asp-for="BedInput.ServiceCode" class="form-control" id="bService" maxlength="10"
+                                   placeholder="07001" />
+                        </div>
+                        <div class="col-md-3" id="bPatientWrap">
+                            <label class="form-label">Patient</label>
+                            <input asp-for="BedInput.PatientCode" class="form-control" id="bPatient" maxlength="20" />
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-save me-1"></i>Save bed</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- retire prompts: the reason is required and kept with the row -->
+    <form method="post" asp-page-handler="RetireWard" id="wardRetireForm">
+        <input type="hidden" name="id" id="wardRetireId" />
+        <input type="hidden" name="reason" id="wardRetireReason" />
+    </form>
+    <form method="post" asp-page-handler="RetireBed" id="bedRetireForm">
+        <input type="hidden" name="id" id="bedRetireId" />
+        <input type="hidden" name="reason" id="bedRetireReason" />
+    </form>
+}
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert2/11.10.1/sweetalert2.all.min.js"></script>
+    <script>
+        (function () {
+            // ---- ward popup ------------------------------------------------
+            var wardTitle = document.getElementById('wardModalTitle');
+            var addWard = document.getElementById('btnAddWard');
+
+            function clearWard() {
+                document.getElementById('wId').value = '0';
+                document.getElementById('wCode').value = '';
+                document.getElementById('wName').value = '';
+            }
+
+            if (addWard) {
+                addWard.addEventListener('click', function () {
+                    clearWard();
+                    wardTitle.textContent = 'Add ward';
+                });
+            }
+
+            document.querySelectorAll('.btn-edit-ward').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    document.getElementById('wId').value = btn.dataset.id;
+                    document.getElementById('wCode').value = btn.dataset.code || '';
+                    document.getElementById('wName').value = btn.dataset.name || '';
+                    wardTitle.textContent = 'Edit ward ' + (btn.dataset.code || '');
+                });
+            });
+
+            // ---- bed popup -------------------------------------------------
+            var bedTitle = document.getElementById('bedModalTitle');
+            var addBed = document.getElementById('btnAddBed');
+
+            function togglePatient() {
+                var status = document.getElementById('bStatus');
+                var wrap = document.getElementById('bPatientWrap');
+                if (!status || !wrap) return;
+                var occupied = status.value === 'Occupied';
+                wrap.style.display = occupied ? '' : 'none';
+                if (!occupied) document.getElementById('bPatient').value = '';
+            }
+
+            function clearBed() {
+                document.getElementById('bId').value = '0';
+                document.getElementById('bWard').value = '';
+                document.getElementById('bCode').value = '';
+                document.getElementById('bDesc').value = '';
+                document.getElementById('bStatus').value = 'Vacant';
+                document.getElementById('bPatient').value = '';
+                document.getElementById('bService').value = '';
+                togglePatient();
+            }
+
+            if (addBed) {
+                addBed.addEventListener('click', function () {
+                    clearBed();
+                    bedTitle.textContent = 'Add bed';
+                });
+            }
+
+            var bedStatus = document.getElementById('bStatus');
+            if (bedStatus) bedStatus.addEventListener('change', togglePatient);
+
+            document.querySelectorAll('.btn-edit-bed').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    document.getElementById('bId').value = btn.dataset.id;
+                    document.getElementById('bWard').value = btn.dataset.ward || '';
+                    document.getElementById('bCode').value = btn.dataset.bed || '';
+                    document.getElementById('bDesc').value = btn.dataset.desc || '';
+                    document.getElementById('bStatus').value = btn.dataset.status || 'Vacant';
+                    document.getElementById('bPatient').value = btn.dataset.patient || '';
+                    document.getElementById('bService').value = btn.dataset.service || '';
+                    togglePatient();
+                    bedTitle.textContent = 'Edit bed ' + (btn.dataset.bed || '');
+                });
+            });
+
+            // ---- retire prompts -------------------------------------------
+            function askReason(title, text, input, formId, idField, reasonField) {
+                window.Swal.fire({
+                    title: title,
+                    text: text,
+                    input: 'textarea',
+                    inputLabel: 'Reason (kept with the record)',
+                    inputPlaceholder: 'e.g. damaged, closed for renovation ...',
+                    inputValidator: function (value) {
+                        return (!value || !value.trim()) ? 'A reason is required.' : undefined;
+                    },
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'Retire',
+                    confirmButtonColor: '#dc3545'
+                }).then(function (result) {
+                    if (!result.isConfirmed) return;
+                    document.getElementById(idField).value = input;
+                    document.getElementById(reasonField).value = result.value;
+                    document.getElementById(formId).submit();
+                });
+            }
+
+            document.querySelectorAll('.btn-retire-ward').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    askReason('Retire ward?', btn.dataset.name, btn.dataset.id,
+                              'wardRetireForm', 'wardRetireId', 'wardRetireReason');
+                });
+            });
+
+            document.querySelectorAll('.btn-retire-bed').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    askReason('Retire bed?', btn.dataset.name, btn.dataset.id,
+                              'bedRetireForm', 'bedRetireId', 'bedRetireReason');
+                });
+            });
+
+            // ---- toasts ----------------------------------------------------
+            @if (!string.IsNullOrEmpty(Model.Success))
+            {
+                <text>
+                if (window.Swal) {
+                    window.Swal.fire({ toast: true, position: 'top-end', icon: 'success',
+                        title: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Success)),
+                        showConfirmButton: false, timer: 2600 });
+                }
+                </text>
+            }
+            @if (!string.IsNullOrEmpty(Model.Error))
+            {
+                <text>
+                if (window.Swal) {
+                    window.Swal.fire({ toast: true, position: 'top-end', icon: 'error',
+                        title: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Error)),
+                        showConfirmButton: false, timer: 4200 });
+                }
+                </text>
+            }
+        })();
+    </script>
+}

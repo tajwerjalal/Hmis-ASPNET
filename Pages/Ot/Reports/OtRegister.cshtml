@@ -191,7 +191,7 @@
             w.document.write('<h1>OT REGISTER</h1>');
             w.document.write('<div class="sub">Operation Theatre &nbsp;|&nbsp; @Model.PeriodText &nbsp;|&nbsp; @Model.Rows.Count case(s)</div>');
             w.document.write(document.getElementById('otRegTable').innerHTML);
-            w.document.write('</body></html>');
+            w.document.write('<\/body><\/html>');
             w.document.close();
             w.focus();
             w.print();

@@ -157,7 +157,7 @@ namespace HmisWeb.Services
                 investigatedBy = order.Collector?.UserName ?? order.SampleCollectedBy?.UserName;
 
             var serviceCode = order.XrService?.Code
-                ?? await _db.XrServices
+                ?? await _db.XrServices()
                     .Where(s => s.Id == order.XrServiceId.Value)
                     .Select(s => s.Code)
                     .FirstOrDefaultAsync();
@@ -165,7 +165,7 @@ namespace HmisWeb.Services
             var serviceName = order.OrderName;
             if (string.IsNullOrWhiteSpace(serviceName) && order.XrServiceId.HasValue)
             {
-                serviceName = await _db.XrServices
+                serviceName = await _db.XrServices()
                     .Where(s => s.Id == order.XrServiceId.Value)
                     .Select(s => s.Name)
                     .FirstOrDefaultAsync();

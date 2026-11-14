@@ -72,7 +72,7 @@ namespace HmisWeb.Models
         [ForeignKey("PatientId")]
         public virtual Patient? Patient { get; set; }
         [ForeignKey("XrServiceId")]
-        public virtual XrService? XrService { get; set; }
+        public virtual DeptService? XrService { get; set; }
         [ForeignKey("InstitutionId")]
         public virtual Institution? Institution { get; set; }
         [ForeignKey("DepartmentId")]

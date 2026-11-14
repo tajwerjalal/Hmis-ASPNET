@@ -10,7 +10,7 @@ using HmisWeb.Services;
 
 namespace HmisWeb.Pages.Xr
 {
-    public class ServicesModel : PageModel
+    public class ServicesModel : HmisWeb.Pages.Shared.PagedPageModel
     {
         private readonly ApplicationDbContext _db;
         private readonly IAppSession _appSession;
@@ -26,7 +26,7 @@ namespace HmisWeb.Pages.Xr
         [BindProperty(SupportsGet = true)]
         public string SearchTerm { get; set; }
 
-        public List<XrService> Services { get; set; } = new();
+        public List<DeptService> Services { get; set; } = new();
         public List<XrServiceCategory> Categories { get; set; } = new();
         public string Message { get; set; }
         public string ErrorMessage { get; set; }
@@ -74,26 +74,29 @@ namespace HmisWeb.Pages.Xr
                 return RedirectToPage();
             }
 
-            if (await _db.XrServices.AnyAsync(s => s.Code == code))
+            if (await _db.XrServices().AnyAsync(s => s.Code == code))
             {
                 TempData["XrServiceError"] = $"Code '{code}' is already used by another X-ray service.";
                 return RedirectToPage();
             }
 
-            var service = new XrService
+            var service = new DeptService
             {
                 Name = name,
                 Code = code,
-                Rate = NewRate ?? 0,
+                Dept = DeptServiceScopes.XrayDept,
+                Rate = (decimal?)NewRate,
                 CategoryId = NewCategoryId,
                 Retired = false,
                 Active = true,
                 Billable = true,
-                CreaterId = _appSession.WebUserId,
-                CreatedAt = System.DateTime.Now
+                // legacy last-edit stamp trio: USERID / UDATE / UTIME
+                StampUser = _appSession.LoggedUser?.UserName ?? "system",
+                StampDate = System.DateTime.Now,
+                StampTime = System.DateTime.Now.ToString("HH:mm")
             };
 
-            _db.XrServices.Add(service);
+            _db.DeptServices.Add(service);
             await _db.SaveChangesAsync();
 
             // Create the billing item straight away so the service can be indented.
@@ -111,12 +114,14 @@ namespace HmisWeb.Pages.Xr
 
         public async Task<IActionResult> OnPostRetireAsync(long id)
         {
-            var service = await _db.XrServices.FindAsync(id);
+            var service = await _db.DeptServices.FindAsync(id);
             if (service != null)
             {
                 service.Retired = true;
                 service.RetiredAt = System.DateTime.Now;
-                service.RetirerId = _appSession.WebUserId;
+                service.StampUser = _appSession.LoggedUser?.UserName ?? "system";
+                service.StampDate = System.DateTime.Now;
+                service.StampTime = System.DateTime.Now.ToString("HH:mm");
                 await _db.SaveChangesAsync();
                 TempData["XrServiceSuccess"] = $"Service '{service.Name}' retired successfully.";
             }
@@ -126,14 +131,15 @@ namespace HmisWeb.Pages.Xr
 
         public async Task<IActionResult> OnPostActivateAsync(long id)
         {
-            var service = await _db.XrServices.FindAsync(id);
+            var service = await _db.DeptServices.FindAsync(id);
             if (service != null)
             {
                 service.Retired = false;
                 service.RetiredAt = null;
-                service.RetirerId = null;
-                service.EditerId = _appSession.WebUserId;
-                service.EditedAt = System.DateTime.Now;
+                service.RetireComments = null;
+                service.StampUser = _appSession.LoggedUser?.UserName ?? "system";
+                service.StampDate = System.DateTime.Now;
+                service.StampTime = System.DateTime.Now.ToString("HH:mm");
                 await _db.SaveChangesAsync();
 
                 // An activated service has to be chargeable straight away, so give it its
@@ -169,7 +175,7 @@ namespace HmisWeb.Pages.Xr
 
         private async Task LoadDataAsync()
         {
-            var query = _db.XrServices
+            var query = _db.XrServices()
                 .Include(s => s.Category)
                 .Where(s => !s.Retired);
 
@@ -179,13 +185,15 @@ namespace HmisWeb.Pages.Xr
                 query = query.Where(s =>
                     (s.Name != null && s.Name.ToLower().Contains(term)) ||
                     (s.Code != null && s.Code.ToLower().Contains(term)) ||
-                    (s.Description != null && s.Description.ToLower().Contains(term))
+                    (s.Sname != null && s.Sname.ToLower().Contains(term))
                 );
             }
 
-            Services = await query
+            TotalCount = await query.CountAsync();
+            ClampPaging();
+            Services = await ApplyPaging(query
                 .OrderBy(s => s.Code)
-                .ThenBy(s => s.Name)
+                .ThenBy(s => s.Name))
                 .ToListAsync();
 
             Categories = await _db.XrServiceCategories

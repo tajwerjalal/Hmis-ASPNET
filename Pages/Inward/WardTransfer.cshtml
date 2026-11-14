@@ -1,0 +1,278 @@
+@page
+@model HmisWeb.Pages.Inward.WardTransferModel
+@*
+    Ward / Bed Transfer - legacy bedtrans.scx.
+
+    Search an active inpatient, move the stay to a vacant [BED_POS], keep the
+    movement in [BEDTRANSFER] and retire a movement with a reason.
+
+    Developer : [TAJWER JALAL]
+    Date      : 22-Oct-2026
+    Time      : 17:30
+    Change Log: 22-Oct-2026 - created.
+*@
+@{
+    ViewData["Title"] = "Ward / Bed Transfer";
+}
+<div class="mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <div>
+        <h4 class="mb-0 fw-bold"><i class="bi bi-arrow-left-right me-2 text-primary"></i>Ward / Bed Transfer</h4>
+        <div class="text-muted small">Move an admitted patient between beds. History is kept in [BEDTRANSFER].</div>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.Success))
+{
+    <div class="alert alert-success alert-dismissible fade show py-2" role="alert">@Model.Success<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+@if (!string.IsNullOrEmpty(Model.Error))
+{
+    <div class="alert alert-danger alert-dismissible fade show py-2" role="alert">@Model.Error<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+}
+
+<!-- patient search -->
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="post" asp-page-handler="Search" class="row g-2 align-items-end">
+            <input type="hidden" name="Q" value="@Model.Q" />
+            <input type="hidden" name="Ward" value="@Model.Ward" />
+            <input type="hidden" name="ShowRetired" value="@Model.ShowRetired.ToString().ToLower()" />
+            <div class="col-md-6">
+                <label class="form-label small text-secondary mb-1">Find inpatient (BHT or name)</label>
+                <input name="SearchTerm" value="@Model.SearchTerm" class="form-control form-control-sm" placeholder="BHT or patient name" />
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-sm btn-outline-primary"><i class="bi bi-search me-1"></i>Search</button>
+            </div>
+        </form>
+        @if (Model.SearchResults.Any())
+        {
+            <div class="mt-3">
+                <h6 class="text-secondary small fw-bold text-uppercase mb-2">Search Results</h6>
+                <div class="list-group">
+                    @foreach (var e in Model.SearchResults)
+                    {
+                        <a asp-page="/Inward/WardTransfer"
+                           asp-route-SearchTerm="@Model.SearchTerm"
+                           asp-route-SelectedEncounterId="@e.Id"
+                           asp-route-Q="@Model.Q"
+                           asp-route-Ward="@Model.Ward"
+                           asp-route-ShowRetired="@Model.ShowRetired"
+                           class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                            <div>
+                                <div class="fw-semibold">@HmisWeb.Services.PatientDisplayName.Of(e.Patient)</div>
+                                <small class="text-secondary">BHT: @(e.BhtNo ?? "-") &middot; Admitted @(e.DateOfAdmission?.ToString("dd MMM yyyy") ?? "-")</small>
+                            </div>
+                            <span class="badge bg-light text-secondary">Select</span>
+                        </a>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@if (Model.SelectedEncounter != null)
+{
+    <div class="card mb-3 border-primary">
+        <div class="card-header bg-white fw-semibold">Transfer patient</div>
+        <div class="card-body">
+            <div class="row g-2 mb-3">
+                <div class="col-md-4">
+                    <div class="text-secondary small fw-bold text-uppercase">Patient</div>
+                    <div class="fw-semibold">@HmisWeb.Services.PatientDisplayName.Of(Model.SelectedEncounter.Patient)</div>
+                </div>
+                <div class="col-md-2">
+                    <div class="text-secondary small fw-bold text-uppercase">BHT</div>
+                    <div>@(Model.SelectedEncounter.BhtNo ?? "-")</div>
+                </div>
+                <div class="col-md-2">
+                    <div class="text-secondary small fw-bold text-uppercase">Current bed</div>
+                    <div>@(Model.CurrentBed?.BedCode ?? "-")</div>
+                </div>
+            </div>
+            @if (Model.CanEdit)
+            {
+                <form method="post" asp-page-handler="Transfer" class="row g-3">
+                    <input type="hidden" asp-for="TransferEncounterId" />
+                    <input type="hidden" name="Q" value="@Model.Q" />
+                    <input type="hidden" name="Ward" value="@Model.Ward" />
+                    <input type="hidden" name="ShowRetired" value="@Model.ShowRetired.ToString().ToLower()" />
+                    <input type="hidden" name="SearchTerm" value="@Model.SearchTerm" />
+                    <input type="hidden" name="SelectedEncounterId" value="@Model.SelectedEncounter.Id" />
+                    <div class="col-md-3">
+                        <label class="form-label small">New bed <span class="text-danger">*</span></label>
+                        <select asp-for="ToBedId" asp-items="Model.VacantBedList" class="form-select form-select-sm">
+                            <option value="">-- select vacant bed --</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small">Transfer date</label>
+                        <input asp-for="TransferDate" type="date" class="form-control form-control-sm" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small">Transfer time</label>
+                        <input asp-for="TransferTime" type="time" class="form-control form-control-sm" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small">Indent no.</label>
+                        <input asp-for="IndentNo" class="form-control form-control-sm" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small">Indent date</label>
+                        <input asp-for="IndentDate" type="date" class="form-control form-control-sm" />
+                    </div>
+                    <div class="col-md-1 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-check2 me-1"></i>Transfer</button>
+                    </div>
+                </form>
+            }
+        </div>
+    </div>
+}
+
+<!-- filters -->
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="row g-2 align-items-end">
+            <input type="hidden" name="SearchTerm" value="@Model.SearchTerm" />
+            <input type="hidden" name="SelectedEncounterId" value="@Model.SelectedEncounterId" />
+            <div class="col-md-3">
+                <label class="form-label small text-secondary mb-1">Ward</label>
+                <select name="Ward" class="form-select form-select-sm">
+                    <option value="">-- all wards --</option>
+                    @foreach (var w in Model.WardList)
+                    {
+                        <option value="@w.Value" selected="@(Model.Ward == w.Value)">@w.Text</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small text-secondary mb-1">Search</label>
+                <input name="Q" value="@Model.Q" class="form-control form-control-sm" placeholder="reg, bed or indent no" />
+            </div>
+            <div class="col-md-2">
+                <div class="form-check mt-3">
+                    <input class="form-check-input" type="checkbox" name="ShowRetired" value="true" id="showRetired" @(Model.ShowRetired ? "checked" : "") />
+                    <label class="form-check-label small" for="showRetired">Include retired</label>
+                </div>
+            </div>
+            <div class="col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-sm btn-outline-primary"><i class="bi bi-search me-1"></i>Search</button>
+                <a asp-page="/Inward/WardTransfer" class="btn btn-sm btn-outline-secondary">Reset</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header bg-white fw-semibold">Bed transfers (@Model.TotalCount)</div>
+    <div class="card-body p-0">
+        @if (!Model.Transfers.Any())
+        {
+            <div class="p-4 text-center text-muted">No bed transfer found.</div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Reg No.</th>
+                            <th>Transfer date</th>
+                            <th>From bed</th>
+                            <th>To bed</th>
+                            <th>Indent no.</th>
+                            <th>Status</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var t in Model.Transfers)
+                        {
+                            <tr class="@(t.Retired ? "table-secondary" : "")">
+                                <td class="fw-semibold">@(t.RegNo ?? "-")</td>
+                                <td>@(t.TransferDate?.ToString("dd MMM yyyy HH:mm") ?? "-")</td>
+                                <td>@(t.FromBedCode ?? "-")</td>
+                                <td>@(t.ToBedCode ?? "-")</td>
+                                <td>@(t.IndentNo ?? "-")</td>
+                                <td>
+                                    @if (t.Retired)
+                                    {
+                                        <span class="badge bg-secondary" title="@t.RetireComments">Retired</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-success">Live</span>
+                                    }
+                                </td>
+                                <td class="text-end">
+                                    @if (Model.CanEdit && !t.Retired)
+                                    {
+                                        <form method="post" asp-page-handler="Retire" class="d-inline">
+                                            <input type="hidden" name="id" value="@t.Id" />
+                                            <input type="hidden" name="Q" value="@Model.Q" />
+                                            <input type="hidden" name="Ward" value="@Model.Ward" />
+                                            <input type="hidden" name="ShowRetired" value="@Model.ShowRetired.ToString().ToLower()" />
+                                            <button type="button" class="btn btn-outline-danger btn-sm btn-retire-transfer" data-id="@t.Id" data-name="@(t.FromBedCode ?? "-") -> @(t.ToBedCode ?? "-")"><i class="bi bi-slash-circle"></i></button>
+                                        </form>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+<partial name="_Pager" model="Model" />
+
+@if (Model.CanEdit)
+{
+    <form method="post" asp-page-handler="Retire" id="transferRetireForm">
+        <input type="hidden" name="id" id="transferRetireId" />
+        <input type="hidden" name="reason" id="transferRetireReason" />
+        <input type="hidden" name="Q" value="@Model.Q" />
+        <input type="hidden" name="Ward" value="@Model.Ward" />
+        <input type="hidden" name="ShowRetired" value="@Model.ShowRetired.ToString().ToLower()" />
+    </form>
+}
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert2/11.10.1/sweetalert2.all.min.js"></script>
+    <script>
+        (function () {
+            document.querySelectorAll('.btn-retire-transfer').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    window.Swal.fire({
+                        title: 'Retire transfer?',
+                        text: btn.dataset.name,
+                        input: 'textarea',
+                        inputLabel: 'Reason (kept with the record)',
+                        inputPlaceholder: 'e.g. entered in error',
+                        inputValidator: function (value) { return (!value || !value.trim()) ? 'A reason is required.' : undefined; },
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: 'Retire',
+                        confirmButtonColor: '#dc3545'
+                    }).then(function (result) {
+                        if (!result.isConfirmed) return;
+                        document.getElementById('transferRetireId').value = btn.dataset.id;
+                        document.getElementById('transferRetireReason').value = result.value;
+                        document.getElementById('transferRetireForm').submit();
+                    });
+                });
+            });
+            @if (!string.IsNullOrEmpty(Model.Success))
+            {
+                <text>if (window.Swal) { window.Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Success)), showConfirmButton: false, timer: 2600 }); }</text>
+            }
+            @if (!string.IsNullOrEmpty(Model.Error))
+            {
+                <text>if (window.Swal) { window.Swal.fire({ toast: true, position: 'top-end', icon: 'error', title: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Error)), showConfirmButton: false, timer: 4200 }); }</text>
+            }
+        })();
+    </script>
+}

@@ -149,7 +149,7 @@
             w.document.write('<h1>OT UTILIZATION REPORT</h1>');
             w.document.write('<div class="sub">Operation Theatre &nbsp;|&nbsp; @Model.PeriodText &nbsp;|&nbsp; @Model.TotalCases case(s)</div>');
             w.document.write(document.getElementById('otUtilTable').innerHTML);
-            w.document.write('</body></html>');
+            w.document.write('<\/body><\/html>');
             w.document.close();
             w.focus();
             w.print();

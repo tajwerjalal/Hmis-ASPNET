@@ -12,6 +12,18 @@ using PdfSharpCore.Pdf;
 
 namespace HmisWeb.Pages.Opd
 {
+    /// <summary>
+    /// OPD Registration - legacy opdreg.scx.
+    ///
+    /// Session / token based outpatient registration. The diagnosis entered on
+    /// the form is copied to the created [PATIENTENCOUNTER] so the consultation
+    /// starts with the presenting diagnosis.
+    ///
+    /// Developer : [TAJWER JALAL]
+    /// Date      : 22-Oct-2026
+    /// Time      : 18:45
+    /// Change Log: 22-Oct-2026 - diagnosis field added to the encounter.
+    /// </summary>
     public class RegistrationModel : PageModel
     {
         private readonly ApplicationDbContext _db;
@@ -53,6 +65,15 @@ namespace HmisWeb.Pages.Opd
         public string NewPhone { get; set; }
 
         [BindProperty]
+        public string NewAge { get; set; }
+
+        [BindProperty]
+        public string NewAgeType { get; set; } = "Y";
+
+        [BindProperty]
+        public string NewAddress { get; set; }
+
+        [BindProperty]
         public Sex? NewSex { get; set; }
 
         [BindProperty]
@@ -62,17 +83,87 @@ namespace HmisWeb.Pages.Opd
         public double TenderedAmount { get; set; }
 
         [BindProperty]
+        public string Diagnosis { get; set; }
+
+        [BindProperty]
+        public string RefNo { get; set; }
+
+        [BindProperty]
+        public DateTime? RefValid { get; set; }
+
+        [BindProperty]
+        public string CardNo { get; set; }
+
+        [BindProperty]
+        public string EmployeeCode { get; set; }
+
+        [BindProperty]
+        public string EmployeeRelation { get; set; }
+
+        [BindProperty]
         public string PatientType { get; set; } = "Self";
 
         [BindProperty]
         public long? PanelCompanyId { get; set; }
 
+        /// <summary>
+        /// Optional local URL to return to after the patient is created or the
+        /// OPD registration is saved. The lab screens use this so a new patient
+        /// added from the lab "+" button comes back already selected on the lab
+        /// indent form.
+        /// </summary>
+        [BindProperty(SupportsGet = true)]
+        public string ReturnUrl { get; set; }
+
+        /// <summary>
+        /// Opens the Add New Patient modal immediately. Used by the lab quick-add
+        /// flow so the operator lands directly on the patient form.
+        /// </summary>
+        [BindProperty(SupportsGet = true)]
+        public bool NewPatient { get; set; }
+
+        /// <summary>
+        /// When checked (default) the registration only raises the OPD bill and
+        /// the patient pays it at the Cashier. Uncheck to collect the fee here,
+        /// which preserves the old counter-collection behaviour.
+        /// </summary>
+        [BindProperty]
+        public bool PayAtCashier { get; set; } = true;
+
         public List<SelectListItem> CompanyList { get; set; } = new();
+        public List<SelectListItem> EmployeeList { get; set; } = new();
         public List<SessionCard> Sessions { get; set; } = new();
         public OpdSession SelectedSession { get; set; }
+
+        /// <summary>
+        /// When the selected day has no sessions, the most recently created
+        /// session day - offered as a one-click link so the desk can find the
+        /// consultants that were set up on OPD Sessions.
+        /// </summary>
+        public DateTime? LatestSessionDate { get; set; }
         public Patient SelectedPatient { get; set; }
+
+        /// <summary>
+        /// Legacy PATIENT/REGISTER values for the selected patient: CODE is the
+        /// permanent MRNo (PCODE) and RegNo is the latest visit registration.
+        /// </summary>
+        public HmisWeb.Models.Legacy.PatientLegacyInfo LegacyPatient { get; set; }
+
         public List<Patient> PatientResults { get; set; } = new();
+
+        /// <summary>
+        /// Search results joined from REGISTER and PATIENT. Shows the visit REGNO
+        /// and RDATE alongside the permanent PCODE and patient demographics.
+        /// </summary>
+        public List<HmisWeb.Models.Legacy.LegacyPatientRow> LegacyPatientResults { get; set; } = new();
         public string ErrorMessage { get; set; }
+
+        /// <summary>
+        /// Re-opens the Add New Patient modal after a server-side validation
+        /// failure so the operator does not lose the values they typed.
+        /// </summary>
+        public bool ShowNewPatientModal { get; set; }
+        public string SuccessMessage { get; set; }
         public ReceiptModel Receipt { get; set; }
         public double AppliedFee { get; private set; }
         public bool IsFirstVisit { get; private set; }
@@ -80,6 +171,7 @@ namespace HmisWeb.Pages.Opd
         public class SessionCard
         {
             public long Id { get; set; }
+            public long? ConsultantId { get; set; }
             public string ConsultantName { get; set; }
             public string SpecialityName { get; set; }
             public string RoomNo { get; set; }
@@ -92,6 +184,26 @@ namespace HmisWeb.Pages.Opd
             public int TokenMax { get; set; }
             public int NextToken { get; set; }
             public OpdSessionStatus Status { get; set; }
+
+            /// <summary>
+            /// Clinic period inferred from the start time. Sessions do not store a
+            /// period, so this keeps the grouped consultant list scannable:
+            /// Morning before noon, Afternoon before 5 pm, Evening after that.
+            /// </summary>
+            public string Period
+            {
+                get
+                {
+                    if (TimeSpan.TryParse(FromTime, out var t))
+                    {
+                        if (t.TotalHours < 12) return "Morning";
+                        if (t.TotalHours < 17) return "Afternoon";
+                        return "Evening";
+                    }
+
+                    return "Session";
+                }
+            }
         }
 
         public class ReceiptModel
@@ -102,6 +214,8 @@ namespace HmisWeb.Pages.Opd
             public DateTime ReceiptAt { get; set; }
             public string PatientName { get; set; }
             public long? PatientPhn { get; set; }
+            public string PatientCode { get; set; }
+            public string VisitRegNo { get; set; }
             public string TokenNumber { get; set; }
             public long SessionId { get; set; }
             public string ConsultantName { get; set; }
@@ -114,6 +228,15 @@ namespace HmisWeb.Pages.Opd
             public string PaymentMethod { get; set; }
             public string Cashier { get; set; }
             public string PatientType { get; set; }
+            public bool Paid { get; set; } = true;
+            public double AmountDue { get; set; }
+        }
+
+        public class EmployeeLookupRow
+        {
+            public string CODE { get; set; }
+            public string NAME { get; set; }
+            public string DESG { get; set; }
         }
 
         public long? CurrentSessionId
@@ -121,10 +244,36 @@ namespace HmisWeb.Pages.Opd
             get => long.TryParse(HttpContext.Session.GetString(SessionKey), out var v) ? v : null;
         }
 
-        public async Task OnGetAsync()
+        private string UserLabel => _appSession.LoggedUser?.UserName
+            ?? _appSession.LoggedUser?.RealUserName
+            ?? _appSession.WebUserId?.ToString()
+            ?? "system";
+
+        public async Task OnGetAsync(long? sessionId)
         {
+            // arriving from the OPD Sessions "Register" action: select that session
+            // and use its date, so the consultant list matches the session page
+            if (sessionId != null)
+            {
+                var chosen = await _db.OpdSessions.AsNoTracking()
+                    .FirstOrDefaultAsync(s => s.Id == sessionId && !s.Retired
+                        && (s.Status == OpdSessionStatus.Scheduled
+                            || s.Status == OpdSessionStatus.Active));
+
+                if (chosen != null)
+                {
+                    SessionDate = chosen.SessionDate.Date;
+                    HttpContext.Session.SetString(SessionKey, chosen.Id.ToString());
+                    HttpContext.Session.Remove(PatientKey);
+                }
+            }
+
             if (SessionDate == null) SessionDate = DateTime.Today;
+            SuccessMessage = TempData["RegSuccess"] as string;
             await LoadStateAsync();
+
+            // Quick-add from the lab screens: open the patient form straight away.
+            if (NewPatient) ShowNewPatientModal = true;
         }
 
         public async Task<IActionResult> OnPostSelectSessionAsync(long sessionId)
@@ -136,7 +285,11 @@ namespace HmisWeb.Pages.Opd
                 HttpContext.Session.SetString(SessionKey, s.Id.ToString());
                 HttpContext.Session.Remove(PatientKey);
             }
-            return RedirectToPage("/Opd/Registration", new { SessionDate = SessionDate.Value.Date.ToString("yyyy-MM-dd") });
+            return RedirectToPage("/Opd/Registration", new
+            {
+                SessionDate = SessionDate.Value.Date.ToString("yyyy-MM-dd"),
+                returnUrl = string.IsNullOrWhiteSpace(ReturnUrl) ? null : ReturnUrl
+            });
         }
 
         public async Task<IActionResult> OnPostSearchPatientAsync()
@@ -145,7 +298,12 @@ namespace HmisWeb.Pages.Opd
             await LoadStateAsync();
 
             if (!string.IsNullOrWhiteSpace(PatientSearch))
-                PatientResults = await _common.SearchPatientsAsync(PatientSearch.Trim());
+            {
+                // Registration-based search: one row per visit with REGISTER.REGNO,
+                // REGISTER.RDATE and REGISTER.RTIME, joined to PATIENT on
+                // REGISTER.PCODE = PATIENT.CODE.
+                LegacyPatientResults = await _common.SearchLegacyPatientsAsync(PatientSearch.Trim());
+            }
 
             return Page();
         }
@@ -156,7 +314,11 @@ namespace HmisWeb.Pages.Opd
             var p = await _db.Patients.AnyAsync(x => x.Id == patientId && !x.Retired);
             if (p)
                 HttpContext.Session.SetString(PatientKey, patientId.ToString());
-            return RedirectToPage("/Opd/Registration", new { SessionDate = SessionDate.Value.Date.ToString("yyyy-MM-dd") });
+            return RedirectToPage("/Opd/Registration", new
+            {
+                SessionDate = SessionDate.Value.Date.ToString("yyyy-MM-dd"),
+                returnUrl = string.IsNullOrWhiteSpace(ReturnUrl) ? null : ReturnUrl
+            });
         }
 
         public async Task<IActionResult> OnPostCreatePatientAsync()
@@ -167,15 +329,21 @@ namespace HmisWeb.Pages.Opd
             if (string.IsNullOrWhiteSpace(NewName))
             {
                 ErrorMessage = "Patient name is required.";
+                ShowNewPatientModal = true;
                 return Page();
             }
 
-            if (CurrentSessionId == null)
+            // A lab quick-add does not need an OPD consultant session - it only
+            // needs the patient master record. The normal OPD flow still requires
+            // a session before a patient can be registered.
+            if (CurrentSessionId == null && string.IsNullOrWhiteSpace(ReturnUrl))
             {
                 ErrorMessage = "Select a consultant session first.";
+                ShowNewPatientModal = true;
                 return Page();
             }
 
+            var now = DateTime.Now;
             var person = new Person
             {
                 Name = NewName.Trim(),
@@ -183,26 +351,52 @@ namespace HmisWeb.Pages.Opd
                 Nic = NewNic?.Trim() ?? "",
                 Mobile = NewMobile?.Trim() ?? "",
                 Phone = NewPhone?.Trim() ?? "",
+                Address = string.IsNullOrWhiteSpace(NewAddress) ? null : NewAddress.Trim(),
                 Sex = NewSex,
-                CreatedAt = DateTime.Now,
+                CreatedAt = now,
                 CreaterId = _appSession.WebUserId
             };
-            _db.Persons.Add(person);
-            await _db.SaveChangesAsync();
 
-            long? maxPatientId = await _db.Patients.MaxAsync(p => (long?)p.PatientId);
             var patient = new Patient
             {
-                PersonId = person.Id,
-                PatientId = (maxPatientId ?? 0) + 1,
-                CreatedAt = DateTime.Now,
+                AType = string.IsNullOrWhiteSpace(NewAgeType) ? "Y" : NewAgeType,
+                LegacyAge = string.IsNullOrWhiteSpace(NewAge) ? null : NewAge.Trim(),
+                CreatedAt = now,
                 CreaterId = _appSession.WebUserId,
                 CreatedInstitutionId = _appSession.LoggedSite?.Id
             };
-            _db.Patients.Add(patient);
-            await _db.SaveChangesAsync();
+
+            // Issues the permanent PATIENT.CODE (PCODE / MRNo) and fills the
+            // legacy patient columns used by opdreg.scx.
+            patient = await _common.CreatePatientWithLegacyCodeAsync(
+                person, patient, SessionDate ?? DateTime.Today, _appSession.WebUserId);
+
+            // Coming from the lab "+" button: hand the new patient straight back
+            // to the lab screen so its indent form is filled with this patient.
+            if (!string.IsNullOrWhiteSpace(ReturnUrl) && Url.IsLocalUrl(ReturnUrl))
+            {
+                // The lab quick-add has no OPD Register step, so the visit
+                // REGISTER row (and its REGNO) is issued here. The patient's
+                // PCODE never changes; a new REGNO is issued on the next visit.
+                var regNo = await _common.CreateRegisterVisitAsync(new RegisterVisitRequest
+                {
+                    Type = "O",
+                    PCode = patient.Code,
+                    PatientAppId = patient.Id,
+                    VisitDate = DateTime.Today,
+                    VisitTime = now.ToString("HH:mm"),
+                    CUserId = UserLabel,
+                    UserId = UserLabel
+                });
+
+                TempData["LabSampleNotice"] =
+                    $"Patient '{person.Name}' added and selected. Patient Code {patient.Code}, Reg No {regNo}.";
+                var separator = ReturnUrl.Contains('?') ? "&" : "?";
+                return Redirect($"{ReturnUrl}{separator}selectPatientId={patient.Id}");
+            }
 
             HttpContext.Session.SetString(PatientKey, patient.Id.ToString());
+            TempData["RegSuccess"] = $"Patient '{person.Name}' added and selected. Patient Code {patient.Code}. Continue with the payment below.";
             return RedirectToPage("/Opd/Registration", new { SessionDate = SessionDate.Value.Date.ToString("yyyy-MM-dd") });
         }
 
@@ -268,12 +462,42 @@ namespace HmisWeb.Pages.Opd
                     .FirstOrDefaultAsync(r => r.CompanyId == PanelCompanyId && !r.Retired);
                 if (companyRate != null)
                 {
-                    fee = companyRate.Rate > 0 ? companyRate.Rate : fee;
+                    fee = companyRate.Rate > 0 ? (double)companyRate.Rate : fee;
                     total = fee + hosp;
                 }
             }
 
-            // 1. Clinical encounter
+            // 1. Legacy visit row. REGISTER.REGNO is the visit identity and
+            //    PATIENT.CODE (PCODE) is the permanent patient MRNo. Billing and
+            //    the lab screens use REGNO, so this row is created before the
+            //    modern encounter/bill/token rows.
+            await _common.SyncPatientLegacyAsync(patient, _appSession.WebUserId);
+            var visitRegNo = await _common.CreateRegisterVisitAsync(new RegisterVisitRequest
+            {
+                Type = "O",
+                PCode = patient.Code,
+                PatientAppId = patient.Id,
+                VisitDate = session.SessionDate,
+                VisitTime = now.ToString("HH:mm"),
+                Diagnosis = Diagnosis,
+                CompanyId = PanelCompanyId,
+                ConsultantId = session.ConsultantId,
+                EmployeeCode = EmployeeCode,
+                EmployeeRelation = EmployeeRelation,
+                ReferenceNo = RefNo,
+                RefValid = RefValid,
+                CardNo = CardNo,
+                CUserId = UserLabel,
+                UserId = UserLabel,
+                CStat = PatientType == "Panel" ? "A" : null
+            });
+
+            // 2. Clinical encounter
+            // A zero-value registration has nothing to collect, so it is treated
+            // as settled. Otherwise PayAtCashier leaves the bill OPEN for the
+            // Cashier module (Cash Receipts unpaid list).
+            bool billOnly = PayAtCashier && total > 0.001;
+
             var encounter = new OpdVisit
             {
                 PatientId = patient.Id,
@@ -285,6 +509,9 @@ namespace HmisWeb.Pages.Opd
                 InstitutionId = session.InstitutionId ?? _appSession.LoggedSite?.Id,
                 Name = patient.Person?.Name,
                 EncounterComments = $"OPD consultation - {session.Consultant?.Person?.NameWithInitials ?? session.Consultant?.Person?.Name}",
+                Diagnosis = string.IsNullOrWhiteSpace(Diagnosis) ? null : Diagnosis.Trim(),
+                BhtNo = visitRegNo.ToString(),
+                BhtLong = visitRegNo.ToString(),
                 CreatedAt = now,
                 CreaterId = _appSession.WebUserId
             };
@@ -298,7 +525,7 @@ namespace HmisWeb.Pages.Opd
                 BillClassType = BillClassType.BilledBill,
                 BillType = BillType.ChannelBill,
                 BillTypeAtomic = BillTypeAtomic.ChannelBill,
-                PaymentMethod = PaymentMethod,
+                PaymentMethod = billOnly ? (PaymentMethod?)null : PaymentMethod,
                 PatientId = patient.Id,
                 PersonId = patient.PersonId,
                 StaffId = session.ConsultantId,
@@ -312,14 +539,14 @@ namespace HmisWeb.Pages.Opd
                 TotalHospitalFee = hosp,
                 ProfessionalFee = fee,
                 TotalStaffFee = fee,
-                PaidAmount = total,
-                Paid = true,
-                PaidAt = now,
-                BillPaymentCompletelySettled = true,
-                Balance = 0,
-                TenderedAmount = tendered,
-                CashPaid = PaymentMethod == PaymentMethod.Cash ? tendered : 0,
-                CashBalance = PaymentMethod == PaymentMethod.Cash ? tendered - total : 0,
+                PaidAmount = billOnly ? 0 : total,
+                Paid = !billOnly,
+                PaidAt = billOnly ? (DateTime?)null : now,
+                BillPaymentCompletelySettled = !billOnly,
+                Balance = billOnly ? total : 0,
+                TenderedAmount = billOnly ? 0 : tendered,
+                CashPaid = billOnly ? (double?)null : (PaymentMethod == PaymentMethod.Cash ? tendered : 0),
+                CashBalance = billOnly ? (double?)null : (PaymentMethod == PaymentMethod.Cash ? tendered - total : 0),
                 BillDate = session.SessionDate,
                 BillTime = now,
                 AppointmentAt = session.SessionDate.Date + Time( session.FromTime),
@@ -367,8 +594,11 @@ namespace HmisWeb.Pages.Opd
                 CreaterId = _appSession.WebUserId,
                 Comments = $"OPD token {tokenNo}"
             };
-            _db.Payments.Add(payment);
-            await _db.SaveChangesAsync();
+            if (!billOnly)
+            {
+                _db.Payments.Add(payment);
+                await _db.SaveChangesAsync();
+            }
 
             var token = new Token
             {
@@ -402,6 +632,8 @@ namespace HmisWeb.Pages.Opd
                 ReceiptAt = now,
                 PatientName = patient.Person?.NameWithInitials ?? patient.Person?.Name ?? "Patient",
                 PatientPhn = patient.PatientId,
+                PatientCode = patient.Code,
+                VisitRegNo = visitRegNo.ToString(),
                 TokenNumber = tokenNo,
                 SessionId = session.Id,
                 ConsultantName = session.Consultant?.Person?.NameWithInitials ?? session.Consultant?.Person?.Name ?? "Consultant",
@@ -409,9 +641,11 @@ namespace HmisWeb.Pages.Opd
                 Fee = fee,
                 HospitalFee = hosp,
                 Total = total,
-                Tendered = tendered,
-                Balance = tendered - total,
-                PaymentMethod = PaymentMethod.ToString(),
+                Tendered = billOnly ? 0 : tendered,
+                Balance = billOnly ? 0 : tendered - total,
+                PaymentMethod = billOnly ? "Pay at Cashier" : PaymentMethod.ToString(),
+                Paid = !billOnly,
+                AmountDue = billOnly ? total : 0,
                 Cashier = _appSession.LoggedUser?.WebUserPerson?.NameWithInitials
                     ?? _appSession.LoggedUser?.RealUserName
                     ?? _appSession.LoggedUser?.UserName
@@ -423,6 +657,16 @@ namespace HmisWeb.Pages.Opd
 
             // Clear patient so cashier can register the next patient
             HttpContext.Session.Remove(PatientKey);
+
+            // If this registration was launched from a lab screen, return to the
+            // lab indent with the registered patient already selected.
+            if (!string.IsNullOrWhiteSpace(ReturnUrl) && Url.IsLocalUrl(ReturnUrl))
+            {
+                TempData["LabSampleNotice"] = $"Patient registered. Patient Code {patient.Code}, Reg No {visitRegNo}. Continue with the lab tests.";
+                var separator = ReturnUrl.Contains('?') ? "&" : "?";
+                return Redirect($"{ReturnUrl}{separator}selectPatientId={patient.Id}");
+            }
+
             return Page();
         }
 
@@ -430,7 +674,10 @@ namespace HmisWeb.Pages.Opd
         {
             HttpContext.Session.Remove(SessionKey);
             HttpContext.Session.Remove(PatientKey);
-            return RedirectToPage("/Opd/Registration");
+            return RedirectToPage("/Opd/Registration", new
+            {
+                returnUrl = string.IsNullOrWhiteSpace(ReturnUrl) ? null : ReturnUrl
+            });
         }
 
         public async Task<IActionResult> OnGetPdfAsync(long? id)
@@ -457,6 +704,8 @@ namespace HmisWeb.Pages.Opd
                 .FirstOrDefaultAsync(b => b.Id == billId && !b.Retired);
             if (bill == null) return null;
 
+            var legacy = bill.Patient != null ? await _common.GetPatientLegacyInfoAsync(bill.Patient) : null;
+
             return new ReceiptModel
             {
                 BillId = bill.Id,
@@ -465,6 +714,8 @@ namespace HmisWeb.Pages.Opd
                 ReceiptAt = bill.CreatedAt ?? DateTime.Now,
                 PatientName = bill.Patient?.Person?.NameWithInitials ?? bill.Patient?.Person?.Name ?? "Patient",
                 PatientPhn = bill.Patient?.PatientId,
+                PatientCode = legacy?.Code ?? bill.Patient?.Code,
+                VisitRegNo = legacy?.RegNo,
                 TokenNumber = bill.LocalNumber ?? bill.Id.ToString("D3"),
                 ConsultantName = bill.Staff?.Person?.NameWithInitials ?? bill.Staff?.Person?.Name ?? "-",
                 RoomNo = "-",
@@ -531,6 +782,8 @@ namespace HmisWeb.Pages.Opd
             g.DrawLine(pen, cx, ty, x + w - 8, ty); ty += 10;
 
             ty = Row(g, fSmall, "Patient", r.PatientName, cx, ty, cw);
+            ty = Row(g, fSmall, "Patient Code", r.PatientCode ?? "-", cx, ty, cw);
+            ty = Row(g, fSmall, "Reg No", r.VisitRegNo ?? "-", cx, ty, cw);
             ty = Row(g, fSmall, "PHN", r.PatientPhn?.ToString() ?? "-", cx, ty, cw);
             ty = Row(g, fSmall, "Patient Type", r.PatientType ?? "Self", cx, ty, cw);
             ty += 3;
@@ -586,6 +839,30 @@ namespace HmisWeb.Pages.Opd
                 .OrderBy(i => i.Name)
                 .Select(i => new SelectListItem { Value = i.Id.ToString(), Text = i.Name ?? "" })
                 .ToListAsync();
+
+            // Legacy employee lookup (opdreg.scx txtecode): code + name + designation,
+            // filtered to non-retired rows, ordered by name. Capped to keep the
+            // dropdown usable; the operator can still type a code via the text box.
+            try
+            {
+                var rows = await _db.Database
+                    .SqlQueryRaw<EmployeeLookupRow>("SELECT TOP 500 CODE, NAME, DESG FROM EMPLOYEE ORDER BY NAME")
+                    .AsNoTracking()
+                    .ToListAsync();
+                EmployeeList = rows
+                    .Where(r => !string.IsNullOrWhiteSpace(r.CODE))
+                    .Select(r => new SelectListItem
+                    {
+                        Value = (r.CODE ?? "").Trim(),
+                        Text = $"{(r.CODE ?? "").Trim()} - {(r.NAME ?? "").Trim()}" + (string.IsNullOrWhiteSpace(r.DESG) ? "" : $" ({r.DESG.Trim()})")
+                    })
+                    .DistinctBy(x => x.Value)
+                    .ToList();
+            }
+            catch
+            {
+                EmployeeList = new List<SelectListItem>();
+            }
         }
 
         private async Task LoadStateAsync()
@@ -608,6 +885,7 @@ namespace HmisWeb.Pages.Opd
                 .Select(s => new SessionCard
                 {
                     Id = s.Id,
+                    ConsultantId = s.ConsultantId,
                     ConsultantName = s.Consultant != null && s.Consultant.Person != null
                         ? (s.Consultant.Person.NameWithInitials ?? s.Consultant.Person.Name ?? "")
                         : "Unassigned",
@@ -630,20 +908,45 @@ namespace HmisWeb.Pages.Opd
                 s.NextToken = s.IssuedTokens + 1;
             }
 
+            if (!Sessions.Any())
+            {
+                var latest = await _db.OpdSessions.AsNoTracking()
+                    .Where(s => !s.Retired
+                        && (s.Status == OpdSessionStatus.Scheduled
+                            || s.Status == OpdSessionStatus.Active))
+                    .OrderByDescending(s => s.Id)
+                    .Select(s => (DateTime?)s.SessionDate)
+                    .FirstOrDefaultAsync();
+
+                if (latest != null && latest.Value.Date != day)
+                    LatestSessionDate = latest.Value.Date;
+            }
+
             var sid = CurrentSessionId;
             if (sid != null)
             {
+                // a session selected on another day must not stay selected after the
+                // user changes the date - the consultant list would no longer match
                 SelectedSession = await _db.OpdSessions
                     .Include(s => s.Consultant).ThenInclude(c => c.Person)
                     .Include(s => s.Speciality)
-                    .FirstOrDefaultAsync(s => s.Id == sid && !s.Retired);
+                    .FirstOrDefaultAsync(s => s.Id == sid && !s.Retired
+                        && s.SessionDate == day
+                        && (s.Status == OpdSessionStatus.Scheduled
+                            || s.Status == OpdSessionStatus.Active));
+
+                if (SelectedSession == null)
+                    HttpContext.Session.Remove(SessionKey);
             }
 
             if (long.TryParse(HttpContext.Session.GetString(PatientKey), out var pid))
             {
                 SelectedPatient = await _db.Patients.Include(p => p.Person).FirstOrDefaultAsync(p => p.Id == pid && !p.Retired);
                 if (SelectedPatient != null)
+                {
                     PatientResults = new List<Patient> { SelectedPatient };
+                    LegacyPatient = await _common.GetPatientLegacyInfoAsync(SelectedPatient);
+                }
             }
 
             await ComputeAppliedFeeAsync();

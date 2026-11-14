@@ -4,22 +4,20 @@
     ViewData["Title"] = "Corporate Rates";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="d-flex justify-content-between align-items-end mb-3 flex-wrap gap-2">
     <div>
-        <h4 class="mb-0">Corporate Rates</h4>
-        <div class="text-muted small">Manage company-specific service pricing and rate agreements.</div>
+        <h4 class="mb-0"><i class="bi bi-cash-coin me-1 text-primary"></i>Corporate Rates</h4>
+        <div class="text-muted small">
+            Company rate card - pick a company and a department, then every service of that
+            department is listed with the company's rate (legacy master <code>compchg.dbf</code>).
+        </div>
     </div>
-    <div class="d-flex gap-2">
+    @if (!string.IsNullOrEmpty(Model.SelectedCompanyCode) && !string.IsNullOrEmpty(Model.FilterDept))
+    {
         <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#addRateModal">
-            <i class="bi bi-plus-circle me-1"></i>Add Company Rate
+            <i class="bi bi-plus-circle me-1"></i>Add / Change Rate
         </button>
-        <a href="#" class="btn btn-sm @(Model.ViewMode == "matrix" ? "btn-primary" : "btn-outline-primary")" id="btnMatrixView">
-            <i class="bi bi-grid-3x3-gap"></i> Matrix
-        </a>
-        <a href="#" class="btn btn-sm @(Model.ViewMode == "list" ? "btn-primary" : "btn-outline-primary")" id="btnListView">
-            <i class="bi bi-list-ul"></i> List
-        </a>
-    </div>
+    }
 </div>
 
 @if (!string.IsNullOrEmpty(Model.ErrorMessage))
@@ -41,9 +39,7 @@
     <div class="col-md-3">
         <div class="card border-0 shadow-sm">
             <div class="card-body d-flex align-items-center gap-3 py-3">
-                <div class="icon bg-primary bg-opacity-10 text-primary rounded-3">
-                    <i class="bi bi-building"></i>
-                </div>
+                <div class="icon bg-primary bg-opacity-10 text-primary rounded-3"><i class="bi bi-building"></i></div>
                 <div>
                     <div class="text-muted small">Companies with Rates</div>
                     <div class="fw-bold fs-5">@Model.TotalCompaniesWithRates</div>
@@ -54,9 +50,7 @@
     <div class="col-md-3">
         <div class="card border-0 shadow-sm">
             <div class="card-body d-flex align-items-center gap-3 py-3">
-                <div class="icon bg-success bg-opacity-10 text-success rounded-3">
-                    <i class="bi bi-box2"></i>
-                </div>
+                <div class="icon bg-success bg-opacity-10 text-success rounded-3"><i class="bi bi-box2"></i></div>
                 <div>
                     <div class="text-muted small">Services with Rates</div>
                     <div class="fw-bold fs-5">@Model.TotalServicesWithRates</div>
@@ -67,9 +61,7 @@
     <div class="col-md-3">
         <div class="card border-0 shadow-sm">
             <div class="card-body d-flex align-items-center gap-3 py-3">
-                <div class="icon bg-info bg-opacity-10 text-info rounded-3">
-                    <i class="bi bi-gear"></i>
-                </div>
+                <div class="icon bg-info bg-opacity-10 text-info rounded-3"><i class="bi bi-gear"></i></div>
                 <div>
                     <div class="text-muted small">Total Configurations</div>
                     <div class="fw-bold fs-5">@Model.TotalRateConfigurations</div>
@@ -80,189 +72,197 @@
     <div class="col-md-3">
         <div class="card border-0 shadow-sm">
             <div class="card-body d-flex align-items-center gap-3 py-3">
-                <div class="icon bg-warning bg-opacity-10 text-warning rounded-3">
-                    <i class="bi bi-building"></i>
-                </div>
+                <div class="icon bg-warning bg-opacity-10 text-warning rounded-3"><i class="bi bi-check2-square"></i></div>
                 <div>
-                    <div class="text-muted small">Total Companies</div>
-                    <div class="fw-bold fs-5">@Model.Companies.Count</div>
+                    <div class="text-muted small">Rates of Selected Company</div>
+                    <div class="fw-bold fs-5">@Model.CompanyRateCount</div>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<form method="post" asp-page-handler="Filter" class="mb-3" id="filterForm">
-    <div class="row g-2 align-items-end">
-        <div class="col-md-3">
-            <label class="form-label">Filter by Department</label>
-            <select asp-for="FilterDepartmentId" asp-items="Model.DepartmentList" class="form-select form-select-sm">
-                <option value="">All Departments</option>
-            </select>
-        </div>
-        <div class="col-md-2">
-            <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel"></i> Filter</button>
-            <a asp-page="/Corporate/Rates" class="btn btn-sm btn-outline-secondary">Reset</a>
+@* ---- company + department selection ---- *@
+<form method="get" class="card mb-3">
+    <div class="card-body py-2">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-5">
+                <label class="form-label small mb-1">Company</label>
+                <select name="SelectedCompanyCode" class="form-select form-select-sm">
+                    <option value="">-- Select Company --</option>
+                    @foreach (var c in Model.CompanyFilterList)
+                    {
+                        if (Model.SelectedCompanyCode == c.Value)
+                        {
+                            <option value="@c.Value" selected>@c.Text</option>
+                        }
+                        else
+                        {
+                            <option value="@c.Value">@c.Text</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small mb-1">Department</label>
+                <select name="FilterDept" class="form-select form-select-sm">
+                    <option value="">-- Select Department --</option>
+                    @foreach (var d in Model.DeptFilterList)
+                    {
+                        if (Model.FilterDept == d.Value)
+                        {
+                            <option value="@d.Value" selected>@d.Text</option>
+                        }
+                        else
+                        {
+                            <option value="@d.Value">@d.Text</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small mb-1">Search</label>
+                <input name="Q" value="@Model.Q" class="form-control form-control-sm" placeholder="service code or name" />
+            </div>
+            <div class="col-md-1 d-flex gap-2">
+                <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search me-1"></i>Show</button>
+            </div>
         </div>
     </div>
 </form>
 
-@if (Model.ViewMode == "matrix")
-{
-    <div class="card">
-        <div class="card-header bg-white d-flex align-items-center justify-content-between">
-            <strong>Rate Matrix</strong>
-            <span class="badge bg-primary rounded-pill">@Model.Services.Count services &times; @Model.Companies.Count companies</span>
-        </div>
-        <div class="card-body p-0">
-            @if (!Model.Services.Any())
+<div class="card">
+    <div class="card-header bg-white d-flex align-items-center justify-content-between">
+        <strong>
+            @if (!string.IsNullOrEmpty(Model.SelectedCompanyCode))
             {
-                <div class="p-4 text-center text-muted">No billable services found. Adjust your department filter.</div>
-            }
-            else if (!Model.Companies.Any())
-            {
-                <div class="p-4 text-center text-muted">No insurance companies found in the system.</div>
+                <span>Rate card - company @Model.SelectedCompanyCode</span>
             }
             else
             {
-                <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
-                    <table class="table table-bordered table-sm align-middle mb-0" style="min-width: @(Model.Companies.Count * 120 + 250)px;">
-                        <thead class="sticky-top" style="z-index: 10;">
-                            <tr>
-                                <th style="min-width:200px; position:sticky; left:0; z-index:11; background:#fff;">Service</th>
-                                <th style="min-width:100px; position:sticky; left:200px; z-index:11; background:#fff;">Base Rate</th>
-                                @foreach (var company in Model.Companies)
-                                {
-                                    <th style="min-width:120px; text-align:center; background:#f8f9fa;" title="@company.Name">
-                                        <span class="d-inline-block text-truncate" style="max-width:110px; font-size:.75rem;">@company.Name</span>
-                                    </th>
-                                }
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var service in Model.Services)
-                            {
-                                <tr>
-                                    <td style="position:sticky; left:0; z-index:1; background:#fff;">
-                                        <div class="fw-semibold" style="font-size:.82rem;">@service.Name</div>
-                                        <div class="text-muted" style="font-size:.7rem;">@(service.Department?.Name ?? "")</div>
-                                    </td>
-                                    <td style="position:sticky; left:200px; z-index:1; background:#fff; text-align:right;">
-                                        <span class="text-muted">@(service.Total?.ToString("N2") ?? "-")</span>
-                                    </td>
-                                    @foreach (var company in Model.Companies)
-                                    {
-                                        var rate = Model.Rates.FirstOrDefault(r => r.CompanyId == company.Id && r.ItemId == service.Id);
-                                        var baseRate = service.Total ?? 0;
-                                        var companyRate = rate?.Rate ?? 0;
-                                        var hasRate = rate != null;
-
-                                        <td style="text-align:center; cursor:pointer; @(hasRate ? "background:#e8f5e9;" : "")"
-                                            data-company-id="@company.Id"
-                                            data-company-name="@company.Name"
-                                            data-item-id="@service.Id"
-                                            data-item-name="@service.Name"
-                                            data-base-rate="@baseRate"
-                                            data-rate-id="@(rate != null ? rate.Id.ToString() : "")"
-                                            data-rate="@(hasRate ? rate.Rate.ToString("N2") : "")"
-                                            data-staffrate="@(rate?.StaffRate?.ToString() ?? "")"
-                                            data-unitrate="@(rate?.UnitRate?.ToString() ?? "")"
-                                            data-discount="@(rate?.DiscountPercent?.ToString() ?? "")"
-                                            data-effective-from="@(rate?.EffectiveFrom?.ToString("yyyy-MM-dd") ?? "")"
-                                            data-effective-to="@(rate?.EffectiveTo?.ToString("yyyy-MM-dd") ?? "")"
-                                            class="rate-cell">
-                                            @if (hasRate)
-                                            {
-                                                <span class="fw-bold" style="font-size:.85rem;">@rate.Rate.ToString("N2")</span>
-                                                if (rate.DiscountPercent.HasValue && rate.DiscountPercent.Value > 0)
-                                                {
-                                                    <br />
-                                                    <span class="text-success" style="font-size:.65rem;">-@rate.DiscountPercent.Value.ToString("N1")%</span>
-                                                }
-                                            }
-                                            else
-                                            {
-                                                <span class="text-muted" style="font-size:.8rem; opacity:.6;">@(service.Total?.ToString("N2") ?? "-")</span>
-                                            }
-                                        </td>
-                                    }
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
+                <span>Rate card</span>
             }
-        </div>
+            @if (!string.IsNullOrEmpty(Model.FilterDept))
+            {
+                <span class="text-muted small ms-2">@Model.FilterDept</span>
+            }
+        </strong>
+        @if (Model.ShowRates)
+        {
+            <span class="badge bg-primary rounded-pill">@Model.TotalCount services</span>
+        }
     </div>
-}
-else
-{
-    <div class="card">
-        <div class="card-header bg-white d-flex align-items-center justify-content-between">
-            <strong>All Rate Configurations</strong>
-            <span class="badge bg-primary rounded-pill">@Model.Rates.Count</span>
-        </div>
-        <div class="card-body p-0">
-            @if (!Model.Rates.Any())
-            {
-                <div class="p-4 text-center text-muted">No rate configurations found. Click on a cell in Matrix view to create one.</div>
-            }
-            else
-            {
-                <div class="table-responsive">
-                    <table class="table table-hover table-sm align-middle mb-0">
-                        <thead>
-                            <tr>
-                                <th>Company</th>
-                                <th>Service</th>
-                                <th>Base Rate</th>
-                                <th>Company Rate</th>
-                                <th>Staff Rate</th>
-                                <th>Unit Rate</th>
-                                <th>Discount %</th>
-                                <th>Effective From</th>
-                                <th>Effective To</th>
-                                <th>Status</th>
-                                <th class="text-end">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var rate in Model.Rates.OrderByDescending(r => r.CreatedAt))
-                            {
-                                var isExpired = rate.EffectiveTo.HasValue && rate.EffectiveTo.Value < DateTime.Now;
-                                <tr>
-                                    <td class="fw-semibold">@(rate.Company?.Name ?? "-")</td>
-                                    <td>@(rate.Item?.Name ?? "-")</td>
-                                    <td class="text-muted">@(rate.Item?.Total?.ToString("N2") ?? "-")</td>
-                                    <td class="fw-bold">@rate.Rate.ToString("N2")</td>
-                                    <td>@(rate.StaffRate?.ToString("N2") ?? "-")</td>
-                                    <td>@(rate.UnitRate?.ToString("N2") ?? "-")</td>
-                                    <td>@(rate.DiscountPercent?.ToString("N1") ?? "-")</td>
-                                    <td>@(rate.EffectiveFrom?.ToString("dd-MMM-yyyy") ?? "-")</td>
-                                    <td>@(rate.EffectiveTo?.ToString("dd-MMM-yyyy") ?? "-")</td>
-                                    <td>
-                                        @if (rate.Retired)
-                                        {
-                                            <span class="badge bg-danger">Retired</span>
-                                        }
-                                        else if (isExpired)
-                                        {
-                                            <span class="badge bg-secondary">Expired</span>
-                                        }
-                                        else
-                                        {
-                                            <span class="badge bg-success">Active</span>
-                                        }
-                                    </td>
-                                    <td class="text-end">
+    <div class="card-body p-0">
+        @if (!Model.Rows.Any())
+        {
+            <div class="p-4 text-center text-muted">
+                @if (string.IsNullOrEmpty(Model.SelectedCompanyCode) && string.IsNullOrEmpty(Model.FilterDept))
+                {
+                    <span>Select a company and a department to see the rate card.</span>
+                }
+                else if (string.IsNullOrEmpty(Model.SelectedCompanyCode))
+                {
+                    <span>Select a company to see its rates for this department.</span>
+                }
+                else if (string.IsNullOrEmpty(Model.FilterDept))
+                {
+                    <span>Select a department to see the rates of company @Model.SelectedCompanyCode.</span>
+                }
+                else
+                {
+                    <span>No service of this department matches the search.</span>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover table-sm align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Code</th>
+                            <th>Service</th>
+                            <th>Dept</th>
+                            <th class="text-end">Base Rate</th>
+                            <th class="text-end">Base Foreigner</th>
+                            <th class="text-end">Company Rate</th>
+                            <th class="text-end">Foreigner</th>
+                            <th class="text-end">Discount %</th>
+                            <th>Effective</th>
+                            <th>Legacy Stamp</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in Model.Rows)
+                        {
+                            var rate = row.Rate;
+                            <tr class="@(rate == null ? "" : "table-light")">
+                                <td class="fw-semibold">@row.ServiceCode</td>
+                                <td>@row.ServiceName</td>
+                                <td class="text-muted small">@row.Dept</td>
+                                <td class="text-end">@row.BaseRate.ToString("N2")</td>
+                                <td class="text-end text-muted">@row.BaseForeignerRate.ToString("N2")</td>
+                                <td class="text-end">
+                                    @if (rate != null)
+                                    {
+                                        <span class="fw-bold text-success">@rate.Rate.ToString("N2")</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">-</span>
+                                    }
+                                </td>
+                                <td class="text-end">
+                                    @if (rate != null && rate.URate.HasValue)
+                                    {
+                                        @rate.URate.Value.ToString("N2")
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">-</span>
+                                    }
+                                </td>
+                                <td class="text-end">
+                                    @if (rate != null && rate.DiscountPercent.HasValue)
+                                    {
+                                        @rate.DiscountPercent.Value.ToString("N1")
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">-</span>
+                                    }
+                                </td>
+                                <td class="text-muted small">
+                                    @if (rate != null && (rate.EffectiveFrom.HasValue || rate.EffectiveTo.HasValue))
+                                    {
+                                        @((rate.EffectiveFrom?.ToString("dd-MMM-yy") ?? "-") + " to " + (rate.EffectiveTo?.ToString("dd-MMM-yy") ?? "-"))
+                                    }
+                                    else
+                                    {
+                                        <span>-</span>
+                                    }
+                                </td>
+                                <td class="text-muted small">
+                                    @if (rate != null)
+                                    {
+                                        @(rate.UserId ?? "-") @(rate.UDate?.ToString("dd-MMM-yy") ?? "") @(rate.UTime ?? "")
+                                    }
+                                </td>
+                                <td class="text-end text-nowrap">
+                                    @if (rate != null)
+                                    {
                                         <button type="button" class="btn btn-sm btn-outline-primary edit-rate-btn"
                                                 data-rate-id="@rate.Id"
                                                 data-company-id="@rate.CompanyId"
-                                                data-company-name="@(rate.Company?.Name ?? "")"
+                                                data-company-name="@Model.SelectedCompanyCode"
                                                 data-item-id="@rate.ItemId"
-                                                data-item-name="@(rate.Item?.Name ?? "")"
-                                                data-base-rate="@(rate.Item?.Total?.ToString() ?? "0")"
-                                                data-rate="@rate.Rate"
+                                                data-item-name="@row.ServiceName"
+                                                data-service-code="@row.ServiceCode"
+                                                data-dept="@row.Dept"
+                                                data-base-rate="@row.BaseRate.ToString("N2")"
+                                                data-rate="@rate.Rate.ToString("N2")"
+                                                data-urate="@(rate.URate?.ToString() ?? "")"
                                                 data-staffrate="@(rate.StaffRate?.ToString() ?? "")"
                                                 data-unitrate="@(rate.UnitRate?.ToString() ?? "")"
                                                 data-discount="@(rate.DiscountPercent?.ToString() ?? "")"
@@ -271,31 +271,30 @@ else
                                                 title="Edit">
                                             <i class="bi bi-pencil"></i>
                                         </button>
-                                        <form method="post" asp-page-handler="DeactivateRate" class="d-inline" onsubmit="return confirm('Deactivate this rate?');">
-                                            <input type="hidden" name="id" value="@rate.Id" />
-                                            <button type="submit" class="btn btn-sm btn-outline-warning" title="Deactivate"><i class="bi bi-pause-circle"></i></button>
-                                        </form>
-                                        <form method="post" asp-page-handler="DeleteRate" class="d-inline" onsubmit="return confirm('Retire this rate permanently?');">
+                                        <form method="post" asp-page-handler="DeleteRate" class="d-inline" onsubmit="return confirm('Retire this rate?');">
                                             <input type="hidden" name="id" value="@rate.Id" />
                                             <button type="submit" class="btn btn-sm btn-outline-danger" title="Retire"><i class="bi bi-trash"></i></button>
                                         </form>
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            }
-        </div>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
     </div>
-}
+</div>
 
+<partial name="_Pager" model="Model" />
+
+@* ---- add / change a rate ---- *@
 <div class="modal fade" id="addRateModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <form method="post" asp-page-handler="SaveRate" class="modal-content" id="addRateForm">
             <div class="modal-header">
-                <h5 class="modal-title"><i class="bi bi-plus-circle me-1 text-success"></i>Add Company Rate</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h5 class="modal-title"><i class="bi bi-plus-circle me-1 text-success"></i>Add / Change Company Rate</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <div class="row g-3 mb-3">
@@ -305,37 +304,32 @@ else
                             <option value="">-- Select Company --</option>
                             @foreach (var c in Model.Companies)
                             {
-                                <option value="@c.Id">@c.Name</option>
+                                <option value="@c.Id">@c.Code - @c.Name</option>
                             }
                         </select>
+                        <input type="hidden" asp-for="RateInput.CompanyCode" id="addRateCompanyCode" />
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label">Department</label>
-                        <select asp-for="RateInput.DepartmentId" asp-items="Model.DepartmentList" class="form-select" id="addRateDepartmentId">
-                            <option value="">-- All Departments --</option>
+                        <label class="form-label">Service <span class="text-danger">*</span></label>
+                        <select asp-for="RateInput.ServiceCode" class="form-select" id="addRateServiceCode">
+                            <option value="">-- Select Service --</option>
+                            @foreach (var s in Model.ServiceList)
+                            {
+                                <option value="@s.Value">@s.Text</option>
+                            }
                         </select>
+                        <input type="hidden" asp-for="RateInput.ItemId" id="addRateItemId" />
+                        <input type="hidden" asp-for="RateInput.Dept" id="addRateDept" />
                     </div>
                 </div>
                 <div class="row g-3 mb-3">
-                    <div class="col-md-12">
-                        <label class="form-label">Service <span class="text-danger">*</span></label>
-                        <select asp-for="RateInput.ItemId" class="form-select" id="addRateItemId">
-                            <option value="">-- Select Service --</option>
-                            @foreach (var s in Model.PopupServices)
-                            {
-                                <option value="@s.Id" data-department-id="@(s.DepartmentId?.ToString() ?? "")">@s.Name (@string.IsNullOrEmpty(s.Code) ? "-" : s.Code)</option>
-                            }
-                        </select>
-                    </div>
-                </div>
-                <div class="row g-3">
                     <div class="col-md-4">
-                        <label class="form-label">Normal Charge <span class="text-danger">*</span></label>
+                        <label class="form-label">Company Rate <span class="text-danger">*</span></label>
                         <input asp-for="RateInput.Rate" class="form-control" type="number" step="0.01" min="0" id="addRateValue" />
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label">Urgent Charge</label>
-                        <input asp-for="RateInput.UnitRate" class="form-control" type="number" step="0.01" min="0" id="addRateUnitRate" />
+                        <label class="form-label">Foreigner Rate</label>
+                        <input asp-for="RateInput.URate" class="form-control" type="number" step="0.01" min="0" id="addRateUrate" />
                     </div>
                     <div class="col-md-4">
                         <label class="form-label">Discount %</label>
@@ -365,7 +359,7 @@ else
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="rateModalLabel">Set Company Rate</h5>
+                <h5 class="modal-title" id="rateModalLabel">Change Company Rate</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form method="post" asp-page-handler="SaveRate" id="rateForm">
@@ -373,6 +367,9 @@ else
                     <input type="hidden" asp-for="RateInput.Id" id="rateId" />
                     <input type="hidden" asp-for="RateInput.CompanyId" id="rateCompanyId" />
                     <input type="hidden" asp-for="RateInput.ItemId" id="rateItemId" />
+                    <input type="hidden" asp-for="RateInput.CompanyCode" id="rateCompanyCode" />
+                    <input type="hidden" asp-for="RateInput.ServiceCode" id="rateServiceCode" />
+                    <input type="hidden" asp-for="RateInput.Dept" id="rateDept" />
 
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
@@ -381,55 +378,51 @@ else
                         </div>
                         <div class="col-md-6">
                             <label class="form-label text-muted small">Service</label>
-                            <div class="form-control-plaintext fw-semibold" id="rateItemName">-</div>
+                            <div class="form-control-plaintext fw-semibold" id="rateServiceName">-</div>
                         </div>
                     </div>
-
                     <div class="row g-3 mb-3">
                         <div class="col-md-4">
-                            <label class="form-label text-muted small">Base Rate (Hospital)</label>
-                            <div class="form-control-plaintext fw-bold text-primary fs-5" id="rateBaseRate">0.00</div>
+                            <label class="form-label">Base Rate</label>
+                            <input class="form-control" id="rateBaseRate" readonly />
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label text-muted small">Normal Charge</label>
-                            <input asp-for="RateInput.Rate" class="form-control" type="number" step="0.01" min="0" id="rateValue" required />
+                            <label class="form-label">Company Rate <span class="text-danger">*</span></label>
+                            <input asp-for="RateInput.Rate" class="form-control" type="number" step="0.01" min="0" id="rateValue" />
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label text-muted small">Urgent Charge</label>
+                            <label class="form-label">Foreigner Rate</label>
+                            <input asp-for="RateInput.URate" class="form-control" type="number" step="0.01" min="0" id="rateUrate" />
+                        </div>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Staff Rate</label>
+                            <input asp-for="RateInput.StaffRate" class="form-control" type="number" step="0.01" min="0" id="rateStaffRate" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Unit Rate</label>
                             <input asp-for="RateInput.UnitRate" class="form-control" type="number" step="0.01" min="0" id="rateUnitRate" />
                         </div>
-                    </div>
-
-                    <div class="row g-3 mb-3">
                         <div class="col-md-4">
-                            <label class="form-label text-muted small">Discount %</label>
+                            <label class="form-label">Discount %</label>
                             <input asp-for="RateInput.DiscountPercent" class="form-control" type="number" step="0.1" min="0" max="100" id="rateDiscount" />
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label text-muted small">Effective From</label>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Effective From</label>
                             <input asp-for="RateInput.EffectiveFrom" class="form-control" type="date" id="rateEffectiveFrom" />
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label text-muted small">Effective To</label>
+                        <div class="col-md-6">
+                            <label class="form-label">Effective To</label>
                             <input asp-for="RateInput.EffectiveTo" class="form-control" type="date" id="rateEffectiveTo" />
-                        </div>
-                    </div>
-
-                    <div class="card bg-light border-0" id="rateSummary" style="display:none;">
-                        <div class="card-body py-2 px-3">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span class="small">
-                                    <span class="text-muted">Difference:</span>
-                                    <strong id="rateDifference">0.00</strong>
-                                </span>
-                                <span class="small" id="rateDifferenceLabel"></span>
-                            </div>
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Save Rate</button>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-check2-circle me-1"></i>Save Changes</button>
                 </div>
             </form>
         </div>
@@ -437,122 +430,37 @@ else
 </div>
 
 @section Scripts {
-    <script>
-        $(function () {
-            @if (!string.IsNullOrEmpty(Model.ErrorMessage) && Model.RateInput.CompanyId > 0)
-            {
-                <text>bootstrap.Modal.getOrCreateInstance(document.getElementById('addRateModal')).show();</text>
-            }
+<script>
+    // keep the selected company / department / service in the add-rate popup
+    $('#addRateCompanyId').on('change', function () {
+        var code = $(this).find('option:selected').text().split(' - ')[0];
+        $('#addRateCompanyCode').val(code);
+    });
 
-            var rateModal = new bootstrap.Modal(document.getElementById('rateModal'));
+    $('#addRateServiceCode').on('change', function () {
+        $('#addRateServiceCode').trigger('change');
+    });
 
-            function openRateModal(data) {
-                $('#rateId').val(data.id || '');
-                $('#rateCompanyId').val(data.companyId);
-                $('#rateItemId').val(data.itemId);
-                $('#rateCompanyName').text(data.companyName);
-                $('#rateItemName').text(data.itemName);
-                $('#rateBaseRate').text(parseFloat(data.baseRate || 0).toFixed(2));
-                $('#rateValue').val(data.rate || '');
-                $('#rateUnitRate').val(data.unitRate || '');
-                $('#rateDiscount').val(data.discount || '');
-                $('#rateEffectiveFrom').val(data.effectiveFrom || '');
-                $('#rateEffectiveTo').val(data.effectiveTo || '');
-
-                if (data.id) {
-                    $('#rateModalLabel').text('Edit Company Rate');
-                } else {
-                    $('#rateModalLabel').text('Set Company Rate');
-                }
-
-                updateDifference();
-                rateModal.show();
-            }
-
-            function updateDifference() {
-                var baseRate = parseFloat($('#rateBaseRate').text()) || 0;
-                var companyRate = parseFloat($('#rateValue').val()) || 0;
-                var diff = baseRate - companyRate;
-                var pct = baseRate > 0 ? ((diff / baseRate) * 100) : 0;
-
-                if (companyRate > 0) {
-                    $('#rateSummary').show();
-                    $('#rateDifference').text(Math.abs(diff).toFixed(2));
-
-                    if (diff > 0) {
-                        $('#rateDifferenceLabel').html('<span class="text-success"><i class="bi bi-arrow-down"></i> ' + pct.toFixed(1) + '% savings</span>');
-                    } else if (diff < 0) {
-                        $('#rateDifferenceLabel').html('<span class="text-danger"><i class="bi bi-arrow-up"></i> ' + Math.abs(pct).toFixed(1) + '% premium</span>');
-                    } else {
-                        $('#rateDifferenceLabel').html('<span class="text-muted">Same as base rate</span>');
-                    }
-                } else {
-                    $('#rateSummary').hide();
-                }
-            }
-
-            $(document).on('click', '.rate-cell', function () {
-                var $cell = $(this);
-                openRateModal({
-                    companyId: $cell.data('company-id'),
-                    companyName: $cell.data('company-name'),
-                    itemId: $cell.data('item-id'),
-                    itemName: $cell.data('item-name'),
-                    baseRate: $cell.data('base-rate'),
-                    id: $cell.data('rate-id'),
-                    rate: $cell.data('rate'),
-                    unitRate: $cell.data('unitrate'),
-                    discount: $cell.data('discount'),
-                    effectiveFrom: $cell.data('effective-from'),
-                    effectiveTo: $cell.data('effective-to')
-                });
-            });
-
-            $(document).on('click', '.edit-rate-btn', function () {
-                var $btn = $(this);
-                openRateModal({
-                    id: $btn.data('rate-id'),
-                    companyId: $btn.data('company-id'),
-                    companyName: $btn.data('company-name'),
-                    itemId: $btn.data('item-id'),
-                    itemName: $btn.data('item-name'),
-                    baseRate: $btn.data('base-rate'),
-                    rate: $btn.data('rate'),
-                    unitRate: $btn.data('unitrate'),
-                    discount: $btn.data('discount'),
-                    effectiveFrom: $btn.data('effective-from'),
-                    effectiveTo: $btn.data('effective-to')
-                });
-            });
-
-            function filterAddRateServices() {
-                var deptId = $('#addRateDepartmentId').val();
-                $('#addRateItemId option').each(function () {
-                    var $opt = $(this);
-                    if ($opt.val() === '') return;
-                    var optDept = $opt.data('department-id') ? String($opt.data('department-id')) : '';
-                    $opt.prop('hidden', (deptId && optDept !== deptId));
-                });
-                if ($('#addRateItemId').val() && $('#addRateItemId option:selected').prop('hidden')) {
-                    $('#addRateItemId').val('');
-                }
-            }
-
-            $('#addRateDepartmentId').on('change', filterAddRateServices);
-
-            $('#rateValue').on('input', updateDifference);
-
-            $('#btnMatrixView').on('click', function (e) {
-                e.preventDefault();
-                $('#filterForm input[name="ViewMode"]').val('matrix');
-                $('#filterForm').removeAttr('data-handler').submit();
-            });
-
-            $('#btnListView').on('click', function (e) {
-                e.preventDefault();
-                $('#filterForm input[name="ViewMode"]').val('list');
-                $('#filterForm').removeAttr('data-handler').submit();
-            });
-        });
-    </script>
+    // the edit button fills the change-rate popup
+    $(document).on('click', '.edit-rate-btn', function () {
+        var btn = $(this);
+        $('#rateId').val(btn.data('rate-id'));
+        $('#rateCompanyId').val(btn.data('company-id'));
+        $('#rateCompanyCode').val(btn.data('company-name'));
+        $('#rateItemId').val(btn.data('item-id'));
+        $('#rateServiceCode').val(btn.data('service-code'));
+        $('#rateDept').val(btn.data('dept'));
+        $('#rateCompanyName').text(btn.data('company-name') || '-');
+        $('#rateServiceName').text((btn.data('service-code') || '') + ' ' + (btn.data('item-name') || ''));
+        $('#rateBaseRate').val(btn.data('base-rate'));
+        $('#rateValue').val(btn.data('rate'));
+        $('#rateUrate').val(btn.data('urate'));
+        $('#rateStaffRate').val(btn.data('staffrate'));
+        $('#rateUnitRate').val(btn.data('unitrate'));
+        $('#rateDiscount').val(btn.data('discount'));
+        $('#rateEffectiveFrom').val(btn.data('effective-from'));
+        $('#rateEffectiveTo').val(btn.data('effective-to'));
+        new bootstrap.Modal(document.getElementById('rateModal')).show();
+    });
+</script>
 }

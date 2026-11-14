@@ -19,6 +19,7 @@ namespace HmisWeb.Data
         public DbSet<Staff> Staffs { get; set; }
         public DbSet<Doctor> Doctors { get; set; }
         public DbSet<Consultant> Consultants { get; set; }
+        public DbSet<ConsultantMaster> ConsultantMasters { get; set; }
         public DbSet<WebUser> WebUsers { get; set; }
         public DbSet<WebUserRole> WebUserRoles { get; set; }
         public DbSet<WebUserRoleUser> WebUserRoleUsers { get; set; }
@@ -28,6 +29,7 @@ namespace HmisWeb.Data
         public DbSet<Category> Categories { get; set; }
         public DbSet<Bill> Bills { get; set; }
         public DbSet<BillItem> BillItems { get; set; }
+        public DbSet<IndentPrintLog> IndentPrintLogs { get; set; }
         public DbSet<BillFee> BillFees { get; set; }
         public DbSet<BillSession> BillSessions { get; set; }
         public DbSet<Payment> Payments { get; set; }
@@ -43,6 +45,10 @@ namespace HmisWeb.Data
         public DbSet<PatientRoom> PatientRooms { get; set; }
         public DbSet<Room> Rooms { get; set; }
         public DbSet<RoomCategory> RoomCategories { get; set; }
+        public DbSet<Ward> Wards { get; set; }
+        public DbSet<BedPosition> BedPositions { get; set; }
+        public DbSet<BedTransfer> BedTransfers { get; set; }
+        public DbSet<CompanyTransfer> CompanyTransfers { get; set; }
         public DbSet<Admission> Admissions { get; set; }
         public DbSet<CashBook> CashBooks { get; set; }
         public DbSet<CashBookEntry> CashBookEntries { get; set; }
@@ -126,7 +132,13 @@ public DbSet<ConsultantSettlement> ConsultantSettlements { get; set; }
         public DbSet<UsOrder> UsOrders { get; set; }
         public DbSet<UsReportTemplate> UsReportTemplates { get; set; }
         public DbSet<MedicalTerm> MedicalTerms { get; set; }
-        public DbSet<XrService> XrServices { get; set; }
+        // Canonical shared department-services master ([SERVICES]) + X-ray/US
+        // categories. The X-ray module reads it through the .XrServices()
+        // extension (DEPT = '02' filter). XRSERVICE was dropped 22-Oct-2026.
+        public DbSet<DeptService> DeptServices { get; set; }
+
+        /// <summary>Legacy VFP company master (keyless - read through EF, written with SQL).</summary>
+        public DbSet<CompanyMaster> CompanyMasters { get; set; }
         public DbSet<XrServiceCategory> XrServiceCategories { get; set; }
         public DbSet<XrOrder> XrOrders { get; set; }
         public DbSet<XrReportTemplate> XrReportTemplates { get; set; }
@@ -206,6 +218,11 @@ public DbSet<ConsultantSettlement> ConsultantSettlements { get; set; }
         public DbSet<HmisWeb.Models.Recovery.RecoveryInvoice> RecoveryInvoices { get; set; }
         public DbSet<HmisWeb.Models.Recovery.RecoveryInvoiceDet> RecoveryInvoiceDets { get; set; }
         public DbSet<HmisWeb.Models.Recovery.RecoveryAudit> RecoveryAudits { get; set; }
+
+        // ===== Recovery module, sprint 2 (21-Oct-2026): Receipts/Cheques =====
+        // Schemas in workspace/temp/recovery_receipt_schema.sql (executed).
+        public DbSet<HmisWeb.Models.Recovery.RecoveryRcpt> RecoveryRcpts { get; set; }
+        public DbSet<HmisWeb.Models.Recovery.RecoveryRcptAlloc> RecoveryRcptAllocs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -1015,6 +1032,9 @@ modelBuilder.Entity<PatientEncounter>()
             modelBuilder.Entity<WebUserRole>().ToTable("WEBUSERROLE");
             modelBuilder.Entity<Item>().ToTable("ITEM");
             modelBuilder.Entity<Category>().ToTable("CATEGORY");
+
+            // Legacy VFP company master - no primary key, so it is a keyless query type.
+            modelBuilder.Entity<CompanyMaster>().HasNoKey().ToTable("COMPANY");
             modelBuilder.Entity<Bill>().ToTable("BILL");
             modelBuilder.Entity<BillItem>().ToTable("BILLITEM");
             modelBuilder.Entity<BillFee>().ToTable("BILLFEE");
@@ -1059,7 +1079,19 @@ modelBuilder.Entity<PatientEncounter>()
             modelBuilder.Entity<UsOrder>().ToTable("USORDER");
             modelBuilder.Entity<UsReportTemplate>().ToTable("USREPORTTEMPLATE");
             modelBuilder.Entity<MedicalTerm>().ToTable("MEDICALTERM");
-            modelBuilder.Entity<XrService>().ToTable("XRSERVICE");
+            // X-ray services live on the SHARED department services master
+            // (SERVICES), filtered by DEPT='02' through the XrServices()
+            // extension - XRSERVICE was dropped 22-Oct-2026 (Tajwer Jalal).
+            modelBuilder.Entity<DeptService>().ToTable("SERVICES");
+            modelBuilder.Entity<DeptService>(e =>
+            {
+                // legacy ACTIVE varchar(1) 'A'ctive / 'I'nactive
+                e.Property(x => x.Active)
+                    .HasConversion(v => v ? 'A' : 'I', v => v == 'A');
+                e.HasIndex(x => x.Dept);
+                e.HasIndex(x => x.Code);
+                e.HasOne(x => x.Category).WithMany().HasForeignKey(x => x.CategoryId).OnDelete(DeleteBehavior.SetNull);
+            });
             modelBuilder.Entity<XrServiceCategory>().ToTable("XRSERVICECATEGORY");
             modelBuilder.Entity<XrOrder>().ToTable("XRORDER");
             modelBuilder.Entity<XrReportTemplate>().ToTable("XREPORTTEMPLATE");
@@ -1558,6 +1590,11 @@ modelBuilder.Entity<Token>()
             modelBuilder.Entity<HmisWeb.Models.Legacy.RegisterLegacy>()
                 .HasKey(r => new { r.Type, r.RegNo });
             modelBuilder.Entity<HmisWeb.Models.Legacy.RegisterLegacy>()
+                .Property(r => r.RegNo)
+                .HasConversion(
+                    v => string.IsNullOrWhiteSpace(v) ? (long?)null : long.Parse(v),
+                    v => v.HasValue ? v.Value.ToString() : null);
+            modelBuilder.Entity<HmisWeb.Models.Legacy.RegisterLegacy>()
                 .HasIndex(r => r.BillStatus);
             modelBuilder.Entity<HmisWeb.Models.Legacy.IbilMst>()
                 .HasIndex(m => new { m.HosCode, m.Dept });
@@ -1615,6 +1652,23 @@ modelBuilder.Entity<Token>()
                 e.HasKey(x => x.Id);
                 e.HasIndex(x => new { x.Entity, x.EntityKey, x.CreatedAt });
                 e.HasIndex(x => x.InvoiceId);
+            });
+            modelBuilder.Entity<HmisWeb.Models.Recovery.RecoveryRcpt>(e =>
+            {
+                e.HasKey(x => x.Id);
+                e.HasIndex(x => x.ReceiptNo).IsUnique();
+                e.HasIndex(x => x.CompanyCode);
+                e.HasIndex(x => x.RcptDate);
+                e.HasIndex(x => x.Status);
+                e.Property(x => x.RowVer).IsRowVersion();
+            });
+            modelBuilder.Entity<HmisWeb.Models.Recovery.RecoveryRcptAlloc>(e =>
+            {
+                e.HasKey(x => x.Id);
+                e.HasIndex(x => new { x.ReceiptId, x.RegNo }).IsUnique();
+                e.HasIndex(x => x.InvoiceId);
+                e.HasIndex(x => x.RegNo);
+                e.Property(x => x.RegNo).HasMaxLength(16);
             });
 
             // ===== Pharmacy multi-store inventory (ported VFP BASEMENT + Satell) =====
@@ -1811,6 +1865,95 @@ modelBuilder.Entity<Token>()
             modelBuilder.Entity<CashHistory>().HasIndex(h => new { h.VouDate, h.TrType });
             modelBuilder.Entity<CashHistory>().HasIndex(h => h.TrNo);
             modelBuilder.Entity<CashCounterSession>().HasIndex(s => s.Status);
+
+            // ===== Company charges (compchg.DBF) =====
+            // One live rate per company + service + department drives billing, so
+            // the legacy key is unique among the active rows. The plain index next
+            // to it serves the rate-card screens (it carries the money columns so
+            // the lookup never touches the table).
+            modelBuilder.Entity<CompanyServiceRate>(e =>
+            {
+                // Physical INCLUDE columns are added by the
+                // CompchgRealisticTypes migration; the model only records the
+                // key so the snapshot stays aligned with the database.
+                e.HasIndex(x => new { x.CompanyCode, x.ServiceCode, x.DEPT })
+                    .HasDatabaseName("IX_COMPANYSERVICERATE_LegacyKey");
+
+                e.HasIndex(x => new { x.CompanyCode, x.ServiceCode, x.DEPT })
+                    .HasDatabaseName("UX_COMPANYSERVICERATE_Active")
+                    .IsUnique()
+                    .HasFilter("[Retired] = 0");
+            });
+
+            // ===== Legacy consultant register (CONSULT) =====
+            // The consultant code (legacy ID) is what the app already stores in
+            // STAFF.Code, so it is the lookup of the master screen and of the
+            // dual write that keeps [CONSULT] and the app's consultant rows in
+            // step. It is not unique (K04 exists twice in the source), so it is
+            // a plain index, not a unique one.
+            modelBuilder.Entity<ConsultantMaster>(e =>
+            {
+                e.HasIndex(x => x.Code)
+                    .HasDatabaseName("IX_CONSULT_ID");
+
+                // new rows default to Active; the database carries the same
+                // default so a row inserted by another tool is never statusless
+                e.Property(x => x.Status)
+                    .HasDefaultValue("Active");
+            });
+
+            // ===== Wards & beds (wards.DBF / bed_pos.DBF) =====
+            // One live row per code: a retired ward or bed may be re-added with
+            // the same code later without breaking the old references.
+            modelBuilder.Entity<Ward>(e =>
+            {
+                e.HasIndex(x => x.Code)
+                    .HasDatabaseName("UX_WARD_Code_Active")
+                    .IsUnique()
+                    .HasFilter("[Retired] = 0");
+            });
+
+            modelBuilder.Entity<BedPosition>(e =>
+            {
+                e.HasIndex(x => x.BedCode)
+                    .HasDatabaseName("UX_BED_POS_BedCode_Active")
+                    .IsUnique()
+                    .HasFilter("[Retired] = 0");
+
+                // the screen lists the beds of one ward, so the ward code is
+                // indexed on its own as well
+                e.HasIndex(x => x.WardCode)
+                    .HasDatabaseName("IX_BED_POS_Ward");
+            });
+
+            // ===== Ward / bed movements of the registration screens =====
+            // A stay moves through [BED_POS] (admission + ward transfers); the
+            // movement history lives in [BEDTRANSFER], the current stay in
+            // [PATIENTROOM] through the ward + bed position it carries.
+            modelBuilder.Entity<PatientRoom>()
+                .HasOne(pr => pr.Ward).WithMany().HasForeignKey(pr => pr.WardId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<PatientRoom>()
+                .HasOne(pr => pr.BedPosition).WithMany().HasForeignKey(pr => pr.BedPositionId).OnDelete(DeleteBehavior.Restrict);
+
+            // ===== Company transfers of the panel companies =====
+            modelBuilder.Entity<CompanyTransfer>()
+                .HasOne(ct => ct.PatientEncounter).WithMany().HasForeignKey(ct => ct.PatientEncounterId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<CompanyTransfer>()
+                .HasOne(ct => ct.FromCompany).WithMany().HasForeignKey(ct => ct.FromCompanyId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<CompanyTransfer>()
+                .HasOne(ct => ct.ToCompany).WithMany().HasForeignKey(ct => ct.ToCompanyId).OnDelete(DeleteBehavior.Restrict);
+
+            // ===== Consultant rate card (con_rat.DBF) =====
+            // the page filters on company + ward class and on the consultant
+            // code; both are legacy text codes, not ids
+            modelBuilder.Entity<ConsultantServiceRate>(e =>
+            {
+                e.HasIndex(x => new { x.CompanyCode, x.WardCode })
+                    .HasDatabaseName("IX_CONSULTANTSERVICERATE_Company");
+
+                e.HasIndex(x => x.ConsultantCode)
+                    .HasDatabaseName("IX_CONSULTANTSERVICERATE_ConsultantCode");
+            });
         }
     }
 }

@@ -13,8 +13,13 @@ using HmisWeb.Models;
 namespace HmisWeb.Pages.Lab
 {
     /// <summary>Test Schedule Report - tests with turnaround/requirements. VFP Labsys report lb0201.</summary>
-    public class TestScheduleReportModel : PageModel
+    public class TestScheduleReportModel : HmisWeb.Pages.Shared.PagedPageModel
     {
+        /// <summary>Mirror prefix of the laboratory bank on the shared services master.</summary>
+
+        private const string ItemPrefix = "INV-LB-";
+
+
         private readonly ApplicationDbContext _db;
         public TestScheduleReportModel(ApplicationDbContext db) { _db = db; }
 
@@ -41,14 +46,17 @@ namespace HmisWeb.Pages.Lab
         private async Task LoadAsync()
         {
             var q = _db.Items.Include(i => i.Category)
-                .Where(i => !i.Retired && (i.ItemType == ItemType.Investigation || i.ItemType == ItemType.Service));
+                .Where(i => !i.Retired && (i.ItemType == ItemType.Investigation || i.ItemType == ItemType.Service)
+                && i.Code.StartsWith(ItemPrefix));
             if (CategoryId.HasValue && CategoryId.Value > 0) q = q.Where(i => i.CategoryId == CategoryId.Value);
             if (!string.IsNullOrWhiteSpace(SearchTerm))
             {
                 var t = SearchTerm.Trim().ToLower();
                 q = q.Where(i => i.Name != null && i.Name.ToLower().Contains(t));
             }
-            Items = await q.OrderBy(i => i.Category.Name).ThenBy(i => i.Name).ToListAsync();
+            TotalCount = await q.CountAsync();
+            ClampPaging();
+            Items = await ApplyPaging(q.OrderBy(i => i.Category.Name).ThenBy(i => i.Name)).ToListAsync();
             CategoryList = await _db.Categories.Where(c => !c.Retired).OrderBy(c => c.Name)
                 .Select(c => new SelectListItem { Value = c.Id.ToString(), Text = c.Name }).ToListAsync();
         }

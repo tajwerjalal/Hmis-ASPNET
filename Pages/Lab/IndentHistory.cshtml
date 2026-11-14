@@ -1,0 +1,143 @@
+@page "/lab/indent/history"
+@model HmisWeb.Pages.Lab.IndentHistoryModel
+@using HmisWeb.Data.Enums
+@{
+    ViewData["Title"] = "Previous Indents";
+}
+
+<div class="mb-3">
+    <h4 class="mb-0 fw-bold">Previous Indents</h4>
+    <span class="text-secondary small">Paid laboratory indents only - re-print duplicate payment slips.</span>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger py-2"><i class="bi bi-exclamation-triangle me-1"></i>@Model.ErrorMessage</div>
+}
+
+<div class="card mb-3">
+    <div class="card-header bg-white fw-semibold"><i class="bi bi-funnel me-1 text-primary"></i>Filters</div>
+    <div class="card-body">
+        <form method="get" asp-page="/lab/indent/history" class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label asp-for="RegNo" class="form-label small fw-bold">Patient Reg No</label>
+                <input asp-for="RegNo" class="form-control" placeholder="e.g. 177611 (blank = all patients)" />
+            </div>
+            <div class="col-md-3">
+                <label asp-for="DateFrom" class="form-label small fw-bold">Date From</label>
+                <input asp-for="DateFrom" type="date" class="form-control" />
+            </div>
+            <div class="col-md-3">
+                <label asp-for="DateTo" class="form-label small fw-bold">Date To</label>
+                <input asp-for="DateTo" type="date" class="form-control" />
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary w-100"><i class="bi bi-search me-1"></i>Search</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if (Model.Rows.Any())
+{
+    <div class="card mb-3">
+        <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-clock-rotate-left me-1"></i>Previous Indents (@Model.TotalCount)</span>
+            <div class="d-flex gap-2">
+                @if (Model.HasPrevious)
+                {
+                    <a class="btn btn-sm btn-outline-secondary" href="/lab/indent/history?page=@(Model.CurrentPage - 1)"><i class="bi bi-chevron-left"></i> Prev</a>
+                }
+                <span class="small align-self-center">Page @Model.CurrentPage</span>
+                @if (Model.HasNext)
+                {
+                    <a class="btn btn-sm btn-outline-secondary" href="/lab/indent/history?page=@(Model.CurrentPage + 1)"><i class="bi bi-chevron-right"></i> Next</a>
+                }
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0">
+                    <thead class="table-light"><tr>
+                        <th>Indent No</th>
+                        <th>Date/Time</th>
+                        <th class="text-center">Items</th>
+                        <th class="text-end">Net Total</th>
+                        <th>Receipt No</th>
+                        <th class="text-end">Actions</th>
+                    </tr></thead>
+                    <tbody>
+                        @foreach (var b in Model.Rows)
+                        {
+                            <tr>
+                                <td class="fw-semibold">LI-@((b.Id).ToString("D6"))</td>
+                                <td>@((b.BillDate ?? b.CreatedAt)?.ToString("dd MMM yyyy HH:mm") ?? "-")</td>
+                                <td class="text-center">@((b.BillItems?.Count ?? 0))</td>
+                                <td class="text-end fw-semibold">@b.NetTotal.ToString("N2")</td>
+                                <td>-</td>
+                                <td class="text-end">
+                                    <div class="d-inline-flex gap-2">
+                                        <form method="post" asp-page-handler="ViewBill" class="d-inline">
+                                            <input type="hidden" name="BillId" value="@b.Id" />
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye"></i> View</button>
+                                        </form>
+                                        <a href="/lab/indent/@b.Id/print?duplicate=true" class="btn btn-sm btn-outline-success"><i class="fa-solid fa-copy"></i> Print Duplicate</a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="card mb-3"><div class="card-body text-center py-4"><i class="bi bi-inbox text-secondary" style="font-size:2rem;"></i><p class="text-secondary mt-2 mb-0">No paid indents found.</p></div></div>
+}
+
+<!-- Read-only view modal for a selected paid indent -->
+@if (Model.SelectedBill != null)
+{
+    <div class="modal fade" id="viewBillModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-white">
+                    <h5 class="modal-title fw-semibold">Indent View - LI-@(Model.SelectedBill == null ? "N/A" : Model.SelectedBill.Id.ToString("D6"))</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    @if (Model.SelectedBill.BillItems != null)
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered mb-0">
+                                <thead class="table-light"><tr><th>Item</th><th class="text-center">Qty</th><th class="text-end">Rate</th><th class="text-end">Amount</th></tr></thead>
+                                <tbody>
+                                    @foreach (var line in Model.SelectedBill.BillItems)
+                                    {
+                                        <tr>
+                                            <td>@(line.Item?.Name ?? line.Descreption ?? "Service")</td>
+                                            <td class="text-center">@line.Qty</td>
+                                            <td class="text-end">@line.Rate.ToString("N2")</td>
+                                            <td class="text-end fw-bold">@line.NetValue.ToString("N2")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-secondary mb-0">No item lines recorded for this indent.</p>
+                    }
+                </div>
+                <div class="modal-footer border-0 bg-white">
+                    <a href="/lab/indent/@Model.SelectedBill.Id/print?duplicate=true" class="btn btn-sm btn-outline-success"><i class="fa-solid fa-copy"></i> Print Duplicate</a>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}

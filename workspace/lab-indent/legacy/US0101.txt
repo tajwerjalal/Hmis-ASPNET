@@ -1,0 +1,1791 @@
+﻿VERSION =   3.00
+dataenvironment
+dataenvironment
+Dataenvironment
+kLeft = 2
+Top = -1
+Width = 597
+Height = 355
+InitialSelectedAlias = "collect"
+Name = "Dataenvironment"
+
+Dataenvironment
+Left = 290
+Top = 20
+Width = 95
+Height = 90
+Alias = "company"
+BufferModeOverride = 5
+Order = "id"
+CursorSource = ..\..\master\company.dbf
+Name = "Cursor3"
+
+Dataenvironment
+Left = 150
+Top = 140
+Width = 95
+Height = 90
+Alias = "patient"
+BufferModeOverride = 5
+Order = "code"
+CursorSource = ..\..\master\patient.dbf
+Name = "Cursor5"
+
+Dataenvironment
+Left = 290
+Top = 140
+Width = 95
+Height = 90
+Alias = "register"
+BufferModeOverride = 5
+Order = "trno"
+CursorSource = ..\..\master\register.dbf
+Name = "Cursor6"
+
+Dataenvironment
+Left = 10
+Top = 260
+Width = 95
+Height = 90
+Alias = "services"
+BufferModeOverride = 5
+Order = "code"
+CursorSource = ..\..\master\services.dbf
+Filter = "dept = gcdept"
+Name = "Cursor7"
+
+Dataenvironment
+Left = 150
+Top = 259
+Width = 95
+Height = 90
+Alias = "compchg"
+BufferModeOverride = 5
+Order = "cidscode"
+CursorSource = ..\..\master\compchg.dbf
+Name = "Cursor8"
+
+Dataenvironment
+Left = 10
+Top = 137
+Width = 95
+Height = 90
+Alias = "consult"
+BufferModeOverride = 5
+Order = "id"
+CursorSource = ..\..\master\consult.dbf
+Name = "Cursor4"
+
+Dataenvironment
+Left = 10
+Top = 20
+Width = 90
+Height = 90
+Alias = "collect"
+BufferModeOverride = 5
+Order = "indentno"
+Database = ..\us.dbc
+CursorSource = "collect"
+Name = "Cursor1"
+
+Dataenvironment
+Left = 150
+Top = 20
+Width = 90
+Height = 90
+Alias = "trans"
+BufferModeOverride = 5
+Order = "id"
+Database = ..\us.dbc
+CursorSource = "trans"
+Name = "Cursor2"
+
+Dataenvironment
+Left = 290
+Top = 260
+Width = 95
+Height = 90
+Alias = "consdept"
+BufferModeOverride = 5
+Order = "consid"
+CursorSource = ..\..\master\consdept.dbf
+Name = "Cursor9"
+
+baseform
+ ..\..\common\class\baseclass.vcx
+	frmindent
+Top = -1
+Left = 0
+Height = 335
+Width = 630
+DoCreate = .T.
+Caption = "Indent Entry"
+WindowState = 0
+findform = us0101f
+menukey = us0101
+childtable = trans
+Name = "frmindent"
+
+9PROCEDURE newrecord
+LOCAL pre1, pre2, newindentno
+pre1  = allt(str(int(val(left(str(year(date()),4),2)))- 18))
+pre2  = right( dtoc( date()), 2)
+newindentno = pre1 + pre2 + '000000'
+REPL indentno with newindentno, date with Date(), Time with Time(), CreditBy With 'CASH'
+thisform.baseframe1.page1.txtindentno.selstart = 3
+
+ENDPROC
+PROCEDURE validrec
+if right(thisform.baseframe1.page1.txtindentno.value,6)='000000' or ;
+	len(alltrim(right(thisform.baseframe1.page1.txtindentno.value,6)))=0
+	thisform.validmsg = "Invalid Indent No, Please enter again"
+	return .f.
+endif
+select trans
+seek thisform.baseframe1.page1.txtindentno.value
+do while trans.indentno=thisform.baseframe1.page1.txtindentno.value and !eof()
+	if empty(sid)
+		delete
+	endif
+	skip
+enddo
+thisform.baseframe1.page1.cmdcalc.click()
+
+ENDPROC
+PROCEDURE updbuttons
+dodefault()
+if !empty(collect.posted)
+	ctoolbar.cmdedit.enabled = .f.
+	ctoolbar.cmddelete.enabled = .f.
+endif
+thisform.baseframe1.page1.txtindentno.setfocus()
+thisform.baseframe1.page1.txtindentno.selstart=4
+
+ENDPROC
+PROCEDURE Activate
+dodefault()
+ctoolbar.cmdreport.visible = .t.
+ENDPROC
+PROCEDURE repoquery
+do form indentrpt with collect.indentno noshow
+indentrpt.printflag = .t.
+*lb0201.show(1)
+indentrpt.repoquery()
+indentrpt.reportbtns1.cmdexit.click()
+ENDPROC
+
+Services
+Cannot Select Inactive Test
+Selection Error
+SERVICES
+COLTNAME
+Please enter Y (for Yes) or N (for No)
+services
+THISFORM
+
+BASEFRAME1
+SERVICES
+	baseframe
+ ..\..\common\class\baseclass.vcx
+	pageframe
+
+Baseframe1
+	frmindent
+ErasePage = .T.
+Top = 0
+Left = 0
+Width = 631
+Height = 336
+Name = "Baseframe1"
+Page1.Name = "Page1"
+Page2.Name = "Page2"
+
+ ..\..\common\class\baseclass.vcx
+lblLabno
+frmindent.Baseframe1.Page1
+iCaption = "US Indent No"
+Height = 16
+Left = 19
+Top = 14
+Width = 64
+TabIndex = 4
+Name = "lblLabno"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+frmindent.Baseframe1.Page1
+Comment = ""
+ControlSource = "collect.date"
+Height = 22
+Left = 251
+MaxLength = 8
+TabIndex = 2
+Top = 10
+Width = 65
+Name = "txtDate"
+
+ ..\..\common\class\baseclass.vcx
+frmindent.Baseframe1.Page1
+lCaption = "Collection Date"
+Height = 16
+Left = 172
+Top = 14
+Width = 73
+TabIndex = 5
+Name = "lblDate"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+frmindent.Baseframe1.Page1
+Comment = ""
+ControlSource = "collect.time"
+Height = 22
+InputMask = "99:99"
+Left = 401
+MaxLength = 5
+TabIndex = 3
+Top = 10
+Width = 37
+Name = "txtTime"
+
+ ..\..\common\class\baseclass.vcx
+frmindent.Baseframe1.Page1
+lCaption = "Collection Time"
+Height = 16
+Left = 324
+Top = 14
+Width = 73
+TabIndex = 6
+Name = "lblTime"
+
+ ..\..\common\class\baseclass.vcx
+frmindent.Baseframe1.Page1
+gCaption = "Company Code"
+Height = 16
+Left = 9
+Top = 85
+Width = 75
+TabIndex = 26
+Name = "lblCid"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+txtRegno
+frmindent.Baseframe1.Page1
+Comment = ""
+ControlSource = "collect.regno"
+Height = 22
+Left = 251
+MaxLength = 7
+TabIndex = 8
+Top = 34
+Width = 51
+Name = "txtRegno"
+
+)PROCEDURE Valid
+if !thisform.chgmode
+	return
+endif
+
+LOCAL lcregno, lcpcode, lctype
+opage = thisform.baseframe1.page1
+lctype = iif(thisform.baseframe1.page1.cbotype.value="IPD",'I','O')
+lcregno  = str(this.value,7)
+IF this.value = 0
+	RETURN 1
+ENDIF
+
+IF ! Seek(lctype+lcregno, 'Register')
+	=messageBox("Invalid Registration No.", 0+64+0, "Search Error")
+	RETURN 1
+ELSE
+	IF Register.billgen
+		=messageBox("Invalid Registration No., Bill Generated", 0+64+0, "Validation Error")
+		RETURN .f.
+	endif
+	lcpcode= Register.pcode
+	IF seek(lcpcode, "patient")
+		opage.cbosex.value   = iif(Patient.sex='M','MALE','FEMALE')
+		opage.txtage.value   = Patient.age
+		opage.cboatype.value = iif(Patient.atype='Y','YEAR',;
+			iif(Patient.atype='M','MONTH',;
+			iif(Patient.atype='W','WEEK',;
+			iif(Patient.atype='D','DAY','HOUR'))))
+		opage.txtcid.value = Register.cid
+		opage.txtconcode.value = Register.concode
+		opage.txtbedno.value = Register.bedno
+		opage.txtphone.value = Patient.phone1
+		opage.txtname.value = Patient.name
+		replace pcode with Patient.code
+		opage.cbosex.refresh
+		opage.txtage.refresh
+		opage.cboatype.refresh
+		opage.txtcid.refresh
+		opage.txtconcode.refresh
+		opage.txtbedno.refresh
+		opage.txtphone.refresh
+		opage.txtname.refresh
+		return 1
+	ENDIF
+ENDIF
+
+ENDPROC
+
+services
+services
+THISFORM
+
+BASEFRAME1
+SERVICES	
+FOUNDFLAG
+CHILDGRID1
+
+COLCHARGES
+TXTRDATE
+ ..\..\common\class\baseclass.vcx
+frmindent.Baseframe1.Page1
+nCaption = "Registration No."
+Height = 16
+Left = 166
+Top = 39
+Width = 78
+TabIndex = 11
+Name = "lblHrno"
+
+ ..\..\common\class\baseclass.vcx
+frmindent.Baseframe1.Page1
+iCaption = "Patient Type"
+Height = 16
+Left = 22
+Top = 37
+Width = 61
+TabIndex = 10
+Name = "lblType"
+
+ ..\..\common\class\baseclass.vcx
+
+lblConcode
+frmindent.Baseframe1.Page1
+pCaption = "Consultant Code"
+Height = 16
+Left = 313
+Top = 87
+Width = 81
+TabIndex = 27
+Name = "lblConcode"
+
+ ..\..\common\class\baseclass.vcx
+frmindent.Baseframe1.Page1
+_Caption = "Sex"
+Height = 16
+Left = 63
+Top = 63
+Width = 21
+TabIndex = 21
+Name = "lblSex"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+frmindent.Baseframe1.Page1
+Comment = ""
+ControlSource = "collect.age"
+Height = 22
+Left = 251
+MaxLength = 3
+TabIndex = 14
+Top = 58
+Width = 30
+Name = "txtAge"
+
+ ..\..\common\class\baseclass.vcx
+frmindent.Baseframe1.Page1
+`Caption = "Age"
+Height = 16
+Left = 221
+Top = 62
+Width = 22
+TabIndex = 18
+Name = "lblAge"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+frmindent.Baseframe1.Page1
+Comment = ""
+ControlSource = "collect.name"
+Format = "!"
+Height = 22
+Left = 401
+MaxLength = 25
+TabIndex = 9
+Top = 34
+Width = 158
+Name = "txtName"
+
+ ..\..\common\class\baseclass.vcx
+frmindent.Baseframe1.Page1
+jCaption = "Patient Name"
+Height = 16
+Left = 333
+Top = 39
+Width = 64
+TabIndex = 12
+Name = "lblName"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+txtBedno
+frmindent.Baseframe1.Page1
+Comment = ""
+ControlSource = "collect.bedno"
+Format = "!r"
+Height = 22
+InputMask = "XX-9/99"
+Left = 401
+MaxLength = 5
+TabIndex = 16
+Top = 58
+Width = 64
+Name = "txtBedno"
+
+ ..\..\common\class\baseclass.vcx
+lblBedno
+frmindent.Baseframe1.Page1
+fCaption = "Bed No "
+Height = 16
+Left = 357
+Top = 62
+Width = 40
+TabIndex = 19
+Name = "lblBedno"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+txtPhone
+frmindent.Baseframe1.Page1
+Comment = ""
+ControlSource = "collect.phone"
+Height = 22
+Left = 521
+MaxLength = 15
+TabIndex = 17
+Top = 58
+Width = 98
+Name = "txtPhone"
+
+ ..\..\common\class\baseclass.vcx
+lblPhone
+frmindent.Baseframe1.Page1
+dCaption = "Phone"
+Height = 16
+Left = 480
+Top = 62
+Width = 32
+TabIndex = 20
+Name = "lblPhone"
+
+	childbtns
+ ..\..\common\class\baseclass.vcx
+commandgroup
+
+Childbtns1
+frmindent.Baseframe1.Page1
+Left = 573
+Top = 124
+TabIndex = 29
+childfield1 = indentno
+parentfield1 = indentno
+Name = "Childbtns1"
+cmdadd.Top = 5
+cmdadd.Left = 5
+cmdadd.Name = "cmdadd"
+cmddelete.Top = 45
+cmddelete.Left = 5
+cmddelete.Name = "cmddelete"
+
+PROCEDURE cmdadd.Click
+LOCAL newtestno, lccounter
+this.setfocus()
+lccounter = 0
+select trans
+seek thisform.baseframe1.page1.txtindentno.value
+do while trans.indentno=thisform.baseframe1.page1.txtindentno.value and !eof()
+	lccounter = lccounter + 1
+	if val(testno) > lccounter
+		lccounter = val(testno)
+	endif
+	skip
+enddo
+
+IF lccounter = 0
+	newtestno = '001'
+ELSE
+	newtestno = chrtran(str( lccounter+1, 3), " ", "0")
+ENDIF
+DoDefault()
+REPLACE testno with newtestno
+REPLACE rid with "HM"
+REPLACE cdate with thisform.baseframe1.page1.txtdate.value
+thisform.baseframe1.page1.childgrid1.colcdate.refresh
+thisform.baseframe1.page1.childgrid1.colrid.refresh
+thisform.baseframe1.page1.childgrid1.colsid.setfocus
+
+ENDPROC
+
+REFRESH7
+RefreshL
+Refresh,
+-frmindent.Baseframe1.Page2.Listgrid1.Column26
+ctextbox
+ ..\..\common\class\baseclass.vcx
+frmindent.Baseframe1.Page1
+Comment = ""
+ControlSource = "collect.cons"
+Height = 22
+Left = 251
+MaxLength = 8
+TabIndex = 38
+Top = 250
+Width = 57
+Name = "txtCons"
+
+PROCEDURE Valid
+opage = thisform.baseframe1.page1
+opage.txtnet.value = opage.txttotal.value - this.value
+opage.txtnet.refresh
+
+ENDPROC
+
+THISFORM
+
+BASEFRAME1
+TXTTOTAL
+ ..\..\common\class\baseclass.vcx
+frmindent.Baseframe1.Page1
+iCaption = "Concession"
+Height = 16
+Left = 251
+Top = 221
+Width = 59
+TabIndex = 31
+Name = "lblCons"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+	txtConsby
+frmindent.Baseframe1.Page1
+Comment = ""
+ControlSource = "collect.consby"
+Format = "!"
+Height = 22
+Left = 316
+MaxLength = 30
+TabIndex = 39
+Top = 250
+Width = 188
+Name = "txtConsby"
+
+ ..\..\common\class\baseclass.vcx
+	lblConsby
+frmindent.Baseframe1.Page1
+yCaption = "Concession. Approved By"
+Height = 16
+Left = 316
+Top = 234
+Width = 129
+TabIndex = 34
+Name = "lblConsby"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+txtTotal
+frmindent.Baseframe1.Page1
+Comment = ""
+ControlSource = "collect.total"
+Height = 22
+Left = 197
+MaxLength = 6
+ReadOnly = .T.
+TabIndex = 37
+Top = 250
+Width = 46
+BackColor = 1,0,0
+Name = "txtTotal"
+
+ ..\..\common\class\baseclass.vcx
+lblTotal
+frmindent.Baseframe1.Page1
+gCaption = "Charges"
+Height = 16
+Left = 200
+Top = 234
+Width = 43
+TabIndex = 32
+Name = "lblTotal"
+
+ ..\..\common\class\baseclass.vcx
+frmindent.Baseframe1.Page1
+eCaption = "Amount"
+Height = 16
+Left = 271
+Top = 234
+Width = 39
+TabIndex = 33
+Name = "Clabel1"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+
+txtBalance
+frmindent.Baseframe1.Page1
+Comment = ""
+ControlSource = "collect.balance"
+Height = 22
+Left = 563
+MaxLength = 8
+ReadOnly = .F.
+TabIndex = 41
+Top = 250
+Width = 56
+Name = "txtBalance"
+
+ ..\..\common\class\baseclass.vcx
+
+lblBalance
+frmindent.Baseframe1.Page1
+iCaption = "Balance"
+Height = 16
+Left = 576
+Top = 234
+Width = 41
+TabIndex = 36
+Name = "lblBalance"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+frmindent.Baseframe1.Page1
+Comment = "net Value = (Total - Consession ) + balance"
+ControlSource = "collect.net"
+Height = 22
+Left = 511
+MaxLength = 6
+ReadOnly = .T.
+TabIndex = 40
+Top = 250
+Width = 46
+Name = "txtNet"
+
+ ..\..\common\class\baseclass.vcx
+frmindent.Baseframe1.Page1
+gCaption = "Net Value"
+Height = 16
+Left = 508
+Top = 234
+Width = 49
+TabIndex = 35
+Name = "lblNet"
+
+commandbutton
+commandbutton
+frmindent.Baseframe1.Page1
+Top = 210
+Left = 443
+Height = 20
+Width = 123
+FontName = "Comic Sans MS"
+FontSize = 7
+Caption = "Calculate Total Charges"
+TabIndex = 30
+Name = "cmdcalc"
+
+PROCEDURE Click
+local searchkey, totalchg, lcalias
+lcalias = select()
+select trans
+searchkey = thisform.baseframe1.page1.txtindentno.value
+thisform.baseframe1.page1.txttotal.value = 0
+totalchg = 0
+if seek(searchkey)
+	do while indentno = searchkey and !eof()
+		totalchg = totalchg + charges
+		skip
+	enddo
+endif
+if !empty(lcalias)
+	select (lcalias)
+endif
+thisform.baseframe1.page1.txttotal.value = totalchg
+thisform.baseframe1.page1.txttotal.refresh
+thisform.baseframe1.page1.txtcons.valid
+return 1
+ENDPROC
+
+SEARCHKEY
+TOTALCHG
+THISFORM
+
+BASEFRAME1
+TXTINDENTNO
+TXTTOTAL
+INDENTNO
+	ccombobox
+ ..\..\common\class\baseclass.vcx
+combobox
+frmindent.Baseframe1.Page1
+BoundColumn = 1
+RowSourceType = 1
+RowSource = "IPD,OPD"
+Value = ("IPD")
+ControlSource = "collect.type"
+Height = 21
+Left = 91
+Style = 2
+TabIndex = 7
+Top = 34
+Width = 60
+Name = "cbotype"
+
+	ccombobox
+ ..\..\common\class\baseclass.vcx
+combobox
+frmindent.Baseframe1.Page1
+BoundColumn = 1
+RowSourceType = 1
+RowSource = "MALE,FEMALE"
+ControlSource = "collect.sex"
+Height = 21
+Left = 91
+TabIndex = 13
+Top = 58
+Width = 84
+Name = "cbosex"
+
+	ccombobox
+ ..\..\common\class\baseclass.vcx
+combobox
+cboatype
+frmindent.Baseframe1.Page1
+BoundColumn = 1
+RowSourceType = 1
+RowSource = "YEAR,MONTH,DAY,HOUR"
+ControlSource = "collect.atype"
+Height = 21
+Left = 283
+TabIndex = 15
+Top = 58
+Width = 60
+Name = "cboatype"
+
+
+ctextvalid
+ ..\..\common\class\baseclass.vcx
+txtindentno
+frmindent.Baseframe1.Page1
+ControlSource = "collect.indentno"
+Format = "!R"
+Height = 22
+InputMask = "999-999999"
+Left = 91
+MaxLength = 9
+TabIndex = 1
+Top = 10
+Width = 67
+validalias = collect
+searchtag = indentno
+searchexpr = this.value
+editable = .F.
+Name = "txtindentno"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+txtcompname
+frmindent.Baseframe1.Page1
+ControlSource = ""
+Format = ""
+Height = 22
+Left = 136
+ReadOnly = .T.
+TabIndex = 23
+Top = 82
+Width = 170
+Name = "txtcompname"
+
+PROCEDURE Refresh
+=seek(collect.cid,"Company")
+this.value = company.name
+dodefault()
+
+ENDPROC
+PROCEDURE When
+this.refresh
+
+ENDPROC
+
+kArial, 0, 8, 5, 14, 11, 14, 3, 0
+Comic Sans MS, 0, 7, 4, 13, 10, 12, 3, 0
+Arial, 0, 9, 5, 15, 12, 16, 3, 0
+
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+&Caption = "Posted"
+Name = "Header1"
+
+-frmindent.Baseframe1.Page2.Listgrid1.Column26
+ctextlookup
+ ..\..\common\class\baseclass.vcx
+frmindent.Baseframe1.Page1
+TControlSource = "collect.cid"
+Format = "!"
+Height = 22
+Left = 91
+MaxLength = 4
+TabIndex = 22
+Top = 82
+Width = 40
+emptyallowed = .F.
+searchalias = company
+rowsrc = select name,id from company where company.status<>"I" order by name into cursor cbocid
+refpath = thisform.baseframe1.page1
+searchexpr = this.value
+Name = "txtcid"
+
+ctextlookup
+ ..\..\common\class\baseclass.vcx
+
+txtconcode
+frmindent.Baseframe1.Page1
+YControlSource = "collect.concode"
+Format = "!"
+Height = 22
+Left = 401
+MaxLength = 3
+TabIndex = 24
+Top = 82
+Width = 37
+emptyallowed = .T.
+rowsrc = select name,id from consult where dept=gcdept order by name into cursor cboconcode
+searchalias = consult
+refpath = thisform.baseframe1.page1
+searchexpr = this.value
+Name = "txtconcode"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+
+txtconname
+frmindent.Baseframe1.Page1
+ControlSource = ""
+Format = ""
+Height = 22
+Left = 443
+ReadOnly = .T.
+TabIndex = 25
+Top = 82
+Width = 176
+Name = "txtconname"
+
+PROCEDURE When
+this.refresh
+
+ENDPROC
+PROCEDURE Refresh
+=seek(collect.concode,"Consult")
+this.value = consult.name
+dodefault()
+
+ENDPROC
+
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+-frmindent.Baseframe1.Page2.Listgrid1.Column25
+&Caption = "Credit"
+Name = "Header1"
+
+-frmindent.Baseframe1.Page2.Listgrid1.Column25
+ ..\..\common\class\baseclass.vcx
+frmindent.Baseframe1.Page1
+dCaption = "Total"
+Height = 16
+Left = 218
+Top = 221
+Width = 25
+TabIndex = 32
+Name = "Clabel2"
+
+	txtRefund
+frmindent.Baseframe1.Page1
+Comment = ""
+FontSize = 8
+ControlSource = "collect.refund"
+Height = 23
+Left = 429
+MaxLength = 7
+TabIndex = 43
+Top = 274
+Width = 54
+Name = "txtRefund"
+
+PROCEDURE Valid
+if empty(this.value)
+	this.parent.txtrdate.value = {}
+	this.parent.txtrdate.enabled = .f.
+else
+	this.parent.txtrdate.enabled = .t.
+endif
+this.parent.txtrdate.refresh
+
+ENDPROC
+
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+-frmindent.Baseframe1.Page2.Listgrid1.Column24
+#Caption = "Net"
+Name = "Header1"
+
+-frmindent.Baseframe1.Page2.Listgrid1.Column24
+	lblRefund
+frmindent.Baseframe1.Page1
+AutoSize = .T.
+FontSize = 8
+BackStyle = 0
+Caption = "Refund Amt."
+Left = 359
+Top = 281
+TabIndex = 42
+Name = "lblRefund"
+
+txtRdate
+frmindent.Baseframe1.Page1
+Comment = ""
+FontSize = 8
+ControlSource = "collect.rdate"
+Height = 23
+Left = 552
+MaxLength = 8
+TabIndex = 45
+Top = 274
+Width = 67
+Name = "txtRdate"
+
+lblRdate
+frmindent.Baseframe1.Page1
+AutoSize = .T.
+FontSize = 8
+BackStyle = 0
+Caption = "Refund Date"
+Left = 489
+Top = 281
+TabIndex = 44
+Name = "lblRdate"
+
+
+edtRemarks
+frmindent.Baseframe1.Page1
+Comment = ""
+FontSize = 8
+Format = "!"
+Height = 78
+Left = 4
+TabIndex = 47
+Top = 225
+Width = 188
+ControlSource = "collect.remarks"
+Name = "edtRemarks"
+
+
+lblRemarks
+frmindent.Baseframe1.Page1
+AutoSize = .T.
+FontSize = 8
+BackStyle = 0
+Caption = "Additional Notes:"
+Left = 7
+Top = 211
+TabIndex = 46
+Name = "lblRemarks"
+
+	childgrid
+ ..\..\common\class\baseclass.vcx
+
+Childgrid1
+frmindent.Baseframe1.Page1
+TColumnCount = 7
+AllowHeaderSizing = .F.
+AllowRowSizing = .T.
+ChildOrder = "id"
+DeleteMark = .F.
+Height = 98
+Left = 10
+LinkMaster = "collect"
+Panel = 1
+RecordSource = "trans"
+RelationalExpr = "indentno"
+RowHeight = 20
+ScrollBars = 3
+TabIndex = 28
+Top = 109
+Width = 559
+attachbtns = childbtns1
+refbtns = baseframe1.page1
+Name = "Childgrid1"
+Column1.FontSize = 8
+Column1.Bound = .T.
+Column1.ColumnOrder = 2
+Column1.ControlSource = "proper(trans.sname)"
+Column1.CurrentControl = "Text1"
+Column1.Width = 175
+Column1.ReadOnly = .T.
+Column1.Sparse = .T.
+Column1.Visible = .T.
+Column1.Name = "coltname"
+Column2.FontSize = 8
+Column2.Bound = .T.
+Column2.ColumnOrder = 6
+Column2.ControlSource = "trans.charges"
+Column2.Width = 77
+Column2.Visible = .T.
+Column2.Name = "colcharges"
+Column3.FontSize = 8
+Column3.Bound = .T.
+Column3.ColumnOrder = 4
+Column3.ControlSource = "trans.urgent"
+Column3.CurrentControl = "Text1"
+Column3.Width = 33
+Column3.Sparse = .F.
+Column3.Visible = .T.
+Column3.Name = "colurgent"
+Column4.FontSize = 8
+Column4.Bound = .T.
+Column4.ColumnOrder = 5
+Column4.ControlSource = "trans.rid"
+Column4.CurrentControl = "Text1"
+Column4.Width = 47
+Column4.ReadOnly = .T.
+Column4.Sparse = .F.
+Column4.Visible = .T.
+Column4.Name = "colrid"
+Column5.FontSize = 8
+Column5.Bound = .T.
+Column5.ColumnOrder = 7
+Column5.ControlSource = "trans.cdate"
+Column5.Visible = .T.
+Column5.Name = "colcdate"
+Column6.FontSize = 8
+Column6.Bound = .T.
+Column6.ColumnOrder = 1
+Column6.ControlSource = "trans.sid"
+Column6.CurrentControl = "txtsid"
+Column6.Width = 49
+Column6.Sparse = .F.
+Column6.Visible = .T.
+Column6.Name = "colsid"
+Column7.FontSize = 8
+Column7.ColumnOrder = 3
+Column7.ControlSource = "trans.concode"
+Column7.CurrentControl = "Ccombobox1"
+Column7.Width = 141
+Column7.Sparse = .F.
+Column7.Name = "Column7"
+
+.frmindent.Baseframe1.Page1.Childgrid1.coltname
+>FontSize = 8
+Caption = "Test Description"
+Name = "Header1"
+
+.frmindent.Baseframe1.Page1.Childgrid1.coltname
+xBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+Visible = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+0frmindent.Baseframe1.Page1.Childgrid1.colcharges
+5FontSize = 8
+Caption = "Charges"
+Name = "Header1"
+
+0frmindent.Baseframe1.Page1.Childgrid1.colcharges
+FontSize = 8
+BorderStyle = 0
+Enabled = .T.
+Margin = 0
+Visible = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+PROCEDURE When
+if !dodefault()
+	retu .f.
+endif
+opage = thisform.baseframe1.page1
+if trans.rid = 'HM'
+	if seek(opage.txtcid.value+trans.sid,'compchg')
+		if !compchg.change
+			return .f.
+		endif
+	else
+		if (seek(trans.sid,'services') and !services.change)
+			return .f.
+		endif
+	endif
+*else
+*	if seek(trans.rid+trans.sid,'resochg') 
+*		if !resochg.change
+*			return .f.
+*		endif
+*	else
+*		if seek(opage.txtcid.value+trans.sid,'compchg')
+*			if !compchg.change
+*				return .f.
+*			endif
+*		else
+*			if (seek(trans.sid,'services') and !services.change)
+*				return .f.
+*			endif
+*		endif
+*	endif
+endif
+
+ENDPROC
+
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+-frmindent.Baseframe1.Page2.Listgrid1.Column23
+%Caption = "Total"
+Name = "Header1"
+
+-frmindent.Baseframe1.Page2.Listgrid1.Column23
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+-frmindent.Baseframe1.Page2.Listgrid1.Column21
+/frmindent.Baseframe1.Page1.Childgrid1.colurgent
+4FontSize = 8
+Caption = "Urgent"
+Name = "Header1"
+
+/frmindent.Baseframe1.Page1.Childgrid1.colurgent
+FontSize = 8
+BorderStyle = 0
+Format = "!K"
+Margin = 0
+Visible = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+PROCEDURE Valid
+if this.value <> 'Y' and this.value <> 'N' and this.value <> ' '
+	=messagebox("Please enter Y (for Yes) or N (for No)")
+	return .f.
+endif
+This.Parent.Parent.colrid.Text1.valid()
+ENDPROC
+
+%Caption = "Rdate"
+Name = "Header1"
+
+-frmindent.Baseframe1.Page2.Listgrid1.Column21
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+-frmindent.Baseframe1.Page2.Listgrid1.Column20
+,frmindent.Baseframe1.Page1.Childgrid1.colrid
+6FontSize = 8
+Caption = "Resource"
+Name = "Header1"
+
+,frmindent.Baseframe1.Page1.Childgrid1.colrid
+FontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+Visible = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+PROCEDURE Valid
+if !dodefault()
+	return .f.
+endif
+opage = thisform.baseframe1.page1
+*** Do not change charges if the service rate is changeable and 
+*** the record contains some value
+if trans.rid = 'HM'
+	if seek(opage.txtcid.value+trans.sid,'compchg')
+		if compchg.change
+			if !empty(trans.charges)
+				return
+			endif
+		endif
+	else
+		if seek(trans.sid,"services") and services.change
+			if !empty(trans.charges)
+				return
+			endif
+		endif
+	endif
+endif
+
+foundflag = .t.
+IF trans.rid = "HM"
+	if seek(opage.txtcid.value+trans.sid,"compchg")
+		IF trans.urgent ='Y'
+			replace trans.charges with compchg.urate
+		ELSE
+			replace trans.charges with compchg.srate
+		ENDIF
+	ELSE
+		foundflag = .f.
+	ENDIF
+endif
+IF !foundflag
+	if seek(trans.sid,"services")
+		IF trans.urgent = 'Y'
+			replace trans.charges with services.urate
+		ELSE
+			replace trans.charges with services.srate
+		ENDIf
+	endif
+ENDIF
+opage.childgrid1.colcharges.refresh
+return
+
+ENDPROC
+
+NEWTESTNO	
+LCCOUNTER
+SETFOCUS
+THISFORM
+
+BASEFRAME1
+TXTINDENTNO
+INDENTNO
+TXTDATE
+
+CHILDGRID1
+COLCDATE
+cmdadd.Click,
+&Caption = "Refund"
+Name = "Header1"
+
+-frmindent.Baseframe1.Page2.Listgrid1.Column20
+-frmindent.Baseframe1.Page2.Listgrid1.Column19
+.frmindent.Baseframe1.Page1.Childgrid1.colcdate
+=FontSize = 8
+Caption = "Collection Date"
+Name = "Header1"
+
+.frmindent.Baseframe1.Page1.Childgrid1.colcdate
+vFontSize = 8
+BorderStyle = 0
+Margin = 0
+Visible = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+,frmindent.Baseframe1.Page1.Childgrid1.colsid
+5FontSize = 8
+Caption = "Test ID"
+Name = "Header1"
+
+,frmindent.Baseframe1.Page1.Childgrid1.colsid
+vFontSize = 8
+BorderStyle = 0
+Margin = 0
+Visible = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+ctextlookup
+ ..\..\common\class\baseclass.vcx
+,frmindent.Baseframe1.Page1.Childgrid1.colsid
+Format = "!"
+Left = 14
+MaxLength = 5
+Top = 32
+refpath = thisform.baseframe1.page1.childgrid1.colsid
+rowsrc = select desc,code from services where dept=gcdept order by desc into cursor cbosid
+searchalias = services
+searchexpr = this.value
+emptyallowed = .T.
+Name = "txtsid"
+
+PROCEDURE Valid
+if !dodefault()
+	return .f.
+endif
+if seek(trans.sid,"Services")
+	if services.active='I'
+		=messageb("Cannot Select Inactive Test",48,"Selection Error")
+		retu .f.
+	endif
+	replace trans.sname with services.desc
+	replace trans.gid with services.group
+else
+	replace trans.sname with ''
+	replace trans.gid with ''
+endif
+This.Parent.Parent.colrid.Text1.valid()
+This.Parent.Parent.coltname.refresh()
+ENDPROC
+
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+'Caption = "Balance"
+Name = "Header1"
+
+-frmindent.Baseframe1.Page2.Listgrid1.Column19
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+-frmindent.Baseframe1.Page2.Listgrid1.Column18
+(Caption = "Creditno"
+Name = "Header1"
+
+-frmindent.Baseframe1.Page1.Childgrid1.Column7
+8FontSize = 8
+Caption = "Consultant"
+Name = "Header1"
+
+-frmindent.Baseframe1.Page1.Childgrid1.Column7
+gFontSize = 8
+BorderStyle = 0
+Margin = 0
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+	ccombobox
+ ..\..\common\class\baseclass.vcx
+combobox
+
+Ccombobox1
+-frmindent.Baseframe1.Page1.Childgrid1.Column7
+RowSource = "select prefix + ' ' +alltrim(name) as name, id from consult,consdept where consult.id=consdept.consid and consdept.dept=gcdept order by name into cursor cboconcode"
+Left = 64
+Top = 44
+Name = "Ccombobox1"
+
+listgrid
+ ..\..\common\class\baseclass.vcx
+	Listgrid1
+frmindent.Baseframe1.Page2
+ColumnCount = 25
+Height = 280
+Left = 3
+Panel = 1
+ReadOnly = .T.
+RecordSource = "collect"
+Top = 6
+Width = 620
+Name = "Listgrid1"
+Column1.ControlSource = "collect.indentno"
+Column1.Width = 87
+Column1.ReadOnly = .T.
+Column1.Name = "Column1"
+Column2.ControlSource = "collect.date"
+Column2.Width = 62
+Column2.ReadOnly = .T.
+Column2.Name = "Column2"
+Column3.ControlSource = "collect.time"
+Column3.Width = 49
+Column3.ReadOnly = .T.
+Column3.Sparse = .T.
+Column3.Name = "Column3"
+Column4.ControlSource = "collect.cid"
+Column4.Width = 38
+Column4.ReadOnly = .T.
+Column4.Name = "Column4"
+Column5.ControlSource = "collect.regno"
+Column5.Width = 66
+Column5.ReadOnly = .T.
+Column5.Name = "Column5"
+Column6.ControlSource = "collect.type"
+Column6.Width = 41
+Column6.ReadOnly = .T.
+Column6.Name = "Column6"
+Column7.ColumnOrder = 7
+Column7.ControlSource = "collect.pcode"
+Column7.Width = 57
+Column7.ReadOnly = .T.
+Column7.Name = "Column7"
+Column8.ColumnOrder = 14
+Column8.ControlSource = "collect.phone"
+Column8.Width = 83
+Column8.ReadOnly = .T.
+Column8.Name = "Column8"
+Column9.ColumnOrder = 9
+Column9.ControlSource = "collect.sex"
+Column9.Width = 36
+Column9.ReadOnly = .T.
+Column9.Name = "Column9"
+Column10.ColumnOrder = 10
+Column10.ControlSource = "collect.age"
+Column10.Width = 27
+Column10.ReadOnly = .T.
+Column10.Name = "Column10"
+Column11.ColumnOrder = 11
+Column11.ControlSource = "collect.atype"
+Column11.Width = 35
+Column11.ReadOnly = .T.
+Column11.Name = "Column11"
+Column12.ColumnOrder = 8
+Column12.ControlSource = "collect.concode"
+Column12.Width = 64
+Column12.ReadOnly = .T.
+Column12.Name = "Column12"
+Column13.ColumnOrder = 12
+Column13.ControlSource = "collect.name"
+Column13.Width = 142
+Column13.ReadOnly = .T.
+Column13.Name = "Column13"
+Column14.ColumnOrder = 13
+Column14.ControlSource = "collect.bedno"
+Column14.Width = 58
+Column14.ReadOnly = .T.
+Column14.Name = "Column14"
+Column15.ControlSource = "collect.cons"
+Column15.Width = 59
+Column15.ReadOnly = .T.
+Column15.Name = "Column15"
+Column16.ControlSource = "collect.consby"
+Column16.Width = 150
+Column16.ReadOnly = .T.
+Column16.Name = "Column16"
+Column17.ControlSource = "collect.creditby"
+Column17.Width = 96
+Column17.ReadOnly = .T.
+Column17.Name = "Column17"
+Column18.ControlSource = "collect.creditno"
+Column18.Width = 63
+Column18.ReadOnly = .T.
+Column18.Name = "Column18"
+Column19.ControlSource = "collect.balance"
+Column19.Width = 63
+Column19.ReadOnly = .T.
+Column19.Name = "Column19"
+Column20.ControlSource = "collect.refund"
+Column20.Width = 70
+Column20.ReadOnly = .T.
+Column20.Name = "Column20"
+Column21.ControlSource = "collect.rdate"
+Column21.Width = 56
+Column21.ReadOnly = .T.
+Column21.Name = "Column21"
+Column22.ControlSource = "collect.total"
+Column22.Width = 73
+Column22.ReadOnly = .T.
+Column22.Name = "Column23"
+Column23.ControlSource = "collect.net"
+Column23.Width = 58
+Column23.ReadOnly = .T.
+Column23.Name = "Column24"
+Column24.ControlSource = "collect.credit"
+Column24.Width = 52
+Column24.ReadOnly = .T.
+Column24.Name = "Column25"
+Column25.ControlSource = "collect.posted"
+Column25.Width = 44
+Column25.ReadOnly = .T.
+Column25.Name = "Column26"
+
+,frmindent.Baseframe1.Page2.Listgrid1.Column1
+(Caption = "Indentno"
+Name = "Header1"
+
+,frmindent.Baseframe1.Page2.Listgrid1.Column1
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+,frmindent.Baseframe1.Page2.Listgrid1.Column2
+$Caption = "Date"
+Name = "Header1"
+
+,frmindent.Baseframe1.Page2.Listgrid1.Column2
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+,frmindent.Baseframe1.Page2.Listgrid1.Column3
+$Caption = "Time"
+Name = "Header1"
+
+,frmindent.Baseframe1.Page2.Listgrid1.Column3
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+,frmindent.Baseframe1.Page2.Listgrid1.Column4
+#Caption = "Cid"
+Name = "Header1"
+
+,frmindent.Baseframe1.Page2.Listgrid1.Column4
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+,frmindent.Baseframe1.Page2.Listgrid1.Column5
+%Caption = "Regno"
+Name = "Header1"
+
+,frmindent.Baseframe1.Page2.Listgrid1.Column5
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+,frmindent.Baseframe1.Page2.Listgrid1.Column6
+$Caption = "Type"
+Name = "Header1"
+
+,frmindent.Baseframe1.Page2.Listgrid1.Column6
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+,frmindent.Baseframe1.Page2.Listgrid1.Column7
+%Caption = "Pcode"
+Name = "Header1"
+
+,frmindent.Baseframe1.Page2.Listgrid1.Column7
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+,frmindent.Baseframe1.Page2.Listgrid1.Column8
+%Caption = "Phone"
+Name = "Header1"
+
+,frmindent.Baseframe1.Page2.Listgrid1.Column8
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+,frmindent.Baseframe1.Page2.Listgrid1.Column9
+#Caption = "Sex"
+Name = "Header1"
+
+,frmindent.Baseframe1.Page2.Listgrid1.Column9
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+-frmindent.Baseframe1.Page2.Listgrid1.Column10
+#Caption = "Age"
+Name = "Header1"
+
+-frmindent.Baseframe1.Page2.Listgrid1.Column10
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+-frmindent.Baseframe1.Page2.Listgrid1.Column11
+%Caption = "Atype"
+Name = "Header1"
+
+-frmindent.Baseframe1.Page2.Listgrid1.Column11
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+-frmindent.Baseframe1.Page2.Listgrid1.Column12
+'Caption = "Concode"
+Name = "Header1"
+
+-frmindent.Baseframe1.Page2.Listgrid1.Column12
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+-frmindent.Baseframe1.Page2.Listgrid1.Column13
+$Caption = "Name"
+Name = "Header1"
+
+-frmindent.Baseframe1.Page2.Listgrid1.Column13
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+-frmindent.Baseframe1.Page2.Listgrid1.Column14
+%Caption = "Bedno"
+Name = "Header1"
+
+-frmindent.Baseframe1.Page2.Listgrid1.Column14
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+-frmindent.Baseframe1.Page2.Listgrid1.Column15
+$Caption = "Cons"
+Name = "Header1"
+
+-frmindent.Baseframe1.Page2.Listgrid1.Column15
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+-frmindent.Baseframe1.Page2.Listgrid1.Column16
+&Caption = "Consby"
+Name = "Header1"
+
+-frmindent.Baseframe1.Page2.Listgrid1.Column16
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+-frmindent.Baseframe1.Page2.Listgrid1.Column17
+(Caption = "Creditby"
+Name = "Header1"
+
+-frmindent.Baseframe1.Page2.Listgrid1.Column17
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+-frmindent.Baseframe1.Page2.Listgrid1.Column18
+Register
+Invalid Registration No.
+Search Error
+Invalid Registration No., Bill Generated
+Validation Error
+HOUR6666
+THISFORM
+BASEFRAME1
+REGISTER
+CBOATYPE
+TXTCONCODE
+TXTBEDNO
+TXTPHONE
+CCCCCCCC$i
+NEWINDENTNO
+INDENTNO
+CREDITBY
+THISFORM
+
+BASEFRAME1
+TXTINDENTNO
+SELSTART
+Invalid Indent No, Please enter again
+THISFORM
+
+BASEFRAME1
+TXTINDENTNO
+VALIDMSG
+INDENTNO
+CTOOLBAR
+ENABLED	
+CMDDELETE
+THISFORM
+
+BASEFRAME1
+TXTINDENTNO
+SETFOCUS
+SELSTART
+CTOOLBAR	
+CMDREPORT
+VISIBLEJ
+indentrpt
+INDENTRPT
+INDENTNO	
+PRINTFLAG	
+REPOQUERY
+REPORTBTNS1
+newrecord,
+validrecG
+updbuttons
+Activate
+repoquery

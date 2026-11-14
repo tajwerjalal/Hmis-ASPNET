@@ -9,6 +9,19 @@ using HmisWeb.Data.Enums;
 
 namespace HmisWeb.Pages.Inward
 {
+    /// <summary>
+    /// Patient Discharge - legacy discharge.scx.
+    ///
+    /// Saves the discharge status, closes the open [PATIENTROOM] stay, frees the
+    /// [BED_POS] bed and writes the discharge date back to [ADMISSION] before it
+    /// creates the final inward bill.
+    ///
+    /// Developer : [TAJWER JALAL]
+    /// Date      : 22-Oct-2026
+    /// Time      : 18:20
+    /// Change Log: 22-Oct-2026 - discharge status, bed release and admission
+    ///             close added.
+    /// </summary>
     public class DischargeModel : PageModel
     {
         private readonly ApplicationDbContext _db;
@@ -33,6 +46,9 @@ namespace HmisWeb.Pages.Inward
         public string Comments { get; set; }
 
         [BindProperty]
+        public string DischargeStatus { get; set; }
+
+        [BindProperty]
         public PaymentMethod? PaymentMethod { get; set; } = HmisWeb.Data.Enums.PaymentMethod.Cash;
 
         [BindProperty]
@@ -48,6 +64,15 @@ namespace HmisWeb.Pages.Inward
         public double ChangeDue { get; set; }
 
         public List<SelectListItem> PaymentMethodList { get; set; } = new();
+        public List<SelectListItem> DischargeStatusList { get; set; } = new List<SelectListItem>
+        {
+            new SelectListItem("Recovered", "Recovered"),
+            new SelectListItem("Improved", "Improved"),
+            new SelectListItem("Transferred", "Transferred"),
+            new SelectListItem("LAMA", "LAMA"),
+            new SelectListItem("Expired", "Expired"),
+            new SelectListItem("Against Advice", "AgainstAdvice")
+        };
 
         public async Task<IActionResult> OnGetAsync()
         {
@@ -92,6 +117,7 @@ namespace HmisWeb.Pages.Inward
             Encounter.DateOfDischarge = dischargeTime;
             Encounter.TimeOfDischarge = dischargeTime;
             Encounter.Discharged = true;
+            Encounter.DischargeStatus = string.IsNullOrWhiteSpace(DischargeStatus) ? Encounter.DischargeStatus : DischargeStatus.Trim();
             Encounter.EditerId = userId;
             Encounter.EditedAt = now;
 
@@ -103,6 +129,28 @@ namespace HmisWeb.Pages.Inward
                 pr.ToTime = dischargeTime;
                 pr.Discharged = true;
                 pr.DischargedAt = dischargeTime;
+            }
+
+            // free the bed
+            if (ActiveRoom?.BedPositionId != null)
+            {
+                var bed = await _db.BedPositions.FirstOrDefaultAsync(b => b.Id == ActiveRoom.BedPositionId.Value);
+                if (bed != null)
+                {
+                    bed.Status = "Vacant";
+                    bed.PatientCode = null;
+                    var stamp = DateTime.Now;
+                    bed.UserId = _appSession.LoggedUser?.UserName ?? "SYSTEM";
+                    bed.UDate = stamp.Date;
+                    bed.UTime = stamp.ToString("HH:mm");
+                }
+            }
+
+            // close the admission
+            var admission = await _db.Admissions.FirstOrDefaultAsync(a => a.PatientEncounterId == Encounter.Id && !a.Retired);
+            if (admission != null)
+            {
+                admission.DischargeDate = dischargeTime;
             }
 
             var bill = new Bill
@@ -182,8 +230,8 @@ namespace HmisWeb.Pages.Inward
             AlreadyDischarged = Encounter.DateOfDischarge != null;
 
             ActiveRoom = await _db.PatientRooms
-                .Include(r => r.Room)
-                .Where(r => r.PatientEncounterId == Encounter.Id && !r.Retired)
+                .Include(r => r.BedPosition)
+                .Where(r => r.PatientEncounterId == Encounter.Id && !r.Retired && r.ToTime == null)
                 .OrderByDescending(r => r.FromTime)
                 .FirstOrDefaultAsync();
 

@@ -17,9 +17,17 @@ namespace HmisWeb.Pages.Hospital.Reports
     /// services.DBF left-joined to sergrp.DBF for the logged-in department and offered
     /// three layouts: a flat list, a group-included list, or a single selected group.
     /// </summary>
-    public class ServiceListModel : PageModel
+    public class ServiceListModel : HmisWeb.Pages.Shared.PagedPageModel
     {
+        /// <summary>Mirror prefix of this module on the shared services master (DEPT scoped).</summary>
+
+        private const string ItemPrefix = "INV-HSP-";
+
+
         private readonly ApplicationDbContext _db;
+
+        /// <summary>CSV export must contain every row, not just the visible page.</summary>
+        private bool _exportAll;
 
         public ServiceListModel(ApplicationDbContext db)
         {
@@ -43,8 +51,8 @@ namespace HmisWeb.Pages.Hospital.Reports
         public List<Category> Categories { get; set; } = new();
         public List<ServiceListRow> Rows { get; set; } = new();
 
-        public int TotalServices => Rows.Count;
-        public double TotalRate => Rows.Sum(r => r.Rate);
+        public int TotalServices => TotalCount;
+        public double TotalRate { get; set; }
         public string ReportTitle => "Service List";
         public bool Grouped => !string.Equals(LayoutMode, "Flat", StringComparison.OrdinalIgnoreCase);
         public string PeriodText => "All active services";
@@ -58,7 +66,7 @@ namespace HmisWeb.Pages.Hospital.Reports
 
             var query = _db.Items
                 .Include(s => s.Category)
-                .Where(s => !s.Retired);
+                .Where(s => !s.Retired && s.Code.StartsWith(ItemPrefix));
 
             // "Selected" restricts to one group, matching the VFP 'and group=xgroup' clause.
             if (string.Equals(LayoutMode, "Selected", StringComparison.OrdinalIgnoreCase) && CategoryId.HasValue)
@@ -81,8 +89,8 @@ namespace HmisWeb.Pages.Hospital.Reports
                     ? query.OrderBy(s => s.Name)
                     : query.OrderBy(s => s.Code);
 
-            Rows = await query
-                .Select(s => new ServiceListRow
+            var rowsQuery = query
+                    .Select(s => new ServiceListRow
                 {
                     Code = s.Code,
                     Name = s.Name,
@@ -91,12 +99,19 @@ namespace HmisWeb.Pages.Hospital.Reports
                     Group = s.Category == null ? "" : s.Category.Name,
                     Active = !s.Inactive,
                     Requirements = s.Requirements
-                })
-                .ToListAsync();
+                });
+
+            TotalCount = await rowsQuery.CountAsync();
+            ClampPaging();
+            Rows = _exportAll
+                ? await rowsQuery.ToListAsync()
+                : await ApplyPaging(rowsQuery).ToListAsync();
+            TotalRate = await rowsQuery.SumAsync(r => r.Rate);
         }
 
         public async Task<IActionResult> OnGetExportAsync()
         {
+            _exportAll = true;
             await OnGetAsync();
 
             var sb = new StringBuilder();

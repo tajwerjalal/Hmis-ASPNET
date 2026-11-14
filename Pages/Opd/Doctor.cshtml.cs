@@ -22,6 +22,7 @@ namespace HmisWeb.Pages.Opd
         public List<OpdSession> Sessions { get; set; } = new();
         public List<PatientQueueItem> PatientQueue { get; set; } = new();
         public long? SelectedSessionId { get; set; }
+        public DateTime SelectedDate { get; set; } = DateTime.Today;
         public PatientEncounter? CurrentEncounter { get; set; }
         public List<Models.Prescription> CurrentPrescriptions { get; set; } = new();
         public List<Models.InvestigationOrder> CurrentInvestigations { get; set; } = new();
@@ -32,15 +33,20 @@ namespace HmisWeb.Pages.Opd
         public List<Doctor> Doctors { get; set; } = new();
         public string? SuccessMessage { get; set; }
 
-        public async Task OnGetAsync(long? sessionId)
+        public async Task OnGetAsync(long? sessionId, DateTime? date)
         {
             if (TempData["Success"] != null) SuccessMessage = TempData["Success"]!.ToString();
 
+            SelectedDate = (date ?? DateTime.Today).Date;
             var siteId = _appSession.LoggedSite?.Id;
+
+            // Sessions created by the registration desk often have no
+            // InstitutionId, so include NULL rows as well as the logged site.
             Sessions = await _db.OpdSessions
                 .Include(s => s.Consultant)
                     .ThenInclude(c => c.Person)
-                .Where(s => s.InstitutionId == siteId && s.SessionDate == DateTime.Today)
+                .Where(s => (s.InstitutionId == null || s.InstitutionId == siteId)
+                    && s.SessionDate == SelectedDate)
                 .OrderBy(s => s.FromTime)
                 .ToListAsync();
 
@@ -53,6 +59,12 @@ namespace HmisWeb.Pages.Opd
             {
                 SelectedSessionId = sessionId;
                 await LoadPatientQueueAsync(sessionId.Value);
+            }
+            else if (Sessions.Count > 0)
+            {
+                // Land on a queue instead of an empty workbench.
+                SelectedSessionId = Sessions[0].Id;
+                await LoadPatientQueueAsync(Sessions[0].Id);
             }
         }
 

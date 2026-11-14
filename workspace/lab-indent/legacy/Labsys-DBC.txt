@@ -1,0 +1,412 @@
+﻿OBJECTID
+PARENTID
+OBJECTTYPE
+OBJECTNAME
+PROPERTY
+CODE
+RIINFO
+USER
+Database  Database                                                                                                                        
+      
+Database  TransactionLog                                                                                                                  
+      
+Database  StoredProceduresSource                                                                                                          
+      
+Database  StoredProceduresObject                                                                                                          
+      
+Database  StoredProceduresDependencies                                                                                                    
+      
+Table     readings                                                                                                                        W
+      
+Table     madims                                                                                                                          =
+      
+Table     madicls                                                                                                                         A
+      
+Table     testtr                                                                                                                          (
+      
+Table     culture                                                                                                                         l
+      
+Index     labtid                                                                                                                          m
+      
+Table     cul_tr                                                                                                                          n
+      
+Index     labtid                                                                                                                          o
+      
+Index     labno                                                                                                                           p
+      
+Index     labno                                                                                                                           q
+      
+Relation  Relation 1                                                                                                                      
+RRI   
+Table     tsremark                                                                                                                        P
+      
+Table     organisms                                                                                                                       k
+      
+Index     id                                                                                                                              j
+      
+Index     name                                                                                                                            i
+      
+Table     grremark                                                                                                                        h
+      
+Index     id                                                                                                                              g
+      
+Index     desc                                                                                                                            f
+      
+Index     tid                                                                                                                             e
+      
+Table     nrange                                                                                                                          d
+      
+Index     gidreadid                                                                                                                       c
+      
+Table     results                                                                                                                         b
+      
+Index     gidreadid                                                                                                                       a
+      
+Relation  Relation 1                                                                                                                      `
+RCI   
+Relation  Relation 1                                                                                                                      _
+RCI   
+Table     report                                                                                                                          
+      
+Index     pcode                                                                                                                           ^
+      
+Index     type                                                                                                                            ]
+      
+Index     concode                                                                                                                         \
+      
+Index     date                                                                                                                            [
+      
+Index     posted                                                                                                                          Z
+      
+Index     regno                                                                                                                           Y
+      
+Field     readid                                                                                                                          
+      
+Field     gid                                                                                                                             
+      
+Field     result                                                                                                                          
+      
+Field     userid                                                                                                                          
+      
+Field     udate                                                                                                                           
+      
+Field     utime                                                                                                                           
+      
+Field     labno                                                                                                                           '
+      
+Field     tid                                                                                                                             &
+      
+Field     testno                                                                                                                          $
+      
+Field     charges                                                                                                                         #
+      
+Field     tcdate                                                                                                                          "
+      
+Field     remarks                                                                                                                         !
+      
+Field     urgent                                                                                                                           
+      
+Field     lid                                                                                                                             
+      
+Field     gid                                                                                                                             
+      
+Field     tname                                                                                                                           
+      
+Field     culture                                                                                                                         
+      
+Field     srno                                                                                                                            
+      
+Field     repodt                                                                                                                          
+      
+Field     userid                                                                                                                          
+      
+Field     udate                                                                                                                           
+      
+Field     utime                                                                                                                           
+      
+Field     id                                                                                                                              V
+      
+Field     name                                                                                                                            U
+      
+Field     unit                                                                                                                            T
+      
+Field     gid                                                                                                                             S
+      
+Field     class                                                                                                                           R
+      
+Field     range                                                                                                                           Q
+      
+Field     userid                                                                                                                          
+      
+Field     udate                                                                                                                           
+      
+Field     utime                                                                                                                           
+      
+Field     tid                                                                                                                             
+      
+Field     remarks                                                                                                                         
+      
+Field     userid                                                                                                                          
+      
+Field     udate                                                                                                                           
+      
+Field     utime                                                                                                                           
+      
+Field     labno                                                                                                                           O
+      
+Field     tid                                                                                                                             N
+      
+Field     testno                                                                                                                          M
+      
+Field     id                                                                                                                              L
+      
+Field     s1                                                                                                                              K
+      
+Field     s2                                                                                                                              J
+      
+Field     s3                                                                                                                              I
+      
+Field     userid                                                                                                                          
+      
+Field     udate                                                                                                                           
+      
+Field     utime                                                                                                                           
+      
+Field     labno                                                                                                                           
+      
+Field     tid                                                                                                                             
+      
+Field     testno                                                                                                                          
+      
+Field     growth1                                                                                                                         H
+      
+Field     s1                                                                                                                              G
+      
+Field     growth2                                                                                                                         F
+      
+Field     s2                                                                                                                              E
+      
+Field     growth3                                                                                                                         D
+      
+Field     s3                                                                                                                              C
+      
+Field     userid                                                                                                                          
+      
+Field     udate                                                                                                                           
+      
+Field     utime                                                                                                                           
+      
+Field     id                                                                                                                              
+      
+Field     desc                                                                                                                            
+      
+Field     userid                                                                                                                          
+      
+Field     udate                                                                                                                           
+      
+Field     utime                                                                                                                           
+      
+Field     id                                                                                                                              @
+      
+Field     name                                                                                                                            >
+      
+Field     userid                                                                                                                          
+      
+Field     udate                                                                                                                           
+      
+Field     utime                                                                                                                           
+      
+Field     class                                                                                                                           <
+      
+Field     id                                                                                                                              ;
+      
+Field     name                                                                                                                            9
+      
+Field     userid                                                                                                                          
+      
+Field     udate                                                                                                                           
+      
+Field     utime                                                                                                                           
+      
+Field     id                                                                                                                              
+      
+Field     name                                                                                                                            
+      
+Field     userid                                                                                                                          
+      
+Field     udate                                                                                                                           
+      
+Field     utime                                                                                                                           
+      
+Field     labno                                                                                                                           
+      
+Field     date                                                                                                                            
+      
+Field     time                                                                                                                            
+      
+Field     cid                                                                                                                             
+      
+Field     hrno                                                                                                                            
+      
+Field     type                                                                                                                            
+      
+Field     pcode                                                                                                                           
+      
+Field     concode                                                                                                                         
+      
+Field     sex                                                                                                                             
+      
+Field     age                                                                                                                             
+      
+Field     atype                                                                                                                           
+      
+Field     name                                                                                                                            
+      
+Field     bedno                                                                                                                           
+      
+Field     phone                                                                                                                           
+      
+Field     cons                                                                                                                            
+      
+Field     consby                                                                                                                          
+      
+Field     creditby                                                                                                                        
+      
+Field     creditno                                                                                                                        
+      
+Field     balance                                                                                                                         
+      
+Field     refund                                                                                                                          
+      
+Field     rdate                                                                                                                           
+      
+Field     remarks                                                                                                                         
+      
+Field     total                                                                                                                           
+      
+Field     net                                                                                                                             
+      
+Field     credit                                                                                                                          
+      
+Field     posted                                                                                                                          
+      
+Field     trcvd                                                                                                                           
+      
+Field     tpymt                                                                                                                           
+      
+Field     userid                                                                                                                          
+      
+Field     udate                                                                                                                           
+      
+Field     utime                                                                                                                           
+      
+Field     readid                                                                                                                          
+      
+Field     gid                                                                                                                             
+      
+Field     sex                                                                                                                             
+      
+Field     age                                                                                                                             
+      
+Field     atype                                                                                                                           
+      
+Field     range                                                                                                                           
+      
+Field     hrrange                                                                                                                         
+      
+Index     grsex                                                                                                                           8
+      
+Table     readtr                                                                                                                          7
+      
+Field     labno                                                                                                                           
+      
+Field     tid                                                                                                                             
+      
+Field     testno                                                                                                                          
+      
+Field     id                                                                                                                              
+      
+Field     value                                                                                                                           
+      
+Field     gid                                                                                                                             
+      
+Field     class                                                                                                                           
+      
+Field     userid                                                                                                                          
+      
+Field     udate                                                                                                                           
+      
+Field     utime                                                                                                                           
+      
+Index     labno                                                                                                                           6
+      
+Index     gid                                                                                                                             5
+      
+Index     gidid                                                                                                                           4
+      
+Index     name                                                                                                                            3
+      
+Index     id                                                                                                                              2
+      
+Index     gidclass                                                                                                                        1
+      
+Index     name                                                                                                                            0
+      
+Index     id                                                                                                                              /
+      
+Index     class                                                                                                                           .
+      
+Index     name                                                                                                                            -
+      
+Index     id                                                                                                                              ,
+      
+Table     class                                                                                                                           +
+      
+Field     id                                                                                                                              
+      
+Field     class                                                                                                                           
+      
+Field     gid                                                                                                                             
+      
+Field     userid                                                                                                                          
+      
+Field     udate                                                                                                                           
+      
+Field     utime                                                                                                                           
+      
+Index     gidid                                                                                                                           *
+      
+Relation  Relation 1                                                                                                                      )
+      
+Index     gid                                                                                                                             
+      
+Index     lid                                                                                                                             
+      
+Index     tid                                                                                                                             
+      
+Index     labno                                                                                                                           
+      
+Index     labtno                                                                                                                          
+      
+Index     labgid                                                                                                                          
+      
+Index     id                                                                                                                              
+      
+Index     labno                                                                                                                           
+      
+Index     tid                                                                                                                             
+      
+Index     labgidtid                                                                                                                       
+      
+Index     labgrtcid                                                                                                                       
+      
+Index     labtid                                                                                                                          
+      
+Index     cid                                                                                                                             
+      
+Index     hrno                                                                                                                            
+      
+Index     gid                                                                                                                             
+      
+Index     value                                                                                                                           
+      

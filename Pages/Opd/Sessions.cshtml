@@ -10,6 +10,10 @@
         <div class="text-secondary small">Allocate consultants, rooms, token ranges and fees for the day.</div>
     </div>
     <div class="d-flex gap-2 align-items-center">
+        <a asp-page="/Opd/Registration" asp-route-SessionDate="@Model.SessionDate?.ToString("yyyy-MM-dd")"
+           class="btn btn-sm btn-success">
+            <i class="bi bi-person-plus me-1"></i>Registration
+        </a>
         <a asp-page="/Hr/Consultants" class="btn btn-sm btn-outline-primary"><i class="bi bi-person-badge me-1"></i>Consultants</a>
         <form method="get" class="d-flex gap-2 align-items-center">
             <input asp-for="SessionDate" type="date" class="form-control form-control-sm" />
@@ -22,6 +26,140 @@
 {
     <div class="alert alert-warning py-2"><i class="bi bi-exclamation-triangle me-1"></i>@Model.Message</div>
 }
+
+@if (!string.IsNullOrEmpty(Model.Success))
+{
+    <div class="alert alert-success py-2"><i class="bi bi-check-circle me-1"></i>@Model.Success</div>
+}
+
+@if (Model.AutoCreatedCount > 0)
+{
+    <div class="alert alert-success py-2">
+        <i class="bi bi-check-circle me-1"></i>
+        @Model.AutoCreatedCount scheduled session(s) created automatically for this date.
+        <a href="#todaySessions" class="alert-link">View sessions</a>
+    </div>
+}
+
+@{
+    var autoGroups = Model.AutoSlots
+        .GroupBy(s => new { s.GroupOrder, s.GroupTitle })
+        .OrderBy(g => g.Key.GroupOrder)
+        .ToList();
+}
+
+<div class="card mb-4 border-primary">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span class="fw-semibold">
+            <i class="bi bi-magic me-1 text-primary"></i>
+            Auto-fill sessions - @Model.SessionDate?.ToString("dddd, dd MMM yyyy")
+        </span>
+        <span class="small text-secondary">
+            @Model.AutoSlots.Count additional proposal(s);
+            <a href="#todaySessions">@Model.Sessions.Count session(s) on this date</a>.
+            Consultants scheduled for the day are created automatically.
+        </span>
+    </div>
+    <div class="card-body">
+        @if (!Model.AutoSlots.Any())
+        {
+            <div class="alert alert-info py-2 mb-0">
+                No proposals for this day. Set the consultants' working days and clinic times in
+                <a asp-page="/Consultants/Index">Consultants</a>, or use the manual form below.
+            </div>
+        }
+        else
+        {
+            <form method="post" asp-page-handler="AutoCreate">
+                <input type="hidden" asp-for="SessionDate" id="autoSessionDate" />
+
+                <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+                    <input type="search" id="autoFilter" class="form-control form-control-sm"
+                           style="max-width:300px" placeholder="Filter consultant, speciality, room or time" />
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="autoTickVisible">
+                        <i class="bi bi-check2-all me-1"></i>Tick visible
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="autoClear">
+                        <i class="bi bi-x-square me-1"></i>Clear ticks
+                    </button>
+                    <span class="small text-secondary">
+                        A consultant without a configured window is proposed at 08:00 - 12:00.
+                    </span>
+                </div>
+
+                <div class="table-responsive border rounded" style="max-height:460px; overflow-y:auto">
+                    <table class="table table-sm table-hover align-middle mb-0" id="autoTable">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th style="width:42px"></th>
+                                <th>Consultant</th>
+                                <th>Speciality</th>
+                                <th>Window</th>
+                                <th>Room</th>
+                                <th class="text-end">Consultant Fee</th>
+                                <th class="text-end">Hospital Charge</th>
+                                <th class="text-center">Max Tokens</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var group in autoGroups)
+                            {
+                                <tr class="table-secondary">
+                                    <td colspan="8">
+                                        <span class="fw-semibold">@group.Key.GroupTitle</span>
+                                        <span class="badge bg-secondary ms-1">@group.Count()</span>
+                                        @if (group.Key.GroupOrder == 0)
+                                        {
+                                            <span class="small text-success ms-2">
+                                                <i class="bi bi-check2-circle me-1"></i>pre-ticked
+                                            </span>
+                                        }
+                                    </td>
+                                </tr>
+
+                                @foreach (var s in group)
+                                {
+                                    var search = ($"{s.ConsultantName} {s.SpecialityName} {s.RoomNo} {s.FromTime} {s.ToTime} {s.Period}").ToLowerInvariant();
+                                    <tr data-search="@search">
+                                        <td class="text-center">
+                                            <input class="form-check-input auto-tick" type="checkbox"
+                                                   name="selected" value="@s.Key"
+                                                   checked="@(s.ScheduledToday ? "checked" : null)" />
+                                        </td>
+                                        <td>
+                                            <div class="fw-semibold">@s.ConsultantName</div>
+                                            <div class="small text-muted">@s.Period</div>
+                                        </td>
+                                        <td class="small">@(string.IsNullOrWhiteSpace(s.SpecialityName) ? "-" : s.SpecialityName)</td>
+                                        <td class="small text-nowrap">
+                                            @s.FromTime@(string.IsNullOrWhiteSpace(s.ToTime) ? " - open" : " - " + s.ToTime)
+                                        </td>
+                                        <td><span class="badge bg-secondary">@s.RoomNo</span></td>
+                                        <td class="text-end">@s.Fee.ToString("N2")</td>
+                                        <td class="text-end">@s.HospitalFee.ToString("N2")</td>
+                                        <td class="text-center">@s.TokenMax</td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="d-flex flex-wrap gap-2 align-items-center mt-3">
+                    <button type="submit" name="startNow" value="false" class="btn btn-primary">
+                        <i class="bi bi-check2-square me-1"></i>Create ticked sessions
+                    </button>
+                    <button type="submit" name="startNow" value="true" class="btn btn-success">
+                        <i class="bi bi-play-fill me-1"></i>Create &amp; start ticked
+                    </button>
+                    <span class="small text-secondary">
+                        Only the ticked rows are created; sessions already on the day are skipped.
+                    </span>
+                </div>
+            </form>
+        }
+    </div>
+</div>
 
 <div class="card mb-4">
     <div class="card-header bg-white fw-semibold"><i class="bi bi-plus-circle me-1 text-primary"></i>New OPD Session</div>
@@ -97,10 +235,21 @@
     </div>
 </div>
 
-<div class="card">
-    <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
+<div class="card" id="todaySessions">
+    <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center flex-wrap gap-2">
         <span><i class="bi bi-calendar3 me-1 text-primary"></i>Sessions on @Model.SessionDate?.ToString("dd MMMM yyyy")</span>
-        <span class="badge bg-primary">@Model.Sessions.Count</span>
+        <div class="d-flex gap-2 align-items-center">
+            @if (Model.Sessions.Any(s => s.Status == HmisWeb.Data.Enums.OpdSessionStatus.Scheduled))
+            {
+                <form method="post" asp-page-handler="StartAll"
+                      asp-route-SessionDate="@Model.SessionDate?.ToString("yyyy-MM-dd")" class="d-inline">
+                    <button type="submit" class="btn btn-sm btn-success" title="Mark every scheduled session active">
+                        <i class="bi bi-play-fill me-1"></i>Start all scheduled
+                    </button>
+                </form>
+            }
+            <span class="badge bg-primary">@Model.Sessions.Count</span>
+        </div>
     </div>
     <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
@@ -157,7 +306,7 @@
                             @if (s.Status == HmisWeb.Data.Enums.OpdSessionStatus.Scheduled)
                             {
                                 <form method="post" asp-page-handler="Start" asp-route-id="@s.Id" class="d-inline">
-                                    <button type="submit" class="btn btn-sm btn-outline-success" title="Start OPD"><i class="bi bi-play-fill"></i></button>
+                                    <button type="submit" class="btn btn-sm btn-outline-success" title="Mark active / start"><i class="bi bi-play-fill"></i></button>
                                 </form>
                                 <form method="post" asp-page-handler="Cancel" asp-route-id="@s.Id" class="d-inline">
                                     <button type="submit" class="btn btn-sm btn-outline-danger" title="Cancel"><i class="bi bi-x-lg"></i></button>
@@ -172,6 +321,16 @@
                             <a asp-page="/Opd/TokenBoard" asp-route-sessionId="@s.Id" class="btn btn-sm btn-outline-primary" title="Token board">
                                 <i class="bi bi-card-list"></i>
                             </a>
+                            @if (s.Status == HmisWeb.Data.Enums.OpdSessionStatus.Scheduled
+                                 || s.Status == HmisWeb.Data.Enums.OpdSessionStatus.Active)
+                            {
+                                <a asp-page="/Opd/Registration"
+                                   asp-route-SessionDate="@Model.SessionDate?.ToString("yyyy-MM-dd")"
+                                   asp-route-sessionId="@s.Id"
+                                   class="btn btn-sm btn-outline-success" title="Register a patient in this session">
+                                    <i class="bi bi-person-plus"></i>
+                                </a>
+                            }
                         </td>
                     </tr>
                 }
@@ -182,11 +341,29 @@
 
 @section Scripts {
     <script>
-        var dayNames = { 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6, 'Sun': 0 };
+        var dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-        function todayDayName() {
-            var d = new Date();
-            return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()];
+        // the session may be created for a day other than today, so use the date
+        // on the screen; the day name is compared case-insensitively because the
+        // register stores MON,TUE,... and JavaScript day names are Mon,Tue,...
+        function selectedDayName() {
+            var input = document.getElementById('SessionDate');
+            if (input && input.value) {
+                var parts = input.value.split('-');
+                if (parts.length === 3) {
+                    var d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+                    if (!isNaN(d.getTime())) return dayNames[d.getDay()];
+                }
+            }
+            return dayNames[new Date().getDay()];
+        }
+
+        function scheduledDays(value) {
+            return (value || '')
+                .toUpperCase()
+                .split(',')
+                .map(function (d) { return d.trim(); })
+                .filter(function (d) { return d.length > 0; });
         }
 
         document.getElementById('consultantSelect').addEventListener('change', function () {
@@ -209,15 +386,52 @@
             if (spec && !spec.value && opt.dataset.spec) spec.value = opt.dataset.spec;
 
             if (opt.dataset.days && opt.dataset.days !== '') {
-                var days = opt.dataset.days.split(',');
-                if (days.indexOf(todayDayName()) === -1) {
+                var day = selectedDayName();
+                var days = scheduledDays(opt.dataset.days);
+                if (days.length > 0 && days.indexOf(day.toUpperCase()) === -1) {
                     var div = document.createElement('div');
                     div.id = 'dayWarning';
                     div.className = 'alert alert-warning py-1 px-3 mt-2 mb-0';
-                    div.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i>This consultant does not list <b>' + todayDayName() + '</b> as a working day. Verify before creating the session.';
+                    div.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i>This consultant does not list <b>' + day + '</b> as a working day. Verify before creating the session.';
                     document.querySelector('.row.g-3').appendChild(div);
                 }
             }
         });
+
+        // ---- auto-fill panel: filter the roster and tick rows quickly --------
+        (function () {
+            var filter = document.getElementById('autoFilter');
+            if (filter) {
+                filter.addEventListener('input', function () {
+                    var q = this.value.toLowerCase();
+                    var rows = document.querySelectorAll('#autoTable tbody tr[data-search]');
+                    for (var i = 0; i < rows.length; i++) {
+                        var row = rows[i];
+                        var text = row.getAttribute('data-search') || '';
+                        if (q === '' || text.indexOf(q) !== -1) {
+                            row.classList.remove('d-none');
+                        } else {
+                            row.classList.add('d-none');
+                        }
+                    }
+                });
+            }
+
+            var tickVisible = document.getElementById('autoTickVisible');
+            if (tickVisible) {
+                tickVisible.addEventListener('click', function () {
+                    var boxes = document.querySelectorAll('#autoTable tbody tr[data-search]:not(.d-none) .auto-tick');
+                    for (var i = 0; i < boxes.length; i++) boxes[i].checked = true;
+                });
+            }
+
+            var clear = document.getElementById('autoClear');
+            if (clear) {
+                clear.addEventListener('click', function () {
+                    var boxes = document.querySelectorAll('#autoTable .auto-tick');
+                    for (var i = 0; i < boxes.length; i++) boxes[i].checked = false;
+                });
+            }
+        })();
     </script>
 }

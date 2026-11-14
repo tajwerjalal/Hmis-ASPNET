@@ -1,5 +1,14 @@
 @page
 @model HmisWeb.Pages.Cashier.SetDefaultModel
+@*
+    Set / claim the default cash counter.
+
+    Developer : [TAJWER JALAL]
+    Date      : 23-Oct-2026
+    Time      : 12:50
+    Change Log: 23-Oct-2026 - choose an active counter from the list and confirm
+                its activation key to make it the current user's counter.
+*@
 @{
     ViewData["Title"] = "Set Default Cash Counter";
 }
@@ -8,22 +17,50 @@
     @if (!string.IsNullOrEmpty(Model.ErrorMessage)) { <div class="alert alert-danger">@Model.ErrorMessage</div> }
     @if (!string.IsNullOrEmpty(Model.Success)) { <div class="alert alert-success">@Model.Success</div> }
 
-    <form method="post" asp-page-handler="Claim" class="row g-2 mb-3">
-        <div class="col-md-4">
-            <label class="form-label">Activation Key</label>
-            <input asp-for="SelectedKey" class="form-control" required />
-        </div>
-        <div class="col-md-2 align-self-end">
-            <button type="submit" class="btn btn-primary">Claim Counter</button>
-        </div>
-    </form>
+    @if (Model.CurrentDepartment != null)
+    {
+        <p class="text-muted mb-2">
+            Department / Line: <strong>@Model.CurrentDepartment.Name</strong>
+        </p>
+    }
 
+    @if (Model.Sessions.Any())
+    {
+        <form method="post" asp-page-handler="Claim" class="row g-2 mb-3">
+            <div class="col-md-5">
+                <label class="form-label">Active Counter</label>
+                <select asp-for="SelectedCounter" class="form-select" required>
+                    <option value="">-- select active counter --</option>
+                    @foreach (var s in Model.Sessions)
+                    {
+                        <option value="@(s.CCode + "|" + s.LCode)">@s.CCode - @s.Desc (@(string.IsNullOrEmpty(s.ActiveBy) ? "un-assigned" : s.ActiveBy))</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Activation Key</label>
+                <input asp-for="SelectedKey" type="password" class="form-control" required autocomplete="off" />
+            </div>
+            <div class="col-md-2 align-self-end">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-check-circle me-1"></i>Set as My Counter</button>
+            </div>
+        </form>
+    }
+    else
+    {
+        <div class="alert alert-info">
+            No active counters for this department.
+            <a asp-page="/cashier/createcounter" class="alert-link">Create / Open a counter</a> first.
+        </div>
+    }
+
+    <h5>Active Counters</h5>
     <table class="table table-sm table-striped">
-        <thead><tr><th>Code</th><th>Description</th><th>Active Date</th><th>Status</th></tr></thead>
+        <thead><tr><th>Code</th><th>Description</th><th>Active Date</th><th>Active By</th><th>Status</th></tr></thead>
         <tbody>
             @foreach (var s in Model.Sessions)
             {
-                <tr><td>@s.CCode</td><td>@s.Desc</td><td>@s.ActiveDt?.ToString("dd-MM-yyyy")</td><td>@s.Status</td></tr>
+                <tr><td>@s.CCode</td><td>@s.Desc</td><td>@s.ActiveDt?.ToString("dd-MM-yyyy")</td><td>@s.ActiveBy</td><td>@s.Status</td></tr>
             }
         </tbody>
     </table>

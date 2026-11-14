@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using HmisWeb.Data;
 using HmisWeb.Data.Enums;
 using HmisWeb.Models;
+using HmisWeb.Models.Legacy;
 using HmisWeb.Services;
 
 namespace HmisWeb.Pages.Us
@@ -56,6 +57,9 @@ namespace HmisWeb.Pages.Us
         [BindProperty]
         public string ServiceSearch { get; set; }
 
+        [BindProperty(SupportsGet = true)]
+        public bool OpenServiceModal { get; set; }
+
         [BindProperty]
         public long? SelectedServiceId { get; set; }
 
@@ -72,8 +76,9 @@ namespace HmisWeb.Pages.Us
         public string Comments { get; set; }
 
         public Patient SelectedPatient { get; set; }
+        public PatientLegacyInfo LegacyPatient { get; set; }
         public List<Patient> PatientResults { get; set; } = new();
-        public List<UsService> ServiceResults { get; set; } = new();
+        public List<DeptService> ServiceResults { get; set; } = new();
         public List<IndentCartItem> DisplayCart { get; set; } = new();
         public List<PatientEncounter> ActiveEncounters { get; set; } = new();
         public PatientEncounter SelectedEncounter { get; set; }
@@ -89,6 +94,8 @@ namespace HmisWeb.Pages.Us
         public async Task OnGetAsync()
         {
             await LoadStateAsync();
+            if (OpenServiceModal)
+                await SearchServicesAsync();
             if (TempData["IndentSuccess"] != null)
                 Success = TempData["IndentSuccess"].ToString();
             if (TempData["IndentMessage"] != null)
@@ -167,6 +174,15 @@ namespace HmisWeb.Pages.Us
         {
             await LoadStateAsync();
             await SearchServicesAsync();
+            OpenServiceModal = true;
+            return Page();
+        }
+
+        public async Task<IActionResult> OnGetSearchServicesAsync()
+        {
+            await LoadStateAsync();
+            await SearchServicesAsync();
+            OpenServiceModal = true;
             return Page();
         }
 
@@ -176,21 +192,24 @@ namespace HmisWeb.Pages.Us
             if (SelectedServiceId == null)
                 return Page();
 
-            var departmentId = _appSession.LoggedDepartment?.Id;
-            var service = await _db.UsServices.FirstOrDefaultAsync(s => s.Id == SelectedServiceId.Value && !s.Retired && s.Active
-                && (departmentId == null || s.DepartmentId == departmentId));
-            if (service == null)
+            // Ultrasound services come from SERVICES (DeptService, dept='03')
+            var deptService = await _db.DeptServices
+                .FirstOrDefaultAsync(s => s.Id == SelectedServiceId.Value && s.Dept == "03" && !s.Retired && s.Billable);
+
+            if (deptService == null)
                 return Page();
 
-            var patientId = GetSelectedPatientId();
-            var companyId = patientId.HasValue
-                ? await _common.GetPatientCompanyIdAsync(
-                    await _db.Patients.Where(p => p.Id == patientId.Value && !p.Retired).Select(p => p.PersonId).FirstOrDefaultAsync() ?? 0)
+            // Panel / company rate card first, then the SERVICES SRATE - the
+            // same resolution the Laboratory indent uses, so a company patient
+            // is never charged the walk-in price.
+            var patient = await GetSelectedPatientAsync();
+            var companyId = patient != null
+                ? await _common.GetPatientCompanyIdAsync(patient.PersonId ?? 0)
                 : null;
-            var rate = await _common.GetAppliedRateAsync(service, companyId);
-            var name = string.IsNullOrWhiteSpace(service.PrintName) ? service.Name : service.PrintName;
+            var appliedRate = await _common.GetAppliedRateAsync(deptService, companyId);
+
             var cart = GetCart();
-            var existing = cart.FirstOrDefault(c => c.ItemId == service.Id);
+            var existing = cart.FirstOrDefault(c => c.ItemId == deptService.Id && c.FromDeptService);
             if (existing != null)
             {
                 existing.Qty += 1;
@@ -199,17 +218,18 @@ namespace HmisWeb.Pages.Us
             {
                 cart.Add(new IndentCartItem
                 {
-                    ItemId = service.Id,
-                    Code = service.Code,
-                    ItemName = name,
+                    ItemId = deptService.Id,
+                    Code = deptService.Code,
+                    ItemName = deptService.Name,
                     Qty = 1,
-                    Rate = rate,
-                    Discount = 0
+                    Rate = appliedRate,
+                    Discount = 0,
+                    FromDeptService = true
                 });
             }
             SaveCart(cart);
-            TempData["IndentMessage"] = $"{name} added to the indent.";
-            return RedirectToPage("/Us/Indent");
+            TempData["IndentMessage"] = $"{deptService.Name} added to the indent.";
+            return RedirectToPage("/Us/Indent", new { OpenServiceModal = true });
         }
 
         public IActionResult OnPostUpdateCartAsync()
@@ -223,6 +243,23 @@ namespace HmisWeb.Pages.Us
             }
 
             var rows = Cart ?? new List<IndentCartItem>();
+
+            // The cart grid only posts the editable columns. Merge the posted
+            // rows back onto the session cart so server-owned fields (Code,
+            // ItemName, FromDeptService) survive a qty / rate / discount edit.
+            // Losing FromDeptService would make the save write a SERVICES id
+            // into BILLITEM.ItemId1 as if it were an ITEM id.
+            var sessionCart = GetCart().GroupBy(c => c.ItemId).ToDictionary(g => g.Key, g => g.First());
+            foreach (var r in rows)
+            {
+                if (sessionCart.TryGetValue(r.ItemId, out var original))
+                {
+                    if (string.IsNullOrWhiteSpace(r.Code)) r.Code = original.Code;
+                    if (string.IsNullOrWhiteSpace(r.ItemName)) r.ItemName = original.ItemName;
+                    r.FromDeptService = r.FromDeptService || original.FromDeptService;
+                }
+            }
+
             foreach (var r in rows)
             {
                 if (r.Qty <= 0) r.Qty = 1;
@@ -243,7 +280,9 @@ namespace HmisWeb.Pages.Us
 
         public async Task<IActionResult> OnPostSaveAsync()
         {
-            await LoadLookupsAsync();
+            // Full state is needed so a validation failure re-renders the
+            // patient + cart instead of dropping back to an empty search step.
+            await LoadStateAsync();
 
             var patientId = GetSelectedPatientId();
             var cart = GetCart();
@@ -269,7 +308,19 @@ namespace HmisWeb.Pages.Us
 
             var encounter = await GetSelectedEncounterAsync(patient.Id);
 
-            double total = Math.Round(cart.Sum(c => c.GrossValue), 2);
+            // Re-clamp before the money is written: the browser can post any
+            // qty / rate / discount combination, and a discount above the line
+            // charge would otherwise create a negative bill line.
+            foreach (var c in cart)
+            {
+                if (c.Qty <= 0) c.Qty = 1;
+                if (c.Rate < 0) c.Rate = 0;
+                if (c.Discount < 0) c.Discount = 0;
+                if (c.Discount > c.Qty * c.Rate) c.Discount = c.Qty * c.Rate;
+            }
+
+            
+double total = Math.Round(cart.Sum(c => c.GrossValue), 2);
             double itemDiscount = Math.Round(cart.Sum(c => c.Discount), 2);
             double netTotal = Math.Round(total - itemDiscount, 2);
             if (netTotal < 0) netTotal = 0;
@@ -278,7 +329,7 @@ namespace HmisWeb.Pages.Us
             var userId = _appSession.WebUserId;
             var site = _appSession.LoggedSite;
             var dept = _appSession.LoggedDepartment ?? await _db.Departments
-                .Where(d => !d.Retired && d.DepartmentType == DepartmentType.Laboratory)
+                .Where(d => !d.Retired && d.Code == DeptServiceScopes.UsDept)
                 .FirstOrDefaultAsync();
 
             bool ipd = encounter != null;
@@ -311,20 +362,6 @@ namespace HmisWeb.Pages.Us
                 Comments = "Ultra-Sound service indent. " + (Comments ?? string.Empty)
             };
 
-            // BILLITEM.ItemId1 is FK-bound to ITEM, not to USSERVICE. Resolve the billing
-            // item for each service before creating anything, and report a missing mirror
-            // as a readable message instead of a raw FK violation.
-            Dictionary<long, long> billingItemIds;
-            try
-            {
-                billingItemIds = await ResolveBillingItemIdsAsync(cart);
-            }
-            catch (InvalidOperationException ex)
-            {
-                Message = ex.Message;
-                return Page();
-            }
-
             _db.Bills.Add(bill);
             await _db.SaveChangesAsync();
 
@@ -333,19 +370,35 @@ namespace HmisWeb.Pages.Us
             {
                 var gross = Math.Round(c.Qty * c.Rate, 2);
                 var lineDiscount = c.Discount > 0 ? Math.Round(c.Discount, 2) : Math.Round(gross - c.NetValue, 2);
-                bill.BillItems.Add(new BillItem
+
+                var billItem = new BillItem
                 {
-                    ItemId1 = billingItemIds[c.ItemId],
                     Qty = c.Qty,
                     Rate = c.Rate,
                     NetRate = c.Rate,
                     GrossValue = gross,
                     Discount = lineDiscount,
                     NetValue = Math.Round(gross - lineDiscount, 2),
+                    Descreption = c.ItemName,
+                    DeptId = "03",
                     SearialNo = serial++,
                     CreatedAt = now,
                     CreaterId = userId
-                });
+                };
+
+                if (c.FromDeptService)
+                {
+                    // Ultrasound service from SERVICES table - no FK to ITEM, store code as legacy ItemId
+                    billItem.ItemId1 = null;
+                    billItem.ItemId = c.Code;
+                }
+                else
+                {
+                    billItem.ItemId1 = c.ItemId;
+                    billItem.ItemId = c.Code;
+                }
+
+                bill.BillItems.Add(billItem);
             }
             await _db.SaveChangesAsync();
 
@@ -356,63 +409,11 @@ namespace HmisWeb.Pages.Us
             TempData["IndentSuccess"] = ipd
                 ? $"US Indent #{bill.Id} saved to IPD bill of #{encounter.Id} ({encounter.BhtNo}). Amount {netTotal:N2} added to patient account."
                 : $"US Bill #{bill.Id} created as UNPAID. Patient must pay at Cashier. Amount due: {netTotal:N2}.";
+            TempData["IndentBillId"] = bill.Id.ToString();
+            TempData["IndentIsIPD"] = ipd ? "1" : "0";
+            TempData["IndentPrintUrl"] = "/Us/Reports/IndentPrintout?IndentNo=" + bill.Id + "&print=1";
 
             return RedirectToPage("/Us/Indent");
-        }
-
-        /// <summary>
-        /// Maps each USSERVICE id in the cart to its mirrored ITEM row. Services are mirrored
-        /// as INV-US-{code}; a missing mirror is created on the spot so setup stays the single
-        /// source of truth instead of the user hitting a raw FK violation.
-        /// </summary>
-        private async Task<Dictionary<long, long>> ResolveBillingItemIdsAsync(List<IndentCartItem> cart)
-        {
-            var serviceIds = cart.Select(c => c.ItemId).Where(id => id > 0).Distinct().ToList();
-
-            var services = await _db.UsServices
-                .Where(s => serviceIds.Contains(s.Id))
-                .Select(s => new { s.Id, s.Code, s.Name })
-                .ToDictionaryAsync(s => s.Id);
-
-            await _mirrors.EnsureMirrorsAsync(serviceIds);
-
-            var codes = services.Values
-                .Where(s => !string.IsNullOrWhiteSpace(s.Code))
-                .Select(s => "INV-US-" + s.Code)
-                .ToList();
-
-            var items = await _db.Items
-                .Where(i => codes.Contains(i.Code) && !i.Retired)
-                .Select(i => new { i.Id, i.Code })
-                .ToDictionaryAsync(i => i.Code, i => i.Id);
-
-            var map = new Dictionary<long, long>();
-            var missing = new List<string>();
-
-            foreach (var id in serviceIds)
-            {
-                if (!services.TryGetValue(id, out var service)) continue;
-
-                var code = string.IsNullOrWhiteSpace(service.Code) ? null : "INV-US-" + service.Code;
-                if (code != null && items.TryGetValue(code, out var itemId))
-                {
-                    map[id] = itemId;
-                }
-                else
-                {
-                    missing.Add($"{service.Code ?? service.Name} (service #{id})");
-                }
-            }
-
-            if (missing.Count > 0)
-            {
-                throw new InvalidOperationException(
-                    "These ultrasound services cannot be billed yet: "
-                    + string.Join(", ", missing)
-                    + ". Give the service a code in Ultrasound Setup, then activate it again to create its item.");
-            }
-
-            return map;
         }
 
         /// <summary>
@@ -426,9 +427,14 @@ namespace HmisWeb.Pages.Us
             if (serviceIds.Count == 0)
                 return;
 
-            var services = await _db.UsServices
-                .Where(s => serviceIds.Contains(s.Id))
+            // Ultrasound services now come from SERVICES (DeptService, dept='03'),
+            // not USSERVICE - UsServiceId FK is dropped, so leave it null.
+            var services = await _db.DeptServices
+                .Where(s => serviceIds.Contains(s.Id) && s.Dept == "03")
                 .ToDictionaryAsync(s => s.Id);
+
+            // Resolve the Ultrasound department entity for UsOrder.DepartmentId FK
+            var usDept = await _db.Departments.Where(d => d.Code == "03").FirstOrDefaultAsync();
 
             foreach (var c in cart)
             {
@@ -440,9 +446,9 @@ namespace HmisWeb.Pages.Us
                 {
                     PatientId = patient.Id,
                     PatientEncounterId = encounter?.Id,
-                    UsServiceId = c.ItemId,
+                    UsServiceId = null,
                     InstitutionId = institutionId,
-                    DepartmentId = service?.DepartmentId,
+                    DepartmentId = usDept?.Id,
                     BillId = bill.Id,
                     Qty = c.Qty,
                     OrderName = string.IsNullOrWhiteSpace(c.ItemName) ? (service?.Name ?? c.ItemName) : c.ItemName,
@@ -463,6 +469,11 @@ namespace HmisWeb.Pages.Us
         {
             await LoadLookupsAsync();
             SelectedPatient = await GetSelectedPatientAsync();
+            if (SelectedPatient != null)
+            {
+                await _common.EnrichLegacyNamesAsync(new[] { SelectedPatient });
+                LegacyPatient = await _common.GetPatientLegacyInfoAsync(SelectedPatient);
+            }
             DisplayCart = GetCart();
             Cart = DisplayCart;
             if (SelectedPatient != null)
@@ -485,10 +496,18 @@ namespace HmisWeb.Pages.Us
                 ActiveEncounters = new();
                 SelectedEncounter = null;
                 UnpaidBills = new();
+                LegacyPatient = null;
             }
             ComputeTotals();
             if (TempData["IndentMessage"] != null)
                 Message = TempData["IndentMessage"].ToString();
+
+            // Preload US services so the add-service modal always has content
+            ServiceResults = await _db.DeptServices
+                .Where(s => s.Dept == "03" && !s.Retired && s.Billable)
+                .OrderBy(s => s.Name)
+                .Take(100)
+                .ToListAsync();
         }
 
         private void ComputeTotals()
@@ -502,17 +521,14 @@ namespace HmisWeb.Pages.Us
         private async Task SearchServicesAsync()
         {
             var term = ServiceSearch?.Trim();
-            var departmentId = _appSession.LoggedDepartment?.Id;
-            var q = _db.UsServices.Where(s => !s.Retired && s.Active && s.Billable);
 
-            if (departmentId != null)
-                q = q.Where(s => s.DepartmentId == departmentId);
+            // Ultrasound services live in the shared SERVICES table (DEPT = '03'), not USSERVICE
+            var q = _db.DeptServices.Where(s => s.Dept == "03" && !s.Retired && s.Billable);
 
             if (!string.IsNullOrWhiteSpace(term))
             {
                 q = q.Where(s => (s.Name != null && s.Name.Contains(term))
                     || (s.Sname != null && s.Sname.Contains(term))
-                    || (s.PrintName != null && s.PrintName.Contains(term))
                     || (s.Code != null && s.Code.Contains(term)));
             }
 
@@ -582,6 +598,8 @@ namespace HmisWeb.Pages.Us
             public int Qty { get; set; }
             public double Rate { get; set; }
             public double Discount { get; set; }
+            /// <summary>true when the line comes from SERVICES (DeptService, dept='03') rather than a mirrored ITEM row.</summary>
+            public bool FromDeptService { get; set; }
             public double GrossValue => Math.Round(Qty * Rate, 2);
             public double NetValue => Math.Round(GrossValue - Discount, 2);
         }

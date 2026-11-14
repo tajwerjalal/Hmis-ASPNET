@@ -27,7 +27,7 @@ namespace HmisWeb.Pages.Cashier
             if (ToDate == null) ToDate = DateTime.Today;
             var dept = _session.LoggedDepartment;
             var ccode = dept?.Code ?? "";
-            var lcode = dept?.Id ?? 0;
+            var lcode = (int)(dept?.Id ?? 0);
 
             Receipts = await _db.CashReceipts
                 .Where(r => r.CCode == ccode && r.LCode == lcode && r.TrDate >= FromDate && r.TrDate <= ToDate)

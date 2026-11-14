@@ -257,7 +257,8 @@ namespace HmisWeb.Pages.Opd
         {
             var rateCompanies = await _db.CompanyServiceRates
                 .Where(c => !c.Retired)
-                .Select(c => c.CompanyId)
+                .Where(c => c.CompanyId != null)
+                .Select(c => c.CompanyId.Value)
                 .ToListAsync();
             var employeeCompanies = await _db.CompanyEmployees
                 .Where(e => !e.Retired)

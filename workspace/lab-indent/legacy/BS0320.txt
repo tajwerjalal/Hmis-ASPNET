@@ -1,0 +1,568 @@
+﻿VERSION =   3.00
+dataenvironment
+dataenvironment
+Dataenvironment
+lLeft = -6
+Top = 65
+Width = 412
+Height = 286
+InitialSelectedAlias = "compchg"
+Name = "Dataenvironment"
+
+Dataenvironment
+Left = 166
+Top = -4
+Width = 95
+Height = 90
+Alias = "compchg"
+BufferModeOverride = 5
+Order = "cidscode"
+CursorSource = ..\..\master\compchg.dbf
+Filter = ""
+Name = "Cursor1"
+
+Dataenvironment
+Left = 11
+Top = 1
+Width = 95
+Height = 90
+Alias = "company"
+BufferModeOverride = 0
+Order = "id"
+CursorSource = ..\..\master\company.dbf
+Name = "Cursor2"
+
+Dataenvironment
+Left = 288
+Top = 16
+Width = 95
+Height = 90
+Alias = "services"
+BufferModeOverride = 0
+Order = "code"
+CursorSource = ..\..\master\services.dbf
+Filter = ""
+Name = "Cursor3"
+
+Dataenvironment
+Left = 98
+Top = 154
+Width = 90
+Height = 90
+Alias = "dept"
+BufferModeOverride = 0
+Order = "id"
+CursorSource = ..\..\master\dept.dbf
+Name = "Cursor4"
+
+relation
+relation
+	Relation2
+Dataenvironment
+uParentAlias = "compchg"
+RelationalExpr = "scode"
+ChildAlias = "services"
+ChildOrder = "code"
+Name = "Relation2"
+
+relation
+relation
+	Relation3
+Dataenvironment
+nParentAlias = "compchg"
+RelationalExpr = "dept"
+ChildAlias = "dept"
+ChildOrder = "id"
+Name = "Relation3"
+
+relation
+relation
+	Relation1
+Dataenvironment
+pParentAlias = "compchg"
+RelationalExpr = "cid"
+ChildAlias = "company"
+ChildOrder = "id"
+Name = "Relation1"
+
+baseform
+ ..\..\common\class\baseclass.vcx
+
+frmcompchg
+Top = 1
+Left = 2
+Height = 234
+Width = 472
+DoCreate = .T.
+Caption = "Company Test Charges Setup"
+WindowState = 0
+findform = bs0320f
+menukey = bs0320
+Name = "frmcompchg"
+
+PROCEDURE updbuttons
+dodefault()
+thisform.baseframe1.page1.cboscode.refresh
+ENDPROC
+PROCEDURE validrec
+if len(alltrim(thisform.baseframe1.page1.cbodept.value))=0
+	thisform.validmsg = "Please select Department"
+	return .f.
+endif
+if len(alltrim(thisform.baseframe1.page1.cbocid.displayvalue))=0
+	thisform.validmsg = "Please select company name"
+	return .f.
+endif
+if len(alltrim(thisform.baseframe1.page1.cboscode.value))=0
+	thisform.validmsg = "Please select test description"
+	return .f.
+endif
+if thisform.baseframe1.page1.txtsrate.value=0 and thisform.baseframe1.page1.txturate.value=0
+	thisform.validmsg = "Please enter test charges"
+	return .f.
+endif
+
+if thisform.editmode = .f.
+	oldalias = select()
+	select 0
+	use compchg again
+	set order to cidscode
+	if seek(thisform.baseframe1.page1.cbocid.value+ ;
+		thisform.baseframe1.page1.cboscode.value)
+		use
+		select (oldalias)
+		thisform.validmsg = "Duplicate entry found, Re-enter"
+		return .f.
+	endif
+	use
+	select (oldalias)
+endif
+
+ENDPROC
+
+Invalid Code 
+Validation Error
+THISFORM
+CBOSCODE
+DISPLAYVALUE
+REQUERY,
+TXTSCODE
+Refresh,
+	baseframe
+ ..\..\common\class\baseclass.vcx
+	pageframe
+
+BASEFRAME1
+
+frmcompchg
+ErasePage = .T.
+Top = 0
+Left = 0
+Width = 473
+Height = 234
+Name = "BASEFRAME1"
+Page1.Name = "Page1"
+Page2.Name = "Page2"
+
+ ..\..\common\class\baseclass.vcx
+frmcompchg.BASEFRAME1.Page1
+hCaption = "Company Name"
+Height = 16
+Left = 36
+Top = 67
+Width = 77
+TabIndex = 10
+Name = "lblCid"
+
+ ..\..\common\class\baseclass.vcx
+lblScode
+frmcompchg.BASEFRAME1.Page1
+nCaption = "Test Description"
+Height = 16
+Left = 33
+Top = 97
+Width = 80
+TabIndex = 11
+Name = "lblScode"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+txtSrate
+frmcompchg.BASEFRAME1.Page1
+Comment = ""
+ControlSource = "compchg.srate"
+Format = ""
+Height = 22
+InputMask = "99999"
+Left = 119
+MaxLength = 8
+TabIndex = 6
+Top = 130
+Width = 54
+Name = "txtSrate"
+
+ ..\..\common\class\baseclass.vcx
+lblSrate
+frmcompchg.BASEFRAME1.Page1
+kCaption = "Normal Chgs."
+Height = 16
+Left = 47
+Top = 133
+Width = 66
+TabIndex = 12
+Name = "lblSrate"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+txtUrate
+frmcompchg.BASEFRAME1.Page1
+Comment = ""
+ControlSource = "compchg.urate"
+Height = 22
+InputMask = "99999"
+Left = 263
+MaxLength = 8
+TabIndex = 7
+Top = 130
+Width = 54
+Name = "txtUrate"
+
+ ..\..\common\class\baseclass.vcx
+lblUrate
+frmcompchg.BASEFRAME1.Page1
+lCaption = "Urgent Chgs."
+Height = 16
+Left = 191
+Top = 133
+Width = 65
+TabIndex = 13
+Name = "lblUrate"
+
+	ccombobox
+ ..\..\common\class\baseclass.vcx
+combobox
+frmcompchg.BASEFRAME1.Page1
+ColumnCount = 2
+ColumnWidths = "210,50"
+RowSource = 'select name,id  from company where company.status<>"I" order by name into cursor cbocid'
+ControlSource = "compchg.cid"
+Height = 21
+Left = 176
+Style = 2
+TabIndex = 3
+Top = 62
+Width = 147
+editable = .F.
+Name = "cbocid"
+
+]PROCEDURE Valid
+this.parent.txtcid.value=this.value
+this.parent.txtcid.refresh
+
+ENDPROC
+
+	ccombobox
+ ..\..\common\class\baseclass.vcx
+combobox
+cboscode
+frmcompchg.BASEFRAME1.Page1
+GColumnCount = 2
+ColumnWidths = "210,50"
+RowSource = "select desc, code from services where dept=this.parent.cbodept.value and services.active<>'I' order by desc into cursor cboscode"
+ControlSource = "compchg.scode"
+Height = 21
+Left = 176
+Style = 2
+TabIndex = 5
+Top = 92
+Width = 147
+editable = .F.
+Name = "cboscode"
+
+PROCEDURE Refresh
+this.requery
+dodefault()
+ENDPROC
+PROCEDURE Valid
+this.parent.txtscode.value=this.value
+this.parent.txtscode.refresh
+
+ENDPROC
+
+BArial, 0, 8, 5, 14, 11, 30, 3, 0
+Arial, 0, 9, 5, 15, 12, 32, 3, 0
+
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+-frmcompchg.BASEFRAME1.Page2.Listgrid1.Column7
+-frmcompchg.BASEFRAME1.Page2.Listgrid1.Column7
+	ccombobox
+ ..\..\common\class\baseclass.vcx
+combobox
+frmcompchg.BASEFRAME1.Page1
+RowSource = "select name,id  from dept  order by name into cursor cbodept"
+ControlSource = "compchg.dept"
+Height = 21
+Left = 119
+TabIndex = 1
+Top = 34
+Width = 203
+editable = .F.
+Name = "cbodept"
+
+ ..\..\common\class\baseclass.vcx
+frmcompchg.BASEFRAME1.Page1
+MCaption = "Department"
+Left = 56
+Top = 39
+TabIndex = 9
+Name = "Clabel1"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+frmcompchg.BASEFRAME1.Page1
+ControlSource = "compchg.cid"
+Height = 22
+Left = 119
+MaxLength = 4
+ReadOnly = .F.
+TabIndex = 2
+Top = 61
+Width = 55
+editable = .F.
+Name = "txtcid"
+
+[PROCEDURE Valid
+this.parent.cbocid.value=this.value
+this.parent.cbocid.refresh
+ENDPROC
+
+5FontSize = 8
+Caption = "Test ID"
+Name = "Header1"
+
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+txtscode
+frmcompchg.BASEFRAME1.Page1
+ControlSource = "compchg.scode"
+Height = 22
+Left = 119
+MaxLength = 5
+ReadOnly = .F.
+TabIndex = 4
+Top = 91
+Width = 55
+editable = .F.
+Name = "txtscode"
+
+3PROCEDURE Valid
+if !thisform.chgmode or empty(this.value)
+ return .t.
+ endif
+
+this.parent.cboscode.value=this.value
+if !this.parent.cboscode.valid()
+	return .f.
+endif
+if empty(this.parent.cboscode.displayvalue)
+	=messagebox('Invalid Code ',16,'Validation Error')
+	return .f.
+endif 
+ 
+ENDPROC
+
+-frmcompchg.BASEFRAME1.Page2.Listgrid1.Column6
+:FontSize = 8
+Caption = "Company Code"
+Name = "Header1"
+
+-frmcompchg.BASEFRAME1.Page2.Listgrid1.Column6
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+-frmcompchg.BASEFRAME1.Page2.Listgrid1.coldept
+checkbox
+checkbox
+	chkchange
+frmcompchg.BASEFRAME1.Page1
+Top = 158
+Left = 46
+Height = 17
+Width = 86
+AutoSize = .F.
+Alignment = 1
+Caption = "Changeable"
+ControlSource = "compchg.change"
+TabIndex = 8
+Name = "chkchange"
+
+listgrid
+ ..\..\common\class\baseclass.vcx
+	Listgrid1
+frmcompchg.BASEFRAME1.Page2
+]ColumnCount = 7
+AllowHeaderSizing = .F.
+AllowRowSizing = .T.
+Height = 193
+Left = 2
+Panel = 1
+ReadOnly = .T.
+RecordSource = "compchg"
+RowHeight = 24
+Top = 8
+Width = 463
+Name = "Listgrid1"
+Column1.FontSize = 8
+Column1.ColumnOrder = 3
+Column1.ControlSource = "company.name"
+Column1.CurrentControl = "Text1"
+Column1.Width = 178
+Column1.ReadOnly = .T.
+Column1.Sparse = .F.
+Column1.Name = "Column1"
+Column2.FontSize = 8
+Column2.ColumnOrder = 5
+Column2.ControlSource = "services.desc"
+Column2.CurrentControl = "Text1"
+Column2.Width = 189
+Column2.ReadOnly = .T.
+Column2.Sparse = .F.
+Column2.Name = "Column2"
+Column3.FontSize = 8
+Column3.ColumnOrder = 6
+Column3.ControlSource = "compchg.srate"
+Column3.Width = 64
+Column3.ReadOnly = .T.
+Column3.Name = "Column3"
+Column4.FontSize = 8
+Column4.ColumnOrder = 7
+Column4.ControlSource = "compchg.urate"
+Column4.Width = 60
+Column4.ReadOnly = .T.
+Column4.Name = "Column4"
+Column5.FontSize = 8
+Column5.ColumnOrder = 1
+Column5.ControlSource = "dept.name"
+Column5.Width = 138
+Column5.ReadOnly = .T.
+Column5.Name = "coldept"
+Column6.FontSize = 8
+Column6.ColumnOrder = 2
+Column6.ControlSource = "compchg.cid"
+Column6.ReadOnly = .T.
+Column6.Name = "Column6"
+Column7.FontSize = 8
+Column7.ColumnOrder = 4
+Column7.ControlSource = "compchg.scode"
+Column7.ReadOnly = .T.
+Column7.Name = "Column7"
+
+-frmcompchg.BASEFRAME1.Page2.Listgrid1.Column1
+IFontSize = 8
+Alignment = 2
+Caption = "Company Name"
+Name = "Header1"
+
+-frmcompchg.BASEFRAME1.Page2.Listgrid1.Column1
+`BorderStyle = 0
+Height = 23
+Left = 46
+ReadOnly = .T.
+Top = 37
+Width = 100
+Name = "Text1"
+
+-frmcompchg.BASEFRAME1.Page2.Listgrid1.Column2
+GFontSize = 8
+Alignment = 2
+Caption = "Test Desc."
+Name = "Header1"
+
+-frmcompchg.BASEFRAME1.Page2.Listgrid1.Column2
+`BorderStyle = 0
+Height = 23
+Left = 60
+ReadOnly = .T.
+Top = 37
+Width = 100
+Name = "Text1"
+
+-frmcompchg.BASEFRAME1.Page2.Listgrid1.Column3
+:FontSize = 8
+Caption = "Normal Chgs."
+Name = "Header1"
+
+-frmcompchg.BASEFRAME1.Page2.Listgrid1.Column3
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+-frmcompchg.BASEFRAME1.Page2.Listgrid1.Column4
+:FontSize = 8
+Caption = "Urgent Chgs."
+Name = "Header1"
+
+-frmcompchg.BASEFRAME1.Page2.Listgrid1.Column4
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+-frmcompchg.BASEFRAME1.Page2.Listgrid1.coldept
+GFontSize = 8
+Alignment = 2
+Caption = "Department"
+Name = "Header1"
+
+THISFORM
+
+BASEFRAME1
+CBOSCODE
+REFRESH:
+Please select Department
+Please select company name
+Please select test description
+Please enter test charges
+cidscode
+Duplicate entry found, Re-enter
+THISFORM
+
+BASEFRAME1
+VALIDMSG
+DISPLAYVALUE
+CBOSCODE
+TXTSRATE
+TXTURATE
+EDITMODE
+OLDALIAS
+CIDSCODE
+
+updbuttons,
+validrec

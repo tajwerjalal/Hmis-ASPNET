@@ -24,7 +24,7 @@ namespace HmisWeb.Services
 
     /// <summary>
     /// An X-ray service cannot be put on a bill until the item master has a row that
-    /// billing can charge, so every XRSERVICE is mirrored to an ITEM as INV-XR-{code}.
+    /// billing can charge, so every DeptService is mirrored to an ITEM as INV-XR-{code}.
     /// The indent screen used to only report the gap; this closes it automatically so an
     /// activated service is always billable.
     /// </summary>
@@ -50,9 +50,9 @@ namespace HmisWeb.Services
             var ids = (serviceIds ?? Enumerable.Empty<long>()).Where(id => id > 0).Distinct().ToList();
             if (ids.Count == 0) return result;
 
-            var services = await _db.XrServices
+            var services = await _db.XrServices()
                 .Where(s => ids.Contains(s.Id))
-                .Select(s => new { s.Id, s.Code, s.Name, s.Rate, s.RateForeigner, s.DiscountAllowed, s.Retired, s.Billable })
+                .Select(s => new { s.Id, s.Code, s.Name, s.Rate, s.RateForeigner, s.Retired, s.Billable })
                 .ToListAsync();
 
             var codes = services
@@ -85,10 +85,12 @@ namespace HmisWeb.Services
                     Name = service.Name,
                     Code = mirrorCode,
                     PrintName = service.Name,
-                    Total = service.Rate,
-                    TotalForForeigner = service.RateForeigner,
-                    UnitRate = service.Rate,
-                    DiscountAllowed = service.DiscountAllowed,
+                    Total = (double)(service.Rate ?? 0m),
+                    TotalForForeigner = (double)(service.RateForeigner ?? 0m),
+                    UnitRate = (double)(service.Rate ?? 0m),
+                    // DiscountAllowed: the consolidated SERVICES master has no per-item
+                    // discount flag (the legacy column was empty on all XR rows), so
+                    // mirrors stay non-discountable - revisit with Finance if needed.
                     Billable = true,
                     Retired = service.Retired,
                     CreatedAt = now,
@@ -106,7 +108,7 @@ namespace HmisWeb.Services
 
         public async Task<UsBillingMirrorResult> EnsureAllMissingAsync()
         {
-            var ids = await _db.XrServices
+            var ids = await _db.XrServices()
                 .Where(s => !string.IsNullOrWhiteSpace(s.Code))
                 .Select(s => s.Id)
                 .ToListAsync();

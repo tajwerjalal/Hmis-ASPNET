@@ -112,7 +112,7 @@
             w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Test Charges</title><style>' + css + '</style></head><body>');
             w.document.write('<h1>TEST CHARGES REPORT</h1><div class="sub">@Model.CompanyName</div>');
             w.document.write(document.getElementById('tcTable').innerHTML);
-            w.document.write('</body></html>');
+            w.document.write('<\/body><\/html>');
             w.document.close();
             w.focus();
             setTimeout(function () { w.print(); }, 400);

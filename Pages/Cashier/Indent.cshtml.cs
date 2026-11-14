@@ -10,7 +10,7 @@ using HmisWeb.Services;
 
 namespace HmisWeb.Pages.Cashier
 {
-    public class IndentModel : PageModel
+    public class IndentModel : CashierPageModel
     {
         private readonly ApplicationDbContext _db;
         private readonly ICommonService _common;

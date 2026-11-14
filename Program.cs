@@ -12,6 +12,11 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IAppSession, AppSession>();
+builder.Services.AddScoped<HmisWeb.Services.Lab.LabSchemaService>();
+builder.Services.AddScoped<HmisWeb.Services.Lab.NormalRangeService>();
+builder.Services.AddScoped<HmisWeb.Services.Lab.CultureService>();
+builder.Services.AddScoped<HmisWeb.Services.Lab.LabResultService>();
+builder.Services.AddScoped<HmisWeb.Services.Lab.LabReportFunctionService>();
 builder.Services.AddScoped<IPasswordService, PasswordService>();
 builder.Services.AddScoped<ICommonService, CommonService>();
 builder.Services.AddScoped<IUsReportTemplateService, UsReportTemplateService>();
@@ -20,6 +25,7 @@ builder.Services.AddScoped<IUsBillingMirrorService, UsBillingMirrorService>();
         builder.Services.AddScoped<IXrReportTemplateService, XrReportTemplateService>();
         builder.Services.AddScoped<IXrReportDictionaryService, XrReportDictionaryService>();
         builder.Services.AddScoped<IXrBillingMirrorService, XrBillingMirrorService>();
+        builder.Services.AddScoped<IDeptBillingMirrorService, DeptBillingMirrorService>();
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<ILookupSeedService, LookupSeedService>();
 
@@ -39,6 +45,9 @@ builder.Services.AddScoped<HmisWeb.Services.Billing.OpdBillGenerateService>();
 builder.Services.AddScoped<HmisWeb.Services.Billing.RecoveryInvoiceQueryService>();
 builder.Services.AddScoped<HmisWeb.Services.Billing.RecoveryInvoiceService>();
 builder.Services.AddScoped<HmisWeb.Services.Billing.RecoveryInvoiceReportService>();
+// Recovery module - phase 4 sprint 2: Receipts/Cheques (/Recovery/Receipt)
+builder.Services.AddScoped<HmisWeb.Services.Billing.RecoveryReceiptQueryService>();
+builder.Services.AddScoped<HmisWeb.Services.Billing.RecoveryReceiptService>();
 
 builder.Services.AddAuthentication("HmisAuth")
     .AddCookie("HmisAuth", options =>
@@ -46,7 +55,11 @@ builder.Services.AddAuthentication("HmisAuth")
         options.LoginPath = "/Account/Login";
         options.LogoutPath = "/Account/Logout";
         options.AccessDeniedPath = "/Account/AccessDenied";
-        options.ExpireTimeSpan = TimeSpan.FromMinutes(90);
+        options.ExpireTimeSpan = TimeSpan.FromDays(30);
+        options.SlidingExpiration = true;
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
     });
 
 builder.Services.AddSession(options =>
@@ -70,8 +83,69 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthentication();
-app.UseAuthorization();
 app.UseSession();
+
+// The app keeps the signed-in user in the in-memory session. A restart (or
+// an app-pool recycle) clears that session even though the browser still has
+// the "Remember me" cookie. Rehydrate the session from the auth cookie so the
+// user stays signed in until the cookie expires.
+app.Use(async (context, next) =>
+{
+    if (context.User.Identity?.IsAuthenticated == true &&
+        string.IsNullOrEmpty(context.Session.GetString("LoggedUserId")))
+    {
+        var id = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (long.TryParse(id, out _))
+        {
+            context.Session.SetString("LoggedUserId", id);
+
+            var dept = context.User.FindFirst("DepartmentId")?.Value;
+            if (long.TryParse(dept, out _))
+                context.Session.SetString("LoggedDepartmentId", dept);
+        }
+    }
+
+    await next();
+});
+
+// Require a signed-in user for every page except the authentication flow.
+// The login page is a standalone screen (no sidebar) and is always the first
+// page an anonymous visitor sees.
+app.Use(async (context, next) =>
+{
+    var path = context.Request.Path;
+
+    var isPublicPath =
+        path.StartsWithSegments("/Account/Login", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWithSegments("/Account/Setup", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWithSegments("/Account/Logout", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWithSegments("/Account/AccessDenied", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWithSegments("/Error", StringComparison.OrdinalIgnoreCase)
+        || path.StartsWithSegments("/favicon.ico", StringComparison.OrdinalIgnoreCase);
+
+    if (!isPublicPath)
+    {
+        var isAuthenticated = context.User.Identity?.IsAuthenticated == true
+            || !string.IsNullOrEmpty(context.Session.GetString("LoggedUserId"));
+
+        if (!isAuthenticated)
+        {
+            var loginUrl = "/Account/Login";
+            if (HttpMethods.IsGet(context.Request.Method) || HttpMethods.IsHead(context.Request.Method))
+            {
+                var returnUrl = context.Request.Path + context.Request.QueryString;
+                loginUrl += "?returnUrl=" + Uri.EscapeDataString(returnUrl);
+            }
+
+            context.Response.Redirect(loginUrl);
+            return;
+        }
+    }
+
+    await next();
+});
+
+app.UseAuthorization();
 app.MapRazorPages();
 
 using (var scope = app.Services.CreateScope())
@@ -81,6 +155,12 @@ using (var scope = app.Services.CreateScope())
 
     var seeder = scope.ServiceProvider.GetRequiredService<ILookupSeedService>();
     await seeder.EnsureSeededAsync();
+
+    // Billing mirrors: every department service on the shared SERVICES
+    // master (DEPT='01') needs an INV-LB-{code} ITEM row so bills can
+    // reference it. Idempotent - only missing mirrors are created.
+    var deptMirrors = scope.ServiceProvider.GetRequiredService<IDeptBillingMirrorService>();
+    await deptMirrors.EnsureAllMissingAsync();
 }
 
 app.Run();

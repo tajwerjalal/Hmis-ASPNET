@@ -1,0 +1,907 @@
+﻿VERSION =   3.00
+dataenvironment
+dataenvironment
+Dataenvironment
+lLeft = 23
+Top = 34
+Width = 520
+Height = 265
+InitialSelectedAlias = "collect"
+Name = "Dataenvironment"
+
+Dataenvironment
+Left = 9
+Top = 140
+Width = 95
+Height = 90
+Alias = "consult"
+BufferModeOverride = 5
+Order = "id"
+CursorSource = ..\..\master\consult.dbf
+Name = "Cursor4"
+
+Dataenvironment
+Left = 14
+Top = 21
+Width = 90
+Height = 90
+Alias = "collect"
+BufferModeOverride = 5
+Order = "indentno"
+Database = ..\us.dbc
+CursorSource = "collect"
+Name = "Cursor1"
+
+Dataenvironment
+Left = 124
+Top = 22
+Width = 89
+Height = 90
+Alias = "trans"
+BufferModeOverride = 5
+Order = "id"
+Database = ..\us.dbc
+CursorSource = "trans"
+Name = "Cursor2"
+
+Dataenvironment
+Left = 241
+Top = 22
+Width = 90
+Height = 90
+Alias = "reports"
+BufferModeOverride = 5
+Order = "link"
+Database = ..\us.dbc
+CursorSource = "reports"
+Name = "Cursor3"
+
+Dataenvironment
+Left = 123
+Top = 140
+Width = 90
+Height = 90
+Alias = "rptsetup"
+BufferModeOverride = 5
+Order = "sid"
+Database = ..\us.dbc
+CursorSource = "rptsetup"
+Name = "Cursor5"
+
+relation
+relation
+	Relation1
+Dataenvironment
+ParentAlias = "trans"
+RelationalExpr = "indentno+sid+testno"
+ChildAlias = "reports"
+ChildOrder = "link"
+Name = "Relation1"
+
+baseform
+ ..\..\common\class\baseclass.vcx
+
+frmrepoent
+Top = 0
+Left = 0
+Height = 340
+Width = 616
+DoCreate = .T.
+Caption = "Report Entry"
+WindowState = 0
+ctext = 
+findform = us0110f
+menukey = us0110
+childtable = trans
+Name = "frmrepoent"
+
+iPROCEDURE repoquery
+do form us0240 with collect.indentno noshow
+us0240.show(1)
+
+ENDPROC
+PROCEDURE Init
+dodefault()
+thisform.chkadd = .f.
+thisform.chkdelete = .f.
+
+ENDPROC
+PROCEDURE validrec
+replace reports.report with thisform.baseframe1.page1.Olertf.textrtf
+
+ENDPROC
+PROCEDURE Activate
+dodefault()
+ctoolbar.cmdreport.visible = .t.
+
+ENDPROC
+
+THISFORM
+THISFORM
+BASEFRAME1
+Refresh,
+LostFocusq
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+.frmrepoent.Baseframe1.Page2.Listgrid1.Column26
+	baseframe
+ ..\..\common\class\baseclass.vcx
+	pageframe
+
+Baseframe1
+
+frmrepoent
+ErasePage = .T.
+Top = 0
+Left = 0
+Width = 618
+Height = 342
+Name = "Baseframe1"
+Page1.Comment = ""
+Page1.Name = "Page1"
+Page2.Name = "Page2"
+
+txtIndentno
+frmrepoent.Baseframe1.Page1
+Comment = ""
+FontSize = 8
+ControlSource = "collect.indentno"
+Format = "!R"
+Height = 23
+InputMask = "999-999999"
+Left = 95
+MaxLength = 9
+ReadOnly = .T.
+TabIndex = 2
+Top = 5
+Width = 71
+DisabledForeColor = 64,0,64
+Name = "txtIndentno"
+
+lblIndentno
+frmrepoent.Baseframe1.Page1
+AutoSize = .T.
+FontSize = 8
+BackStyle = 0
+Caption = "US Indent No"
+Left = 27
+Top = 12
+TabIndex = 1
+Name = "lblIndentno"
+
+frmrepoent.Baseframe1.Page1
+Comment = ""
+FontSize = 8
+ControlSource = "collect.name"
+Format = "!"
+Height = 23
+Left = 95
+MaxLength = 25
+ReadOnly = .T.
+TabIndex = 4
+Top = 29
+Width = 201
+DisabledForeColor = 64,0,64
+Name = "txtName"
+
+frmrepoent.Baseframe1.Page1
+|AutoSize = .T.
+FontSize = 8
+BackStyle = 0
+Caption = "Patient Name"
+Left = 27
+Top = 36
+TabIndex = 3
+Name = "lblName"
+
+	childgrid
+ ..\..\common\class\baseclass.vcx
+
+Childgrid1
+frmrepoent.Baseframe1.Page1
+$ColumnCount = 2
+FontSize = 8
+ChildOrder = "id"
+DeleteMark = .F.
+Height = 71
+Left = 311
+LinkMaster = "collect"
+Panel = 1
+ReadOnly = .T.
+RecordSource = "trans"
+RelationalExpr = "indentno"
+RowHeight = 17
+ScrollBars = 2
+Top = 3
+Width = 297
+attachbtns = 
+Name = "Childgrid1"
+Column1.FontSize = 8
+Column1.ControlSource = "trans.sid"
+Column1.Width = 51
+Column1.ReadOnly = .T.
+Column1.Name = "Column1"
+Column2.FontSize = 8
+Column2.ControlSource = "trans.sname"
+Column2.Width = 210
+Column2.ReadOnly = .T.
+Column2.Name = "Column2"
+
+PROCEDURE AfterRowColChange
+LPARAMETERS nColIndex
+if thisform.chgmode
+if eof("Reports")
+	append blank in reports
+	repl reports.indentno with trans.indentno,;
+		 reports.sid with trans.sid, ;
+		 reports.testno with trans.testno
+		 thisform.baseframe1.page1.cboby.refresh
+endif
+endif
+thisform.baseframe1.page1.Olertf.refresh
+thisform.baseframe1.page1.cboby.refresh
+
+ENDPROC
+
+Reports+
+NCOLINDEX
+THISFORM
+INDENTNO
+BASEFRAME1
+AfterRowColChange,
+.frmrepoent.Baseframe1.Page1.Childgrid1.Column1
+5FontSize = 8
+Caption = "Test ID"
+Name = "Header1"
+
+.frmrepoent.Baseframe1.Page1.Childgrid1.Column1
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+.frmrepoent.Baseframe1.Page1.Childgrid1.Column2
+>FontSize = 8
+Caption = "Test Description"
+Name = "Header1"
+
+.frmrepoent.Baseframe1.Page1.Childgrid1.Column2
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+	ccombobox
+ ..\..\common\class\baseclass.vcx
+combobox
+frmrepoent.Baseframe1.Page1
+cFontName = "Arial"
+ColumnCount = 4
+ColumnWidths = "150,30,140,140"
+RowSource = "select prefix + ' ' +alltrim(name) as name, id, digree, title from consult,consdept where consult.id=consdept.consid and consdept.dept=gcdept order by name into cursor cboby"
+ControlSource = "trans.concode"
+Height = 21
+Left = 95
+Top = 54
+Width = 202
+Name = "cboby"
+
+frmrepoent.Baseframe1.Page1
+~AutoSize = .T.
+FontSize = 8
+BackStyle = 0
+Caption = "Investigated By"
+Left = 14
+Top = 59
+TabIndex = 3
+Name = "Label1"
+
+
+olecontrol
+
+olecontrol
+frmrepoent.Baseframe1.Page1
+qTop = 104
+Left = 0
+Height = 209
+Width = 612
+TabIndex = 6
+ControlSource = "Thisform.cText"
+Name = "olertf"
+
+PROCEDURE Refresh
+*** OLE Control Method ***
+thisform.ctext = reports.report
+dodefault()
+ENDPROC
+PROCEDURE LostFocus
+if thisform.chgmode
+	replace reports.report with thisform.baseframe1.page1.Olertf.textrtf
+endif
+
+ENDPROC
+
+Arial, 0, 8, 5, 14, 11, 14, 3, 0
+Comic Sans MS, 0, 8, 5, 15, 12, 14, 3, 0
+Comic Sans MS, 1, 8, 5, 16, 13, 15, 3, 0
+Comic Sans MS, 2, 8, 5, 15, 12, 14, 3, 0
+Comic Sans MS, 4, 8, 5, 15, 12, 14, 3, 0
+
+4FontSize = 8
+Caption = "Posted"
+Name = "Header1"
+
+.frmrepoent.Baseframe1.Page2.Listgrid1.Column26
+ qhj ZtuQha;jdfn[iaetr 
+BorderStyle
+DisableNoScroll
+Arialttbl{\f0\fswiss MS Sans Serif;}{\f1\froman\fcharset2 Symbol;}{\f2\fswiss Arial;}{\f3\fswiss Arial;}}
+{\colortbl\red0\green0\blue0;}
+\deflang1033\pard\plain\f2\fs24 
+\par }
+
+HideSelection
+RightMargin
+ScrollBars
+,OLEObject = C:\WINNT\System32\RICHTX32.OCX
+
+crtfcontrol
+ ..\..\common\class\baseclass.vcx
+	container
+Crtfcontrol1
+frmrepoent.Baseframe1.Page1
+:Top = 78
+Left = 3
+Width = 608
+Height = 25
+Name = "Crtfcontrol1"
+cmdload.ToolTipText = "Load Default Report from Setup "
+cmdload.Name = "cmdload"
+cmdBold.Top = 1
+cmdBold.Left = 327
+cmdBold.Name = "cmdBold"
+cmdItalic.Top = 1
+cmdItalic.Left = 372
+cmdItalic.Name = "cmdItalic"
+cmdleft.Top = 1
+cmdleft.Left = 469
+cmdleft.Name = "cmdleft"
+cmdcenter.Top = 1
+cmdcenter.Left = 515
+cmdcenter.Name = "cmdcenter"
+cmdright.Top = 1
+cmdright.Left = 561
+cmdright.Name = "cmdright"
+cmdunderline.Top = 1
+cmdunderline.Left = 417
+cmdunderline.Name = "cmdunderline"
+
+PROCEDURE cmdload.Click
+if seek(trans.sid,"rptsetup")
+	if ! seek(trans.indentno+trans.sid+trans.testno,"Reports")
+		append blank in reports
+		repl reports.indentno with trans.indentno,;
+			 reports.sid with trans.sid, ;
+			 reports.testno with trans.testno
+	 		 thisform.baseframe1.page1.cboby.refresh
+	Endif
+	replace reports.report with rptsetup.report
+else
+	=messagebox("Default Test Report does not exist",0+16+0,"Load Error")
+endif	
+this.parent.parent.Olertf.refresh
+this.parent.parent.Olertf.setfocus
+
+ENDPROC
+
+rptsetup
+Default Test Report does not exist
+Load Error
+INDENTNO
+THISFORM
+
+BASEFRAME1
+RPTSETUP
+SETFOCUS
+cmdload.Click,
+listgrid
+ ..\..\common\class\baseclass.vcx
+	Listgrid1
+frmrepoent.Baseframe1.Page2
+	ColumnCount = 25
+FontSize = 8
+Height = 302
+Left = 6
+Panel = 1
+ReadOnly = .T.
+RecordSource = "collect"
+RowHeight = 17
+Top = 8
+Width = 604
+Name = "Listgrid1"
+Column1.FontSize = 8
+Column1.ControlSource = "collect.indentno"
+Column1.Width = 89
+Column1.ReadOnly = .T.
+Column1.Name = "Column1"
+Column2.FontSize = 8
+Column2.ControlSource = "collect.date"
+Column2.Width = 65
+Column2.ReadOnly = .T.
+Column2.Name = "Column2"
+Column3.FontSize = 8
+Column3.ControlSource = "collect.time"
+Column3.Width = 46
+Column3.ReadOnly = .T.
+Column3.Name = "Column3"
+Column4.FontSize = 8
+Column4.ControlSource = "collect.cid"
+Column4.Width = 48
+Column4.ReadOnly = .T.
+Column4.Name = "Column4"
+Column5.FontSize = 8
+Column5.ControlSource = "collect.regno"
+Column5.Width = 60
+Column5.ReadOnly = .T.
+Column5.Name = "Column5"
+Column6.FontSize = 8
+Column6.ControlSource = "collect.type"
+Column6.Width = 47
+Column6.ReadOnly = .T.
+Column6.Name = "Column6"
+Column7.FontSize = 8
+Column7.ControlSource = "collect.pcode"
+Column7.Width = 53
+Column7.ReadOnly = .T.
+Column7.Name = "Column7"
+Column8.FontSize = 8
+Column8.ControlSource = "collect.concode"
+Column8.Width = 56
+Column8.ReadOnly = .T.
+Column8.Name = "Column8"
+Column9.FontSize = 8
+Column9.ControlSource = "collect.sex"
+Column9.Width = 43
+Column9.ReadOnly = .T.
+Column9.Name = "Column9"
+Column10.FontSize = 8
+Column10.ControlSource = "collect.age"
+Column10.Width = 34
+Column10.ReadOnly = .T.
+Column10.Name = "Column10"
+Column11.FontSize = 8
+Column11.ControlSource = "collect.atype"
+Column11.Width = 44
+Column11.ReadOnly = .T.
+Column11.Name = "Column11"
+Column12.FontSize = 8
+Column12.ControlSource = "collect.name"
+Column12.Width = 121
+Column12.ReadOnly = .T.
+Column12.Name = "Column12"
+Column13.FontSize = 8
+Column13.ControlSource = "collect.bedno"
+Column13.Width = 63
+Column13.ReadOnly = .T.
+Column13.Name = "Column13"
+Column14.FontSize = 8
+Column14.ControlSource = "collect.phone"
+Column14.Width = 60
+Column14.ReadOnly = .T.
+Column14.Name = "Column14"
+Column15.FontSize = 8
+Column15.ControlSource = "collect.cons"
+Column15.Width = 54
+Column15.ReadOnly = .T.
+Column15.Name = "Column15"
+Column16.FontSize = 8
+Column16.ControlSource = "collect.consby"
+Column16.Width = 77
+Column16.ReadOnly = .T.
+Column16.Name = "Column16"
+Column17.FontSize = 8
+Column17.ControlSource = "collect.creditby"
+Column17.Width = 64
+Column17.ReadOnly = .T.
+Column17.Name = "Column17"
+Column18.FontSize = 8
+Column18.ControlSource = "collect.creditno"
+Column18.Width = 64
+Column18.ReadOnly = .T.
+Column18.Name = "Column18"
+Column19.FontSize = 8
+Column19.ControlSource = "collect.balance"
+Column19.Width = 56
+Column19.ReadOnly = .T.
+Column19.Name = "Column19"
+Column20.FontSize = 8
+Column20.ControlSource = "collect.refund"
+Column20.Width = 50
+Column20.ReadOnly = .T.
+Column20.Name = "Column20"
+Column21.FontSize = 8
+Column21.ControlSource = "collect.rdate"
+Column21.Width = 53
+Column21.ReadOnly = .T.
+Column21.Name = "Column21"
+Column22.FontSize = 8
+Column22.ControlSource = "collect.total"
+Column22.Width = 54
+Column22.ReadOnly = .T.
+Column22.Name = "Column23"
+Column23.FontSize = 8
+Column23.ControlSource = "collect.net"
+Column23.Width = 57
+Column23.ReadOnly = .T.
+Column23.Name = "Column24"
+Column24.FontSize = 8
+Column24.ControlSource = "collect.credit"
+Column24.Width = 58
+Column24.ReadOnly = .T.
+Column24.Name = "Column25"
+Column25.FontSize = 8
+Column25.ControlSource = "collect.posted"
+Column25.Width = 50
+Column25.ReadOnly = .T.
+Column25.Name = "Column26"
+
+-frmrepoent.Baseframe1.Page2.Listgrid1.Column1
+6FontSize = 8
+Caption = "Indentno"
+Name = "Header1"
+
+-frmrepoent.Baseframe1.Page2.Listgrid1.Column1
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+-frmrepoent.Baseframe1.Page2.Listgrid1.Column2
+2FontSize = 8
+Caption = "Date"
+Name = "Header1"
+
+-frmrepoent.Baseframe1.Page2.Listgrid1.Column2
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+-frmrepoent.Baseframe1.Page2.Listgrid1.Column3
+2FontSize = 8
+Caption = "Time"
+Name = "Header1"
+
+-frmrepoent.Baseframe1.Page2.Listgrid1.Column3
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+-frmrepoent.Baseframe1.Page2.Listgrid1.Column4
+1FontSize = 8
+Caption = "Cid"
+Name = "Header1"
+
+-frmrepoent.Baseframe1.Page2.Listgrid1.Column4
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+-frmrepoent.Baseframe1.Page2.Listgrid1.Column5
+3FontSize = 8
+Caption = "Regno"
+Name = "Header1"
+
+-frmrepoent.Baseframe1.Page2.Listgrid1.Column5
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+-frmrepoent.Baseframe1.Page2.Listgrid1.Column6
+2FontSize = 8
+Caption = "Type"
+Name = "Header1"
+
+-frmrepoent.Baseframe1.Page2.Listgrid1.Column6
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+-frmrepoent.Baseframe1.Page2.Listgrid1.Column7
+3FontSize = 8
+Caption = "Pcode"
+Name = "Header1"
+
+-frmrepoent.Baseframe1.Page2.Listgrid1.Column7
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+-frmrepoent.Baseframe1.Page2.Listgrid1.Column8
+5FontSize = 8
+Caption = "Concode"
+Name = "Header1"
+
+-frmrepoent.Baseframe1.Page2.Listgrid1.Column8
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+-frmrepoent.Baseframe1.Page2.Listgrid1.Column9
+1FontSize = 8
+Caption = "Sex"
+Name = "Header1"
+
+-frmrepoent.Baseframe1.Page2.Listgrid1.Column9
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+.frmrepoent.Baseframe1.Page2.Listgrid1.Column10
+1FontSize = 8
+Caption = "Age"
+Name = "Header1"
+
+.frmrepoent.Baseframe1.Page2.Listgrid1.Column10
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+.frmrepoent.Baseframe1.Page2.Listgrid1.Column11
+3FontSize = 8
+Caption = "Atype"
+Name = "Header1"
+
+.frmrepoent.Baseframe1.Page2.Listgrid1.Column11
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+.frmrepoent.Baseframe1.Page2.Listgrid1.Column12
+2FontSize = 8
+Caption = "Name"
+Name = "Header1"
+
+.frmrepoent.Baseframe1.Page2.Listgrid1.Column12
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+.frmrepoent.Baseframe1.Page2.Listgrid1.Column13
+3FontSize = 8
+Caption = "Bedno"
+Name = "Header1"
+
+.frmrepoent.Baseframe1.Page2.Listgrid1.Column13
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+.frmrepoent.Baseframe1.Page2.Listgrid1.Column14
+3FontSize = 8
+Caption = "Phone"
+Name = "Header1"
+
+.frmrepoent.Baseframe1.Page2.Listgrid1.Column14
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+.frmrepoent.Baseframe1.Page2.Listgrid1.Column15
+2FontSize = 8
+Caption = "Cons"
+Name = "Header1"
+
+.frmrepoent.Baseframe1.Page2.Listgrid1.Column15
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+.frmrepoent.Baseframe1.Page2.Listgrid1.Column16
+4FontSize = 8
+Caption = "Consby"
+Name = "Header1"
+
+.frmrepoent.Baseframe1.Page2.Listgrid1.Column16
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+.frmrepoent.Baseframe1.Page2.Listgrid1.Column17
+6FontSize = 8
+Caption = "Creditby"
+Name = "Header1"
+
+.frmrepoent.Baseframe1.Page2.Listgrid1.Column17
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+.frmrepoent.Baseframe1.Page2.Listgrid1.Column18
+6FontSize = 8
+Caption = "Creditno"
+Name = "Header1"
+
+.frmrepoent.Baseframe1.Page2.Listgrid1.Column18
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+.frmrepoent.Baseframe1.Page2.Listgrid1.Column19
+5FontSize = 8
+Caption = "Balance"
+Name = "Header1"
+
+.frmrepoent.Baseframe1.Page2.Listgrid1.Column19
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+.frmrepoent.Baseframe1.Page2.Listgrid1.Column20
+4FontSize = 8
+Caption = "Refund"
+Name = "Header1"
+
+.frmrepoent.Baseframe1.Page2.Listgrid1.Column20
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+.frmrepoent.Baseframe1.Page2.Listgrid1.Column21
+3FontSize = 8
+Caption = "Rdate"
+Name = "Header1"
+
+.frmrepoent.Baseframe1.Page2.Listgrid1.Column21
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+.frmrepoent.Baseframe1.Page2.Listgrid1.Column23
+3FontSize = 8
+Caption = "Total"
+Name = "Header1"
+
+.frmrepoent.Baseframe1.Page2.Listgrid1.Column23
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+.frmrepoent.Baseframe1.Page2.Listgrid1.Column24
+1FontSize = 8
+Caption = "Net"
+Name = "Header1"
+
+.frmrepoent.Baseframe1.Page2.Listgrid1.Column24
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+.frmrepoent.Baseframe1.Page2.Listgrid1.Column25
+4FontSize = 8
+Caption = "Credit"
+Name = "Header1"
+
+.frmrepoent.Baseframe1.Page2.Listgrid1.Column25
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+INDENTNO
+THISFORM
+CHKDELETE
+THISFORM
+
+BASEFRAME1
+CTOOLBAR	
+CMDREPORT
+VISIBLE	
+repoquery,
+validrec
+Activate%

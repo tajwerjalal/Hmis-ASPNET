@@ -15,6 +15,11 @@ namespace HmisWeb.Pages.Lab
     /// <summary>Company wise Test Charges Report - VFP Labsys report lb0250.</summary>
     public class CompanyTestChargesReportModel : PageModel
     {
+        /// <summary>Mirror prefix of the laboratory bank on the shared services master.</summary>
+
+        private const string ItemPrefix = "INV-LB-";
+
+
         private readonly ApplicationDbContext _db;
         public CompanyTestChargesReportModel(ApplicationDbContext db) { _db = db; }
 
@@ -42,7 +47,8 @@ namespace HmisWeb.Pages.Lab
         private async Task LoadAsync()
         {
             var q = _db.CompanyServiceRates.Include(r => r.Company).Include(r => r.Item)
-                .Where(r => !r.Retired && (r.Item.ItemType == ItemType.Investigation || r.Item.ItemType == ItemType.Service));
+                .Where(r => !r.Retired && (r.Item.ItemType == ItemType.Investigation || r.Item.ItemType == ItemType.Service)
+                && r.Item.Code.StartsWith(ItemPrefix));
             if (CompanyId.HasValue && CompanyId.Value > 0) q = q.Where(r => r.CompanyId == CompanyId.Value);
             Items = await q.OrderBy(r => r.Company.Name).ThenBy(r => r.Item.Name).ToListAsync();
             CompanyList = await _db.Institutions.Where(i => !i.Retired && i.Code != null).OrderBy(i => i.Name)

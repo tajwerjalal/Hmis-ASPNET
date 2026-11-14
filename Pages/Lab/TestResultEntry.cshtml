@@ -1,412 +1,105 @@
 @page "/lab/TestResultEntry"
 @model HmisWeb.Pages.Lab.TestResultEntryModel
-@using HmisWeb.Data.Enums
+@*
+    ============================================================================
+    File........: Pages/Lab/TestResultEntry.cshtml
+    Purpose.....: LB0110 "Test Result Entry" screen. Two top level tabs:
+                  "List" (read-only REPORT browse) and "Entry" (result/culture
+                  data entry for the selected indent).
+    Inputs......: TestResultEntryModel (List, Entry, Readings, Culture, filters).
+    Outputs.....: Bootstrap tabs hosting the partial views; the antiforgery token
+                  and the pick-list modal used by lab-testresult.js.
+    Business
+      rules.....: 1. The List tab is always available; the Entry tab is enabled
+                     only when an indent is loaded.
+                  2. A scanned 9 digit Lab No opens the Entry tab directly
+                     (handled in OnGetAsync).
+                  3. All data entry is done through the partial views so the
+                     page can refresh the grid without a full reload.
+    Developer...: Tajwer Jalal
+    Date/Time...: 2026-11-02 11:22
+    ============================================================================
+*@
 @{
     ViewData["Title"] = "Test Result Entry";
+    var entryActive = Model.ActiveTab == "entry" && Model.Entry != null;
 }
 
-<div class="mb-3">
-    <h4 class="mb-0 fw-bold">Test Result Entry</h4>
-    <span class="text-secondary small">Enter investigation results for pending lab tests</span>
+<div class="d-flex justify-content-between align-items-start mb-3 gap-2 flex-wrap">
+    <div>
+        <h4 class="mb-0 fw-bold">Test Result Entry</h4>
+        <span class="text-secondary small">
+            Legacy lb0110 &mdash; enter investigation results and culture by Lab Indent No
+        </span>
+    </div>
+    <div class="d-flex gap-2">
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="btnFindIndent">
+            <i class="bi bi-search me-1"></i>Find
+        </button>
+        <a href="/lab/TestResultEntry" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+        </a>
+    </div>
 </div>
 
-@if (!string.IsNullOrEmpty(Model.Success))
-{
-    <div class="alert alert-success py-2"><i class="bi bi-check-circle me-1"></i>@Model.Success</div>
-}
-@if (!string.IsNullOrEmpty(Model.Message))
-{
-    <div class="alert alert-warning py-2"><i class="bi bi-exclamation-triangle me-1"></i>@Model.Message</div>
-}
+<div id="lbAlert"></div>
 @if (!string.IsNullOrEmpty(Model.ErrorMessage))
 {
     <div class="alert alert-danger py-2"><i class="bi bi-exclamation-circle me-1"></i>@Model.ErrorMessage</div>
 }
-
-@if (Model.SelectedPatient == null)
+@if (!string.IsNullOrEmpty(Model.Success))
 {
-    <ul class="nav nav-tabs mb-3" role="tablist">
-        <li class="nav-item">
-            <a class="nav-link active" data-bs-toggle="tab" href="#findPatient">Find Patient</a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link" data-bs-toggle="tab" href="#pendingIndents">
-                <i class="bi bi-clipboard2-pulse me-1"></i>Pending Reports (@Model.PendingIndents.Count)
-            </a>
-        </li>
-    </ul>
+    <div class="alert alert-success py-2"><i class="bi bi-check-circle me-1"></i>@Model.Success</div>
+}
 
-    <div class="tab-content">
-        <div class="tab-pane fade show active" id="findPatient">
-            <div class="d-flex justify-content-between align-items-center mb-2 gap-2">
-                <h6 class="mb-0 fw-semibold"><i class="bi bi-search me-1"></i>Find Patient</h6>
-                <div class="d-flex gap-2">
-                    <a href="javascript:void(0)" onclick="toggleNewPatient(true)" class="btn btn-sm btn-outline-success"><i class="bi bi-person-plus me-1"></i>Add New Patient</a>
-                    <form method="post" asp-page-handler="StartNew">
-                        @Html.AntiForgeryToken()
-                        <button type="submit" class="btn btn-sm btn-outline-secondary" title="Start a fresh indent / give an empty list"><i class="bi bi-file-earmark-plus me-1"></i>New Entry</button>
-                    </form>
-                </div>
-            </div>
+<ul class="nav nav-tabs" id="lbMainTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link @(entryActive ? "" : "active")" id="listTabBtn"
+                data-bs-toggle="tab" data-bs-target="#listTab" type="button" role="tab">
+            <i class="bi bi-list-ul me-1"></i>List
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link @(entryActive ? "active" : "") @(Model.Entry == null ? "disabled" : "")"
+                id="entryTabBtn" data-bs-toggle="tab" data-bs-target="#entryTab" type="button" role="tab">
+            <i class="bi bi-pencil-square me-1"></i>Entry
+        </button>
+    </li>
+</ul>
 
-            <form method="post" asp-page-handler="SearchPatients" class="card mb-3">
-                @Html.AntiForgeryToken()
-                <div class="card-body">
-                    <div class="row g-2 align-items-end">
-                        <div class="col-md-8">
-                            <input asp-for="PatientSearch" class="form-control" placeholder="PHN, Patient/Mobile/NIC, Name (complete search)..." autofocus />
-                        </div>
-                        <div class="col-md-4">
-                            <button type="submit" class="btn btn-primary w-100"><i class="bi bi-search me-1"></i>Search</button>
-                        </div>
-                    </div>
-                </div>
-            </form>
-
-            @if (!string.IsNullOrEmpty(Model.ErrorMessage))
-            {
-                <div class="alert alert-danger py-2"><i class="bi bi-exclamation-circle me-1"></i>@Model.ErrorMessage</div>
-            }
-
-            <div id="newPatientSection" style="display:none">
-                <div class="card mb-3">
-                    <div class="card-header bg-white fw-semibold"><i class="bi bi-person-plus me-1 text-success"></i>Register a new (walk-in) patient</div>
-                    <div class="card-body">
-                        <form method="post" asp-page-handler="CreatePatient" class="row g-2">
-                            @Html.AntiForgeryToken()
-                            <div class="col-md-4"><input asp-for="NewName" class="form-control form-control-sm" placeholder="Full name *" /></div>
-                            <div class="col-md-4"><input asp-for="NewNameWithInitials" class="form-control form-control-sm" placeholder="Name with initials" /></div>
-                            <div class="col-md-4"><input asp-for="NewNic" class="form-control form-control-sm" placeholder="NIC" /></div>
-                            <div class="col-md-4"><input asp-for="NewMobile" class="form-control form-control-sm" placeholder="Mobile" /></div>
-                            <div class="col-md-4"><input asp-for="NewPhone" class="form-control form-control-sm" placeholder="Phone" /></div>
-                            <div class="col-md-4">
-                                <select asp-for="NewSex" asp-items="Html.GetEnumSelectList<Sex>()" class="form-select form-select-sm">
-                                    <option value="">-- Sex --</option>
-                                </select>
-                            </div>
-                            <div class="col-12 d-flex gap-2 align-items-center">
-                                <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-plus-lg me-1"></i>Add & start entry</button>
-                                <a href="javascript:void(0)" onclick="toggleNewPatient(false)" class="small text-secondary">Cancel</a>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-
-            @if (Model.PatientResults.Any())
-            {
-                <div class="card mb-3"><div class="card-body p-0">
-                    <table class="table table-hover mb-0 align-middle"><thead class="table-light"><tr>
-                        <th>Patient ID</th><th>PHN</th><th>Name</th><th>Sex</th><th>Mobile</th><th>NIC</th><th>Pending Results</th><th></th>
-                    </tr></thead><tbody>
-                    @foreach (var p in Model.PatientResults)
-                    {
-                        <tr>
-                            <td>@p.Id</td>
-                            <td>@(p.PatientId?.ToString() ?? "-")</td>
-                            <td>@(p.Person?.NameWithInitials ?? p.Person?.Name ?? "Unnamed")</td>
-                            <td>@(p.Person?.Sex?.ToString() ?? "-")</td>
-                            <td>@(p.Person?.Mobile ?? "-")</td>
-                            <td>@(p.Person?.Nic ?? "-")</td>
-                            <td class="text-center">
-                                <span class="badge bg-warning text-dark fs-6">@p.PendingTestCount</span>
-                            </td>
-                            <td class="text-end">
-                                <a asp-page="/Lab/TestResultEntry" asp-route-patientId="@p.Id" class="btn btn-sm btn-primary">
-                                    <i class="bi bi-clipboard2-check me-1"></i>Enter Results
-                                </a>
-                            </td>
-                        </tr>
-                    }</tbody></table>
-                </div></div>
-            }
-
-            @if (!Model.PatientResults.Any() && !string.IsNullOrEmpty(Model.PatientSearch))
-            {
-                <div class="alert alert-info py-2">
-                    <i class="bi bi-info-circle me-1"></i>No patient found for "<b>@Model.PatientSearch</b>".
-                    <a href="javascript:void(0)" onclick="toggleNewPatient(true)" class="fw-semibold text-decoration-underline">Add a new walk-in patient?</a>
-                </div>
-            }
+<div class="tab-content border border-top-0 rounded-bottom bg-white p-3" id="lbTabContent">
+    <div class="tab-pane fade @(entryActive ? "" : "show active")" id="listTab" role="tabpanel">
+        <div id="listHost">
+            @await Html.PartialAsync("Partial/_ListGrid", Model)
         </div>
-
-        <div class="tab-pane fade" id="pendingIndents">
-            @if (Model.PendingIndents.Any())
+    </div>
+    <div class="tab-pane fade @(entryActive ? "show active" : "")" id="entryTab" role="tabpanel">
+        <div id="entryHost">
+            @if (Model.Entry != null)
             {
-                <div class="card mb-3">
-                    <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
-                        <span><i class="bi bi-clipboard2-pulse me-1 text-warning"></i>Sample Collected - Report Not Generated</span>
-                        <span class="badge bg-warning text-dark">@Model.PendingIndents.Count pending</span>
-                    </div>
-                    <div class="card-body p-0">
-                        <div class="table-responsive">
-                            <table class="table table-hover mb-0 align-middle">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Indent #</th>
-                                        <th>Patient</th>
-                                        <th>PHN</th>
-                                        <th>Test</th>
-                                        <th>Sample Type</th>
-                                        <th>Collected At</th>
-                                        <th>Collected By</th>
-                                        <th>Barcode</th>
-                                        <th></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach (var order in Model.PendingIndents)
-                                    {
-                                        <tr>
-                                            <td class="fw-semibold">@order.Id</td>
-                                            <td>
-                                                @(order.Patient?.Person?.NameWithInitials ?? order.Patient?.Person?.Name ?? "Unknown")
-                                                <br />
-                                                <small class="text-secondary">@(order.PatientEncounter?.BhtNo ?? "OPD")</small>
-                                            </td>
-                                            <td>@(order.Patient?.PatientId?.ToString() ?? "-")</td>
-                                            <td>
-                                                <span class="fw-semibold">@order.InvestigationName</span>
-                                                @if (!string.IsNullOrEmpty(order.Item?.Name) && order.Item?.Name != order.InvestigationName)
-                                                {
-                                                    <br /><small class="text-secondary">@order.Item.Name</small>
-                                                }
-                                            </td>
-                                            <td>@(order.SampleType ?? "-")</td>
-                                            <td>@(order.SampleCollectedAt?.ToString("dd MMM yyyy HH:mm") ?? "-")</td>
-                                            <td>@(order.Collector?.WebUserPerson?.NameWithInitials ?? "-")</td>
-                                            <td><code class="text-primary">@(order.Barcode ?? "-")</code></td>
-                                            <td class="text-end">
-                                                <form method="post" asp-page-handler="SelectIndent" asp-route-indentId="@order.Id" class="d-inline">
-                                                    @Html.AntiForgeryToken()
-                                                    <button type="submit" class="btn btn-sm btn-primary">
-                                                        <i class="bi bi-clipboard2-check me-1"></i>Enter Report
-                                                    </button>
-                                                </form>
-                                            </td>
-                                        </tr>
-                                    }
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
+                @await Html.PartialAsync("Partial/_EntryPane", Model)
             }
             else
             {
-                <div class="card">
-                    <div class="card-body text-center text-muted py-5">
-                        <i class="bi bi-clipboard2-check fs-1 d-block mb-2"></i>
-                        No pending reports. All collected samples have results entered.
-                    </div>
+                <div class="text-center text-muted py-5">
+                    <i class="bi bi-upc-scan fs-1 d-block mb-2"></i>
+                    <div>Select an indent from the <b>List</b> tab, or scan a Lab Indent No.</div>
                 </div>
             }
         </div>
     </div>
-}
-else
-{
-    <div class="row g-3">
-        <div class="col-lg-7">
-            <div class="card mb-3">
-                <div class="card-body py-3">
-                    <div class="row g-3 align-items-center">
-                        <div class="col-md-5">
-                            <div class="text-secondary small fw-bold text-uppercase">Patient</div>
-                            <div class="fw-semibold fs-5">@(Model.SelectedPatient.Person?.NameWithInitials ?? "Unnamed")</div>
-                            <small class="text-secondary">PHN: @(Model.SelectedPatient.PatientId?.ToString() ?? "-")</small>
-                        </div>
-                        <div class="col-md-7 text-end">
-                            <form method="post" asp-page-handler="StartNew">
-                                <input type="hidden" name="SelectedPatientId" value="@Model.SelectedPatient.Id" />
-                                @Html.AntiForgeryToken()
-                                <button type="submit" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left me-1"></i>Switch patient</button>
-                            </form>
-                        </div>
-                    </div>
-                    @if (Model.ActiveEncounters.Any())
-                    {
-                        <hr class="my-2" />
-                        <form method="post" asp-page-handler="StartNew" class="d-inline">
-                            <div class="row g-2 align-items-end">
-                                <div class="col-md-6">
-                                    <label class="form-label small fw-bold mb-1">Active IPD Encounter</label>
-                                    <select name="SelectedEncounterId" class="form-select form-select-sm">
-                                        <option value="">-- All Encounters --</option>
-                                        @foreach (var e in Model.ActiveEncounters)
-                                        {
-                                            var isSelected = Model.SelectedEncounter?.Id == e.Id;
-                                            if (isSelected)
-                                            {
-                                                <option value="@e.Id" selected>@(e.BhtNo ?? ("BHT #" + e.Id)) — @(e.DateOfAdmission?.ToString("dd MMM") ?? "-")</option>
-                                            }
-                                            else
-                                            {
-                                                <option value="@e.Id">@(e.BhtNo ?? ("BHT #" + e.Id)) — @(e.DateOfAdmission?.ToString("dd MMM") ?? "-")</option>
-                                            }
-                                        }
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <button type="submit" class="btn btn-sm btn-outline-primary w-100 mt-1">Filter Tests</button>
-                                </div>
-                            </div>
-                        </form>
-                    }
-                    else
-                    {
-                        <span class="badge bg-soft-success text-dark border p-2 mt-2">
-                            <i class="bi bi-person me-1"></i>OPD / Walk-in patient
-                        </span>
-                    }
-                </div>
-            </div>
+</div>
 
-            @if (Model.PendingTests.Any())
-            {
-                <form method="post" asp-page-handler="SaveResults">
-                    @Html.AntiForgeryToken()
-                    <div class="card mb-3">
-                        <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
-                            <span><i class="bi bi-clipboard2-check me-1 text-primary"></i>Pending Test Results (@Model.PendingTests.Count)</span>
-                            <button type="submit" class="btn btn-success btn-sm"><i class="bi bi-save me-1"></i>Save All Results</button>
-                        </div>
-                        <div class="card-body p-0">
-                            <div class="table-responsive">
-                                <table class="table table-hover align-middle mb-0">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th style="width:40px">#</th>
-                                            <th>Investigation</th>
-                                            <th style="width:300px">Result</th>
-                                            <th style="width:250px">Notes</th>
-                                            <th style="width:100px">Completed</th>
-                                            <th style="width:100px">Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @for (int i = 0; i < Model.TestResults.Count; i++)
-                                        {
-                                            var test = Model.TestResults[i];
-                                            <tr>
-                                                <td class="align-middle text-center">@(i + 1)</td>
-                                                <td class="align-middle">
-                                                    <div class="fw-semibold small">@test.InvestigationName</div>
-                                                    @if (!string.IsNullOrEmpty(test.ItemName) && test.ItemName != test.InvestigationName)
-                                                    {
-                                                        <small class="text-secondary">@test.ItemName</small>
-                                                    }
-                                                </td>
-                                                <td>
-                                                    <textarea asp-for="TestResults[i].Result" class="form-control form-control-sm" rows="2" placeholder="Enter test result..." style="font-family:monospace; font-size:0.85rem;"></textarea>
-                                                </td>
-                                                <td>
-                                                    <input asp-for="TestResults[i].ResultNotes" class="form-control form-control-sm" placeholder="Notes / remarks..." />
-                                                </td>
-                                                <td class="text-center">
-                                                    <div class="form-check form-switch d-flex justify-content-center">
-                                                        <input class="form-check-input" type="checkbox" asp-for="TestResults[i].Completed" />
-                                                    </div>
-                                                </td>
-                                                <td class="align-middle text-center">
-                                                    <input type="hidden" asp-for="TestResults[i].OrderId" />
-                                                    <span class="badge bg-secondary">Pending</span>
-                                                </td>
-                                            </tr>
-                                        }
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                        <div class="card-footer bg-white d-flex justify-content-end">
-                            <button type="submit" class="btn btn-success"><i class="bi bi-save me-1"></i>Save All Results</button>
-                        </div>
-                    </div>
-                </form>
-            }
-            else
-            {
-                <div class="card">
-                    <div class="card-body text-center text-muted py-5">
-                        <i class="bi bi-clipboard2-check fs-1 d-block mb-2"></i>
-                        No pending tests found for this patient.
-                        @if (Model.SelectedEncounter != null)
-                        {
-                            <div class="mt-2">Showing tests for encounter: <strong>@(Model.SelectedEncounter.BhtNo ?? "#" + Model.SelectedEncounter.Id)</strong></div>
-                            <form method="post" asp-page-handler="StartNew" class="mt-2">
-                                <input type="hidden" name="SelectedEncounterId" value="" />
-                                @Html.AntiForgeryToken()
-                                <button type="submit" class="btn btn-sm btn-outline-secondary">Show all encounters</button>
-                            </form>
-                        }
-                    </div>
-                </div>
-            }
-        </div>
-
-        <div class="col-lg-5">
-            <div class="card mb-3">
-                <div class="card-header bg-white fw-semibold"><i class="bi bi-info-circle me-1 text-primary"></i>Instructions</div>
-                <div class="card-body">
-                    <ul class="small mb-0">
-                        <li>Select a patient to view their pending investigation orders</li>
-                        <li>For IPD patients, filter by active encounter using the dropdown</li>
-                        <li>Enter results in the <strong>Result</strong> field (supports multi-line)</li>
-                        <li>Add any <strong>Notes</strong> or remarks if needed</li>
-                        <li>Check <strong>Completed</strong> when the test is finalized</li>
-                        <li>Click <strong>Save All Results</strong> to persist changes</li>
-                    </ul>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-header bg-white fw-semibold"><i class="bi bi-clock-history me-1 text-secondary"></i>Quick Actions</div>
-                <div class="card-body">
-                    <div class="d-grid gap-2">
-                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="markAllCompleted(true)">
-                            <i class="bi bi-check-all me-1"></i>Mark All as Completed
-                        </button>
-                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="markAllCompleted(false)">
-                            <i class="bi bi-x-circle me-1"></i>Mark All as Pending
-                        </button>
-                        <button type="button" class="btn btn-outline-info btn-sm" onclick="clearAllResults()">
-                            <i class="bi bi-eraser me-1"></i>Clear All Results
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-}
+@Html.AntiForgeryToken()
+@await Html.PartialAsync("Partial/_PickListModal")
 
 @section Scripts {
     <script>
-        function toggleNewPatient(open) {
-            var el = document.getElementById('newPatientSection');
-            if (el) { el.style.display = open ? '' : 'none'; }
-        }
-
-        function markAllCompleted(completed) {
-            document.querySelectorAll('input[name$=".Completed"]').forEach(cb => {
-                cb.checked = completed;
-            });
-        }
-
-        function clearAllResults() {
-            if (!confirm('Clear all entered results?')) return;
-            document.querySelectorAll('textarea[name$=".Result"]').forEach(t => t.value = '');
-            document.querySelectorAll('input[name$=".ResultNotes"]').forEach(i => i.value = '');
-            document.querySelectorAll('input[name$=".Completed"]').forEach(cb => cb.checked = false);
-        }
-
-        // Auto-submit on encounter change
-        document.addEventListener('DOMContentLoaded', function() {
-            var encounterSelect = document.querySelector('select[name="SelectedEncounterId"]');
-            if (encounterSelect) {
-                encounterSelect.addEventListener('change', function() {
-                    this.closest('form').submit();
-                });
-            }
-        });
+        window.LB0110_ACTIVE_TAB = '@(entryActive ? "entry" : "list")';
     </script>
+    @* SweetAlert2 for Save success/failure feedback. The bundle is local so
+       the dialog still works on machines without internet access; the JS also
+       falls back to the inline #lbAlert if the bundle cannot load. *@
+    <script src="~/lib/sweetalert2/sweetalert2.all.min.js" asp-append-version="true"></script>
+    <script src="~/js/lab-testresult.js" asp-append-version="true"></script>
 }

@@ -1,0 +1,715 @@
+﻿VERSION =   3.00
+dataenvironment
+dataenvironment
+Dataenvironment
+eLeft = 12
+Top = 44
+Width = 520
+Height = 200
+InitialSelectedAlias = ""
+Name = "Dataenvironment"
+
+Dataenvironment
+Left = 10
+Top = 20
+Width = 90
+Height = 90
+Alias = "register"
+BufferModeOverride = 5
+Order = "orno"
+CursorSource = ..\..\master\register.dbf
+Name = "Cursor1"
+
+Dataenvironment
+Left = 150
+Top = 20
+Width = 90
+Height = 90
+Alias = "patient"
+BufferModeOverride = 0
+Order = "code"
+CursorSource = ..\..\master\patient.dbf
+Name = "Cursor2"
+
+Dataenvironment
+Left = 290
+Top = 20
+Width = 90
+Height = 90
+Alias = "company"
+BufferModeOverride = 0
+Order = "id"
+CursorSource = ..\..\master\company.dbf
+Name = "Cursor3"
+
+Dataenvironment
+Left = 11
+Top = 140
+Width = 90
+Height = 90
+Alias = "obil_mst"
+BufferModeOverride = 5
+Order = "bill"
+CursorSource = ..\obil_mst.dbf
+Name = "Cursor4"
+
+Dataenvironment
+Left = 152
+Top = 140
+Width = 90
+Height = 90
+Alias = "opdbill"
+BufferModeOverride = 5
+Order = "billno"
+CursorSource = ..\opdbill.dbf
+Name = "Cursor6"
+
+baseform
+ ..\..\common\class\baseclass.vcx
+
+frmrevbill
+Top = 0
+Left = 0
+Height = 310
+Width = 615
+DoCreate = .T.
+Caption = "Reversal of  OPD Bill"
+WindowType = 1
+ctoolbar = 
+menukey = bs0427
+Name = "frmrevbill"
+
+PROCEDURE Destroy
+if used("tmppost")
+	select tmppost
+	use
+	tmpfil = tmpfil + '.dbf'
+	if file(tmpfil)
+		erase (tmpfil)
+	endif
+endif
+dodefault()
+
+ENDPROC
+PROCEDURE Init
+dodefault()
+public tmpfil
+tmpfil=SUBSTR(SYS(2015), 3, 10)
+lccid=''
+ENDPROC
+
+THISFORM
+TXTCNAME
+
+frmrevbill
+
+frmrevbill
+txtcname
+
+frmrevbill
+aTop = 15
+Left = 24
+Height = 40
+Width = 86
+SpecialEffect = 0
+ZOrderSet = 0
+Name = "Shape2"
+
+
+frmrevbill
+cTop = 15
+Left = 117
+Height = 40
+Width = 280
+SpecialEffect = 0
+ZOrderSet = 0
+Name = "Shape1"
+
+postcancelbtn
+ ..\..\common\class\baseclass.vcx
+commandgroup
+Postcancelbtn1
+
+frmrevbill
+wHeight = 55
+Left = 192
+Top = 251
+Width = 118
+TabIndex = 17
+ZOrderSet = 1
+Name = "Postcancelbtn1"
+cmdok.Top = 5
+cmdok.Left = 5
+cmdok.Height = 45
+cmdok.Width = 48
+cmdok.Caption = "Reversal"
+cmdok.ToolTipText = "Generate Bills"
+cmdok.Name = "cmdok"
+cmdcancel.Top = 5
+cmdcancel.Left = 65
+cmdcancel.Height = 45
+cmdcancel.Width = 48
+cmdcancel.Name = "cmdcancel"
+
+PROCEDURE cmdok.Click
+select tmppost
+go top
+
+do while !eof()
+	if posted <> 'X'
+		skip
+		loop
+	endif
+	** Reverse Bill # **
+	Mbillno = billno
+ 	select OPDBILL
+ 	seek mbillno
+ 	if !eof()
+	 	replace rdate with date(), ;
+	 			stat with 'X' in opdbill
+		if fsize("ruserid",'opdbill') = 10
+			replace ruserid with gcloginid, ;
+				rtime with time() ;
+				in opdbill
+		endif
+	 endif
+
+ 	select obil_mst
+	seek mbillno
+	replace all bill with 0, ;
+			    bdate with {}, ;
+			    stat with 'P' for bill = mbillno in obil_mst
+*	do while obil_mst.bill = mbillno and !eof()
+*		replace bill with 0, ;
+*			    bdate with {}, ;
+*			    stat with 'P' in obil_mst
+*		skip
+*	enddo
+	select register
+	seek tmppost.hos_code
+	if !eof()
+		replace billgen with .F., tbillamt with 0
+	endif
+	
+	select tmppost
+	skip
+enddo           
+
+select opdbill
+=tableupdate(1,.t.)
+
+select obil_mst
+=tableupdate(1,.t.)
+
+select register
+=tableupdate(1,.t.)
+
+wait "Bills successfully reversed" window
+
+thisform.release
+
+ENDPROC
+
+THISFORM	
+LISTGRID1
+SETFOCUS
+THISFORM	
+LISTGRID1
+SETFOCUS
+kArial, 0, 8, 5, 14, 11, 30, 3, 0
+Comic Sans MS, 0, 7, 4, 13, 10, 12, 3, 0
+Arial, 0, 9, 5, 15, 12, 32, 3, 0
+
+AutoSize = .T.
+FontSize = 8
+Caption = "Bill Date"
+Height = 16
+Left = 33
+Top = 9
+Width = 40
+TabIndex = 1
+Name = "Label4"
+
+ctextbox
+
+frmrevbill
+listgrid
+ ..\..\common\class\baseclass.vcx
+	Listgrid1
+
+frmrevbill
+ColumnCount = 6
+AllowHeaderSizing = .F.
+AllowRowSizing = .F.
+Height = 152
+Left = 5
+Panel = 1
+ReadOnly = .F.
+RecordSource = ""
+TabIndex = 12
+Top = 94
+Width = 498
+ZOrderSet = 4
+Name = "Listgrid1"
+Column1.FontSize = 8
+Column1.ColumnOrder = 4
+Column1.ControlSource = ""
+Column1.Width = 124
+Column1.ReadOnly = .F.
+Column1.Name = "Column3"
+Column2.FontSize = 8
+Column2.ColumnOrder = 3
+Column2.ControlSource = ""
+Column2.Width = 120
+Column2.ReadOnly = .F.
+Column2.Name = "Column2"
+Column3.FontSize = 8
+Column3.ColumnOrder = 2
+Column3.ControlSource = ""
+Column3.Width = 57
+Column3.ReadOnly = .F.
+Column3.Name = "Column1"
+Column4.ColumnOrder = 5
+Column4.ControlSource = ""
+Column4.Width = 66
+Column4.ReadOnly = .F.
+Column4.Name = "Column4"
+Column5.FontSize = 8
+Column5.ColumnOrder = 6
+Column5.ControlSource = ""
+Column5.Width = 33
+Column5.ReadOnly = .T.
+Column5.Sparse = .F.
+Column5.Name = "Column5"
+Column6.FontSize = 8
+Column6.ColumnOrder = 1
+Column6.Width = 60
+Column6.ReadOnly = .F.
+Column6.Name = "Column6"
+
+frmrevbill.Listgrid1.Column3
+5FontSize = 8
+Caption = "Company"
+Name = "Header1"
+
+frmrevbill.Listgrid1.Column3
+FontSize = 8
+BorderStyle = 0
+Format = ""
+InputMask = ""
+Margin = 0
+ReadOnly = .F.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+frmrevbill.Listgrid1.Column2
+:FontSize = 8
+Caption = "Patient Name"
+Name = "Header1"
+
+frmrevbill.Listgrid1.Column2
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .F.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+frmrevbill.Listgrid1.Column1
+6FontSize = 8
+Caption = "Reg. No."
+Name = "Header1"
+
+frmrevbill.Listgrid1.Column1
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .F.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+frmrevbill.Listgrid1.Column4
+8FontSize = 8
+Caption = "Net Amount"
+Name = "Header1"
+
+frmrevbill.Listgrid1.Column4
+}BorderStyle = 0
+Margin = 0
+ReadOnly = .F.
+PasswordChar = "X"
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+frmrevbill.Listgrid1.Column5
+4FontSize = 8
+Caption = "Select"
+Name = "Header1"
+
+frmrevbill.Listgrid1.Column5
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+frmrevbill.Listgrid1.Column6
+6FontSize = 8
+Caption = "Bill No."
+Name = "Header1"
+
+frmrevbill.Listgrid1.Column6
+gFontSize = 8
+BorderStyle = 0
+Margin = 0
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+
+frmrevbill
+qFontSize = 8
+Caption = "Bill No."
+Height = 17
+Left = 126
+Top = 9
+Width = 32
+TabIndex = 2
+Name = "Label3"
+
+commandbutton
+commandbutton
+cmdcheckall
+
+frmrevbill
+~Top = 173
+Left = 516
+Height = 24
+Width = 84
+Caption = "\<Select All"
+TabIndex = 15
+ZOrderSet = 5
+Name = "cmdcheckall"
+
+PROCEDURE Click
+select tmppost
+go top
+do while !eof()
+	replace posted with 'X'
+	skip
+enddo
+go top
+thisform.listgrid1.refresh
+
+ENDPROC
+
+THISFORM	
+LISTGRID1
+commandbutton
+commandbutton
+cmduncheckall
+
+frmrevbill
+Top = 197
+Left = 516
+Height = 24
+Width = 84
+Caption = "\<De-Select All"
+TabIndex = 16
+ZOrderSet = 6
+Name = "cmduncheckall"
+
+PROCEDURE Click
+select tmppost
+go top
+do while !eof()
+	replace posted with ' '
+	skip
+enddo
+
+go top
+thisform.listgrid1.refresh
+
+ENDPROC
+
+THISFORM	
+LISTGRID1
+commandbutton
+commandbutton
+cmdcheck
+
+frmrevbill
+wTop = 113
+Left = 516
+Height = 24
+Width = 84
+Caption = "S\<elect"
+TabIndex = 13
+ZOrderSet = 7
+Name = "cmdcheck"
+
+~PROCEDURE Click
+select tmppost
+replace posted with 'X'
+thisform.listgrid1.refresh
+thisform.listgrid1.setfocus
+
+ENDPROC
+
+`Enabled = .F.
+Height = 24
+Left = 147
+TabIndex = 9
+Top = 62
+Width = 192
+Name = "txtcname"
+
+ ..\..\common\class\baseclass.vcx
+ ..\..\common\class\baseclass.vcx
+ctextlookup
+
+frmrevbill
+commandbutton
+commandbutton
+
+cmduncheck
+
+frmrevbill
+|Top = 137
+Left = 516
+Height = 24
+Width = 84
+Caption = "De-Se\<lect"
+TabIndex = 14
+ZOrderSet = 8
+Name = "cmduncheck"
+
+~PROCEDURE Click
+select tmppost
+replace posted with ' '
+thisform.listgrid1.refresh
+thisform.listgrid1.setfocus
+
+ENDPROC
+
+PROCEDURE Valid
+if !dodefault()
+	return .f.
+endif
+=seek(this.value,"company")
+thisform.txtcname.value = company.name
+thisform.txtcname.refresh
+
+ENDPROC
+
+
+frmrevbill
+	txtbillto
+
+frmrevbill
+
+txtbillfrm
+commandbutton
+commandbutton
+
+frmrevbill
+Top = 62
+Left = 369
+Height = 24
+Width = 84
+FontSize = 8
+Caption = "Update List"
+TabIndex = 10
+ZOrderSet = 9
+Name = "cmdgen"
+
+PROCEDURE Click
+set safety off
+if empty(thisform.txtbilldt.value) and empty(thisform.txtbillfrm.value) and empty(thisform.txtbillto.value)
+	wait wind "Bill Date or Number must be specified"
+	return
+endi
+lccond = " and opdbill.cid=thisform.txtcid.value and register.settle = .f. "
+if !empty(thisform.txtbilldt.value)
+	lccond = lccond + " and opdbill.bdate = thisform.txtbilldt.value "
+endif
+if !empty(thisform.txtbillfrm.value)
+	if empty(thisform.txtbillto.value)
+		thisform.txtbillto.value = thisform.txtbillfrm.value
+	endif
+	lccond = lccond + " and between(opdbill.billno, thisform.txtbillfrm.value , thisform.txtbillto.value) "
+endif
+
+select opdbill.billno , opdbill.hos_code, opdbill.pcode, patient.name as pat, opdbill.cid, company.name as com, ;
+	   Ntot , " " as posted ;
+  from opdbill ;
+  join register on (register.regno = opdbill.hos_code and register.type = 'O' );
+  left outer join patient on (opdbill.pcode=patient.code) ;
+  left outer join company on (opdbill.cid = company.id) ;
+  where empty(opdbill.stat) ;
+   		&lccond ;
+	order by opdbill.billno ;  
+	into table (tmpfil)
+use
+use (tmpfil) alia tmppost in 0 excl
+sele tmppost
+set safety on
+if _tally=0
+	wait window 'Bills are not generated, No Records available'
+	return 
+endif
+
+*replace all posted with "X"
+go top
+
+thisform.listgrid1.recordsource = "tmppost"
+thisform.listgrid1.column6.width=60
+thisform.listgrid1.column6.controlsource="tmppost.billno"
+thisform.listgrid1.column1.width=57
+thisform.listgrid1.column1.controlsource="tmppost.hos_code"
+thisform.listgrid1.column2.width=120
+thisform.listgrid1.column2.controlsource="tmppost.pat"
+thisform.listgrid1.column3.width=124
+thisform.listgrid1.column3.controlsource="tmppost.com"
+thisform.listgrid1.column4.width=66
+thisform.listgrid1.column4.controlsource="tmppost.ntot"
+thisform.listgrid1.column5.width=33
+thisform.listgrid1.column5.controlsource="tmppost.posted"
+thisform.listgrid1.column5.header1.caption="Select"
+thisform.listgrid1.readonly=.t.
+thisform.listgrid1.refresh
+
+ENDPROC
+
+Bill Date or Number must be specified
+ and opdbill.cid=thisform.txtcid.value and register.settle = .f. 
+ and opdbill.bdate = thisform.txtbilldt.value 
+ and between(opdbill.billno, thisform.txtbillfrm.value , thisform.txtbillto.value) 
+select opdbill.billno , opdbill.hos_code, opdbill.pcode, patient.name as pat, opdbill.cid, company.name as com,  Ntot , " " as posted  from opdbill  join register on (register.regno = opdbill.hos_code and register.type = 'O' ) left outer join patient on (opdbill.pcode=patient.code)  left outer join company on (opdbill.cid = company.id)  where empty(opdbill.stat)  &lccond  order by opdbill.billno  into table (tmpfil)
+
+Bills are not generated, No Records available
+tmppost.billno
+tmppost.hos_code
+tmppost.pat
+tmppost.com
+tmppost.ntot
+tmppost.posted
+THISFORM	
+TXTBILLDT
+TXTBILLFRM	
+TXTBILLTO
+TMPPOST	
+LISTGRID1
+RECORDSOURCE
+CONTROLSOURCE
+READONLY
+	txtbilldt
+
+frmrevbill
+Comment = ""
+FontSize = 8
+Alignment = 3
+Value = {}
+Format = ""
+Height = 23
+Left = 32
+TabIndex = 3
+Top = 24
+Width = 71
+ZOrderSet = 10
+Name = "txtbilldt"
+
+
+frmrevbill
+AutoSize = .T.
+FontBold = .F.
+FontSize = 8
+BackStyle = 0
+Caption = "Company"
+Left = 33
+Top = 66
+TabIndex = 11
+ZOrderSet = 11
+Name = "Label5"
+
+
+frmrevbill
+AutoSize = .T.
+FontBold = .F.
+FontSize = 8
+BackStyle = 0
+Caption = "From :"
+Left = 153
+Top = 29
+TabIndex = 6
+ZOrderSet = 11
+Name = "Label1"
+
+Comment = ""
+FontSize = 8
+Alignment = 3
+Value = 0
+Format = "k"
+Height = 23
+Left = 191
+TabIndex = 4
+Top = 24
+Width = 71
+ZOrderSet = 10
+Name = "txtbillfrm"
+
+Comment = ""
+FontSize = 8
+Alignment = 3
+Value = 0
+Format = "k"
+Height = 23
+Left = 305
+TabIndex = 5
+Top = 24
+Width = 71
+ZOrderSet = 12
+Name = "txtbillto"
+
+AutoSize = .T.
+FontBold = .F.
+FontSize = 8
+BackStyle = 0
+Caption = "To :"
+Left = 278
+Top = 29
+TabIndex = 7
+ZOrderSet = 13
+Name = "Label2"
+
+ControlSource = "lccid"
+Enabled = .T.
+Format = "!"
+Height = 23
+Left = 93
+MaxLength = 4
+TabIndex = 8
+Top = 62
+Width = 48
+ZOrderSet = 14
+refpath = thisform
+rowsrc = select name,id from company order by id into cursor txtcid
+emptyallowed = .F.
+Name = "txtCid"
+
+Bills successfully reversed
+RUSERID	
+GCLOGINID
+OBIL_MST
+REGISTER
+HOS_CODE
+TBILLAMT
+THISFORM
+cmdok.Click,
+Destroy,

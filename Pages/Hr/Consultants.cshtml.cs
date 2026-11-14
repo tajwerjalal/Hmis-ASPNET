@@ -7,6 +7,16 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HmisWeb.Pages.Hr
 {
+    /// <summary>
+    /// Consultant master list.
+    ///
+    /// Developer : [TAJWER JALAL]
+    /// Date      : 23-Oct-2026
+    /// Time      : 10:30
+    /// Change Log: 23-Oct-2026 - list projection coalesces the nullable
+    ///             [STAFF] fee columns so consultants without a rate card
+    ///             display as zero instead of throwing.
+    /// </summary>
     public class ConsultantsModel : PageModel
     {
         private readonly ApplicationDbContext _db;
@@ -87,8 +97,8 @@ namespace HmisWeb.Pages.Hr
                         : ("Consultant #" + c.Id),
                     SpecialityName = c.Speciality != null ? c.Speciality.Name : "",
                     Mobile = c.Person != null ? c.Person.Mobile : "",
-                    FirstVisitFee = c.FirstVisitFee,
-                    SubsequentVisitFee = c.SubsequentVisitFee,
+                    FirstVisitFee = c.FirstVisitFee ?? 0,
+                    SubsequentVisitFee = c.SubsequentVisitFee ?? 0,
                     Degrees = c.Degrees ?? "",
                     SltRegNo = c.SltRegNo ?? "",
                     Code = c.Code ?? "",

@@ -1,5 +1,4 @@
 @page "/lab/TestSetup"
-@using HmisWeb.Data.Enums
 @model HmisWeb.Pages.Lab.TestSetupModel
 @{
     ViewData["Title"] = "Test Setup";
@@ -8,7 +7,7 @@
 <div class="d-flex justify-content-between align-items-end mb-3">
     <div>
         <h4 class="mb-0 fw-bold"><i class="bi bi-flask me-2 text-primary"></i>Test Setup</h4>
-        <div class="text-secondary small">Laboratory test master &middot; mirrors VFP Labsys <code>lb0301</code></div>
+        <div class="text-secondary small">Laboratory test master &middot; mirrors VFP Labsys <code>lb0301</code> &middot; shared master [SERVICES] &middot; DEPT 01</div>
     </div>
     <a asp-page="/lab/TestSetup" asp-route-add="1" class="btn btn-primary btn-sm">
         <i class="bi bi-plus-lg me-1"></i>New Test
@@ -42,63 +41,44 @@
                 <div class="row g-3">
                     <div class="col-md-2">
                         <label class="form-label small mb-1">Code</label>
-                        <input asp-for="Input.Code" class="form-control form-control-sm" />
+                        <input asp-for="Input.Code" class="form-control form-control-sm" maxlength="5" />
                     </div>
                     <div class="col-md-4">
                         <label class="form-label small mb-1">Test Name <span class="text-danger">*</span></label>
                         <input asp-for="Input.Name" class="form-control form-control-sm" required />
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label small mb-1">Print Name</label>
-                        <input asp-for="Input.PrintName" class="form-control form-control-sm" />
-                    </div>
-                    <div class="col-md-3">
                         <label class="form-label small mb-1">Short Name</label>
                         <input asp-for="Input.Sname" class="form-control form-control-sm" />
                     </div>
-
-                    <div class="col-md-4">
-                        <label class="form-label small mb-1">Classification</label>
-                        <select asp-for="Input.CategoryId" asp-items="Model.CategoryList" class="form-select form-select-sm">
-                            <option value="">-- None --</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label small mb-1">Type</label>
-                        <select asp-for="Input.ItemType" class="form-select form-select-sm">
-                            <option value="@ItemType.Investigation">Investigation</option>
-                            <option value="@ItemType.Service">Service</option>
-                        </select>
-                    </div>
                     <div class="col-md-2">
                         <label class="form-label small mb-1">Price</label>
-                        <input asp-for="Input.Total" class="form-control form-control-sm" type="number" step="0.01" />
+                        <input asp-for="Input.Rate" class="form-control form-control-sm" type="number" step="0.01" />
                     </div>
                     <div class="col-md-2">
                         <label class="form-label small mb-1">Foreigner Price</label>
-                        <input asp-for="Input.TotalForForeigner" class="form-control form-control-sm" type="number" step="0.01" />
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label small mb-1">Staff Rate</label>
-                        <input asp-for="Input.StaffRate" class="form-control form-control-sm" type="number" step="0.01" />
+                        <input asp-for="Input.RateForeigner" class="form-control form-control-sm" type="number" step="0.01" />
                     </div>
 
                     <div class="col-md-2">
+                        <label class="form-label small mb-1">Consultant</label>
+                        <select asp-for="Input.ConsultantRequired" class="form-select form-select-sm">
+                            <option value="Y" selected="@(Model.Input.ConsultantRequired == "Y")">Required</option>
+                            <option value="N" selected="@(Model.Input.ConsultantRequired == "N")">Not required</option>
+                            <option value="O" selected="@(Model.Input.ConsultantRequired == "O")">Optional</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
                         <label class="form-label small mb-1">Min Duration</label>
-                        <input asp-for="Input.MinDuration" class="form-control form-control-sm" />
+                        <input asp-for="Input.MinDuration" class="form-control form-control-sm" maxlength="10" />
                     </div>
                     <div class="col-md-2">
                         <label class="form-label small mb-1">Max Duration</label>
-                        <input asp-for="Input.MaxDuration" class="form-control form-control-sm" />
+                        <input asp-for="Input.MaxDuration" class="form-control form-control-sm" maxlength="10" />
                     </div>
                     <div class="col-md-8">
                         <label class="form-label small mb-1">Specimen / Requirements</label>
                         <input asp-for="Input.Requirements" class="form-control form-control-sm" />
-                    </div>
-
-                    <div class="col-12">
-                        <label class="form-label small mb-1">Description</label>
-                        <textarea asp-for="Input.Descreption" class="form-control form-control-sm" rows="2"></textarea>
                     </div>
 
                     <div class="col-12 d-flex flex-wrap gap-4">
@@ -106,20 +86,12 @@
                             <input asp-for="Input.Billable" class="form-check-input" />
                             <label asp-for="Input.Billable" class="form-check-label small">Billable</label>
                         </div>
-                        <div class="form-check">
-                            <input asp-for="Input.ConsultantRequired" class="form-check-input" />
-                            <label asp-for="Input.ConsultantRequired" class="form-check-label small">Consultant Required</label>
-                        </div>
-                        <div class="form-check">
-                            <input asp-for="Input.Inactive" class="form-check-input" />
-                            <label asp-for="Input.Inactive" class="form-check-label small">Inactive</label>
-                        </div>
                     </div>
                 </div>
 
                 <div class="d-flex gap-2 mt-3">
                     <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-check2 me-1"></i>Save</button>
-                    <a asp-page="/lab/TestSetup" asp-route-SearchTerm="@Model.SearchTerm" asp-route-CategoryId="@Model.CategoryId" asp-route-Status="@Model.Status" class="btn btn-outline-secondary btn-sm">Cancel</a>
+                    <a asp-page="/lab/TestSetup" asp-route-SearchTerm="@Model.SearchTerm" asp-route-Status="@Model.Status" class="btn btn-outline-secondary btn-sm">Cancel</a>
                 </div>
             </form>
         </div>
@@ -129,28 +101,11 @@
 <form method="get" class="card mb-3">
     <div class="card-body py-2">
         <div class="row g-2 align-items-end">
-            <div class="col-md-4">
+            <div class="col-md-5">
                 <label class="form-label small mb-1">Search</label>
                 <input name="SearchTerm" value="@Model.SearchTerm" class="form-control form-control-sm" placeholder="code / name" />
             </div>
             <div class="col-md-3">
-                <label class="form-label small mb-1">Classification</label>
-                <select name="CategoryId" class="form-select form-select-sm">
-                    <option value="">All</option>
-                    @foreach (var c in Model.CategoryList)
-                    {
-                        if (Model.CategoryId?.ToString() == c.Value)
-                        {
-                            <option value="@c.Value" selected>@c.Text</option>
-                        }
-                        else
-                        {
-                            <option value="@c.Value">@c.Text</option>
-                        }
-                    }
-                </select>
-            </div>
-            <div class="col-md-2">
                 <label class="form-label small mb-1">Status</label>
                 <select name="Status" class="form-select form-select-sm">
                     <option value="active" selected="@(Model.Status == "active")">Active (@Model.ActiveCount)</option>
@@ -158,7 +113,7 @@
                     <option value="all" selected="@(Model.Status == "all")">All</option>
                 </select>
             </div>
-            <div class="col-md-3 d-flex gap-2">
+            <div class="col-md-4 d-flex gap-2">
                 <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search me-1"></i>Filter</button>
                 <a asp-page="/lab/TestSetup" class="btn btn-outline-secondary btn-sm">Reset</a>
             </div>
@@ -174,12 +129,12 @@
                     <tr>
                         <th>Code</th>
                         <th>Test Name</th>
-                        <th>Classification</th>
-                        <th>Type</th>
+                        <th>Short Name</th>
                         <th class="text-end">Price</th>
                         <th class="text-end">Foreigner</th>
                         <th>Requirements</th>
                         <th class="text-center">Status</th>
+                        <th class="text-end">Last Edit</th>
                         <th class="text-end">Actions</th>
                     </tr>
                 </thead>
@@ -190,24 +145,17 @@
                         {
                             <tr>
                                 <td>@t.Code</td>
-                                <td>
-                                    <div class="fw-semibold">@t.Name</div>
-                                    @if (!string.IsNullOrWhiteSpace(t.PrintName) && t.PrintName != t.Name)
-                                    {
-                                        <div class="text-secondary small">print: @t.PrintName</div>
-                                    }
-                                </td>
-                                <td>@(t.Category?.Name ?? "")</td>
-                                <td>@t.ItemType</td>
-                                <td class="text-end">@t.Total?.ToString("N2")</td>
-                                <td class="text-end">@t.TotalForForeigner?.ToString("N2")</td>
+                                <td class="fw-semibold">@t.Name</td>
+                                <td>@t.Sname</td>
+                                <td class="text-end">@t.Rate?.ToString("N2")</td>
+                                <td class="text-end">@t.RateForeigner?.ToString("N2")</td>
                                 <td class="text-truncate" style="max-width:220px" title="@t.Requirements">@t.Requirements</td>
                                 <td class="text-center">
                                     @if (t.Retired)
                                     {
                                         <span class="badge bg-secondary">Retired</span>
                                     }
-                                    else if (t.Inactive)
+                                    else if (!t.Active)
                                     {
                                         <span class="badge bg-warning text-dark">Inactive</span>
                                     }
@@ -216,8 +164,9 @@
                                         <span class="badge bg-success">Active</span>
                                     }
                                 </td>
+                                <td class="text-muted small">@t.StampUser @(t.StampDate?.ToString("dd-MMM-yy"))</td>
                                 <td class="text-end text-nowrap">
-                                    <a asp-page="/lab/TestSetup" asp-route-edit="@t.Id" asp-route-SearchTerm="@Model.SearchTerm" asp-route-CategoryId="@Model.CategoryId" asp-route-Status="@Model.Status" class="btn btn-outline-primary btn-sm" title="Edit">
+                                    <a asp-page="/lab/TestSetup" asp-route-edit="@t.Id" asp-route-SearchTerm="@Model.SearchTerm" asp-route-Status="@Model.Status" class="btn btn-outline-primary btn-sm" title="Edit">
                                         <i class="bi bi-pencil"></i>
                                     </a>
                                     @if (t.Retired)
@@ -246,3 +195,5 @@
         </div>
     </div>
 </div>
+
+<partial name="_Pager" model="Model" />

@@ -148,10 +148,18 @@
             w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Indent Printout</title><style>' + css + '</style></head><body>');
             w.document.write('<h1>ULTRASOUND INDENT</h1>');
             w.document.write(document.getElementById('ipDoc').innerHTML);
-            w.document.write('</body></html>');
+            w.document.write('<\/body><\/html>');
             w.document.close();
             w.focus();
             setTimeout(function () { w.print(); }, 400);
+        }
+        @if (Model.Found && Request.Query["print"].ToString() == "1")
+        {
+            <text>
+            window.addEventListener('load', function() {
+                setTimeout(function(){ ipPrint(); }, 600);
+            });
+            </text>
         }
     </script>
 }

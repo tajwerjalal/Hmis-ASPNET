@@ -13,4 +13,16 @@
     <PackageReference Include="PdfSharpCore" Version="1.3.62" />
   </ItemGroup>
 
+  <!--
+    Developer convenience: a running HmisWeb.exe locks bin\Debug\net8.0\HmisWeb.exe,
+    which makes the build fail with MSB3021/MSB3027. Stop the app before a Debug
+    build on Windows so the output can be copied. ContinueOnError keeps builds
+    working when no instance is running.
+  -->
+  <Target Name="StopRunningHmisWeb" BeforeTargets="PrepareForBuild;_CopyOutOfDateSourceItemsToOutputDirectory"
+          Condition="'$(Configuration)' == 'Debug' and '$(OS)' == 'Windows_NT'">
+    <Message Text="Stopping running HmisWeb.exe before copying build output..." Importance="high" />
+    <Exec Command="taskkill /IM HmisWeb.exe /F /T &gt;NUL 2&gt;&amp;1" ContinueOnError="true" />
+  </Target>
+
 </Project>

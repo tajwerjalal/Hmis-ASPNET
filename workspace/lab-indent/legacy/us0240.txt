@@ -1,0 +1,475 @@
+﻿VERSION =   3.00
+dataenvironment
+dataenvironment
+Dataenvironment
+lLeft = 28
+Top = 83
+Width = 520
+Height = 200
+InitialSelectedAlias = "reports"
+Name = "Dataenvironment"
+
+Dataenvironment
+Left = 10
+Top = 140
+Width = 95
+Height = 90
+Alias = "consult"
+BufferModeOverride = 0
+Order = "id"
+CursorSource = ..\..\master\consult.dbf
+Name = "Cursor4"
+
+Dataenvironment
+Left = 150
+Top = 20
+Width = 90
+Height = 90
+Alias = "collect"
+BufferModeOverride = 0
+Order = "indentno"
+Database = ..\us.dbc
+CursorSource = "collect"
+Name = "Cursor1"
+
+Dataenvironment
+Left = 290
+Top = 20
+Width = 90
+Height = 90
+Alias = "trans"
+BufferModeOverride = 0
+Order = "id"
+Database = ..\us.dbc
+CursorSource = "trans"
+Name = "Cursor2"
+
+Dataenvironment
+Left = 10
+Top = 20
+Width = 90
+Height = 90
+Alias = "reports"
+BufferModeOverride = 0
+Order = "link"
+Database = ..\us.dbc
+CursorSource = "reports"
+Name = "Cursor3"
+
+Dataenvironment
+Left = 150
+Top = 140
+Width = 90
+Height = 90
+Alias = "company"
+BufferModeOverride = 0
+Order = "id"
+CursorSource = ..\..\master\company.dbf
+Name = "Cursor5"
+
+baseform
+ ..\..\common\class\baseclass.vcx
+frmtestrepo
+Top = 0
+Left = 1
+Height = 308
+Width = 337
+DoCreate = .T.
+Caption = "Test Result Report"
+ctoolbar = 
+menukey = us0240
+Name = "frmtestrepo"
+
+PROCEDURE gettext
+para txt
+TXTLEN= LEN(TXT)
+append blan in prn
+** setting default values
+repl tul with .f.,tbold with .f.,talign with 'L'
+**... format
+** starting position of format codes in the  string
+start = at('\p',txt)
+if substr(txt,start,5) = '\pard' or substr(txt,start,6) = '\plain'
+	nchar = at(space(1),right(txt,txtlen-start))
+	tformat = substr(txt,start,nchar)
+else
+	if substr(txt,start+5,5) = '\pard' or substr(txt,start+5,6) = '\plain'
+		start = start + 5
+		nchar = at(space(1),right(txt,txtlen-start))
+		tformat = substr(txt,start,nchar)
+	else
+		nchar   = at(space(1),right(txt,txtlen-start))
+		tformat = this.tformat
+	Endif
+endif		
+** checking font bold
+if at("\b",tformat)!= 0
+		repl prn.tbold with .t.
+Endif
+** checking font underline
+if at("\ul",tformat)!= 0
+	repl prn.tul with .t.
+endif
+
+** checking of alligment
+
+do case
+	case at("qc",tformat)!=0
+		repl prn.talign with 'C'
+	case at("qr",tformat)!=0
+		repl prn.talign with 'R'
+	other 
+		repl prn.talign with 'L'
+Endcase
+
+** getting end of text
+textend= at('\p',right(txt,txtlen-(start+nchar))) -1
+** Setting report text
+this.tformat = tformat 
+tmptext = substr(txt,start+nchar+1,textend)
+** skipping Additonal Control Character
+pos = 1
+do while pos!=0
+	pos = at('\',tmptext)
+	if pos!=0
+		pos2 = at(' ',right(tmptext,len(tmptext) - pos) )
+		tmptext = left(tmptext,pos -1)+ ' ' +right(tmptext,len(tmptext)- (pos+pos2) )
+	endif	
+Enddo	
+repl prn.text with tmptext &&substr(txt,start+nchar+1,tmptext)
+return start + nchar + textend
+***  AT(cSearchExpression, cExpressionSearched [, nOccurrence])
+***  SUBSTR(cExpression, nStartPosition [, nCharactersReturned])  
+
+ENDPROC
+PROCEDURE Init
+lparameter lcindentno
+dodefault()
+
+if type("lcindentno")<>'L'
+	thisform.txtindentno.value = lcindentno
+	thisform.txtindentno.refresh
+	thisform.txtindentno.valid
+	thisform.txtindentno.enabled = .f.	
+	thisform.list1.valid
+endif
+
+ENDPROC
+PROCEDURE repoquery
+if empty(thisform.txtselected.value)
+	=messagebox("Please select test",0+16+0,"Validation Error")
+	return
+endif
+select reports
+if !seek(thisform.txtindentno.value+thisform.list1.list(thisform.list1.listitemid,1)+thisform.list1.list(thisform.list1.listitemid,3))
+	=messagebox("Test Result Report not available",0+16+0,"Search Error")
+	return
+endif
+select trans
+=seek(thisform.txtindentno.value+thisform.list1.list(thisform.list1.listitemid,1)+thisform.list1.list(thisform.list1.listitemid,3))
+
+public gcindentno,gcdate,gcname,gctype,gcregno,gcbedno,gcage,gcsex,;
+	   gcconsult,gcdigree,gctitle,gccomp
+gccomp = ' '
+select collect
+seek thisform.txtindentno.value
+gcindentno = iif(!empty(indentno),"Indent:  "+Trans(indentno,"@r 999-999999"),"")
+gcdate     = iif(!empty(date),dtoc(date),"")
+gcname     = name
+gctype     = Type
+gcregno    = iif(!empty(regno),' - '+allt(str(regno)),"")
+gcbedno    = iif(!empty(bedno),"Bed No. : "+trans(bedno,'@r xx-x/xx'),"")
+gcage      = iif(!Empty(age),str(age,3) + ' ' + atype,"")
+gcsex      = iif(!empty(sex),sex,"")
+select consult
+seek trans.concode
+gcconsult  = alltrim(prefix)+' '+name
+gcdigree   = digree
+gctitle	   = title
+if !empty(collect.cid)
+	select company
+	seek collect.cid
+	gccomp = name
+endif
+public hd1,hd2
+hd1 = "US Information Management"
+CREATE CURSOR PRN (	tbold l(1),;
+				 	tul	  l(1),;
+				 	talign c(1),;
+				 	text   M(80);
+				   )
+
+rpttxt =reports.report
+tlen = len(rpttxt)
+endloop = .f.
+counter = 0
+do while  counter < tlen - 4
+	xtxt = right(rpttxt,tlen- counter)
+	counter =counter + thisform.gettext(xtxt)
+enddo
+
+**For Laser Printer following lines added by Tajwer Jalal 18-Sep-2011
+if ThisForm.chkLaserPrinter.value=1
+**For Laser Printer only
+if thisform.printflag
+	report form reportlaser noconsole range thisform.txtspage.value, ;
+		thisform.txtepage.value to printer
+else
+	report form reportlaser range thisform.txtspage.value, ;
+		thisform.txtepage.value preview
+endif
+
+else
+
+**For DotMatrix Printer
+
+if thisform.printflag
+	report form report noconsole range thisform.txtspage.value, ;
+		thisform.txtepage.value to printer
+else
+	report form report range thisform.txtspage.value, ;
+		thisform.txtepage.value preview
+endif
+
+endif
+
+if !thisform.txtindentno.enabled
+	thisform.reportbtns1.cmdexit.click
+endif
+
+return
+
+ENDPROC
+
+lcindentnob
+LCINDENTNO
+THISFORM
+TXTINDENTNO
+Please select test
+Validation Error
+Test Result Report not available
+Search Error
+Indent:  C
+@r 999-999999_
+Bed No. : C
+@r xx-x/xx_
+US Information Management
+reportlaser(!9
+reportlaser
+report(!9
+THISFORM
+TXTSELECTED
+TXTINDENTNO
+LISTITEMID
+GCINDENTNO
+GCCONSULT
+GCDIGREE
+INDENTNO
+CHKLASERPRINTER	
+PRINTFLAG
+REPORTLASER
+TXTSPAGE
+TXTEPAGE
+REPORTBTNS1
+gettext,
+repoquery
+tformat
+*gettext 
+
+
+reportbtns
+ ..\..\common\class\baseclass.vcx
+commandgroup
+Reportbtns1
+frmtestrepo
+Left = 149
+Top = 231
+TabIndex = 5
+Name = "Reportbtns1"
+cmdview.Top = 5
+cmdview.Left = 5
+cmdview.Name = "cmdview"
+cmdprint.Top = 5
+cmdprint.Left = 65
+cmdprint.Name = "cmdprint"
+CMDEXIT.Top = 5
+CMDEXIT.Left = 125
+CMDEXIT.Name = "CMDEXIT"
+
+txtIndentno
+frmtestrepo
+Comment = ""
+ControlSource = ""
+Format = "!R"
+Height = 23
+InputMask = "999-999999"
+Left = 156
+MaxLength = 9
+TabIndex = 7
+Top = 12
+Width = 76
+DisabledForeColor = 64,0,64
+Name = "txtIndentno"
+
+"PROCEDURE Valid
+select collect
+if seek(this.value)
+	thisform.list1.rowsource = "Select sid,sname,testno from trans where indentno=this.value into cursor cbosid"
+	thisform.list1.requery
+else
+	=messagebox("Indent No. does not exist",0+16+0,"Search Error")
+	return
+endif
+
+
+ENDPROC
+
+Select sid,sname,testno from trans where indentno=this.value into cursor cbosid
+Indent No. does not exist
+Search Error
+THISFORM
+ROWSOURCE
+lblIndentno
+frmtestrepo
+rAutoSize = .T.
+BackStyle = 0
+Caption = "US Indent No"
+Left = 48
+Top = 18
+TabIndex = 6
+Name = "lblIndentno"
+
+frmtestrepo
+FontName = "Fixedsys"
+FontSize = 8
+ColumnCount = 2
+RowSourceType = 3
+DisplayValue = 
+Height = 96
+Left = 12
+Top = 72
+Width = 312
+Name = "List1"
+
+|PROCEDURE Valid
+thisform.txtselected.value = this.list(this.listitemid,1)+' - '+this.list(this.listitemid,2)
+
+
+ENDPROC
+
+THISFORM
+TXTSELECTED
+LISTITEMID
+txtselected
+frmtestrepo
+FontSize = 8
+Enabled = .F.
+Height = 23
+Left = 82
+Top = 175
+Width = 238
+DisabledForeColor = 64,0,64
+Name = "txtselected"
+
+frmtestrepo
+fAutoSize = .T.
+Caption = "Selected"
+Height = 17
+Left = 25
+Top = 179
+Width = 50
+Name = "Label1"
+
+frmtestrepo
+FontSize = 8
+Caption = "(Press enter or double click to select)"
+Height = 17
+Left = 12
+Top = 52
+Width = 216
+Name = "Label2"
+
+frmtestrepo
+iAutoSize = .T.
+Caption = "Pages from :"
+Height = 17
+Left = 9
+Top = 233
+Width = 72
+Name = "Label3"
+
+frmtestrepo
+bAutoSize = .T.
+Caption = "to :"
+Height = 17
+Left = 63
+Top = 259
+Width = 18
+Name = "Label4"
+
+txtspage
+frmtestrepo
+vHeight = 23
+InputMask = "9,999"
+Left = 81
+MaxLength = 4
+ReadOnly = .F.
+Top = 226
+Width = 48
+Name = "txtspage"
+
+}PROCEDURE Init
+this.value = 1
+ENDPROC
+PROCEDURE RangeHigh
+return 9999
+ENDPROC
+PROCEDURE RangeLow
+return 1
+
+ENDPROC
+
+RangeHighP
+RangeLowa
+txtepage
+frmtestrepo
+fHeight = 23
+InputMask = "9,999"
+Left = 81
+MaxLength = 4
+Top = 255
+Width = 48
+Name = "txtepage"
+
+PROCEDURE Init
+this.value = 9999
+
+
+ENDPROC
+PROCEDURE RangeHigh
+return 9999
+ENDPROC
+PROCEDURE RangeLow
+return 1
+
+ENDPROC
+
+RangeHighQ
+RangeLowb
+checkbox
+checkbox
+chkLaserPrinter
+frmtestrepo
+yTop = 204
+Left = 84
+Height = 13
+Width = 120
+FontSize = 8
+Caption = "Printer (Laser Jet)"
+Name = "chkLaserPrinter"
+
+Arial, 0, 8, 5, 14, 11, 29, 3, 0
+Comic Sans MS, 0, 7, 4, 13, 10, 12, 3, 0
+Arial, 0, 9, 5, 15, 12, 32, 3, 0
+Fixedsys, 0, 8, 8, 15, 12, 8, 3, 0
+

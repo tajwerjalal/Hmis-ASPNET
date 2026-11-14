@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HmisWeb.Pages.Cashier
 {
-    public class PaymentModel : PageModel
+    public class PaymentModel : CashierPageModel
     {
         private readonly ApplicationDbContext _db;
         private readonly IAppSession _session;
@@ -76,7 +76,7 @@ namespace HmisWeb.Pages.Cashier
             var pay = new CashPayment
             {
                 CCode = _session.LoggedDepartment?.Code ?? "",
-                LCode = _session.LoggedDepartment?.Id ?? 0,
+                LCode = (int)(_session.LoggedDepartment?.Id ?? 0),
                 TrNo = trNo,
                 TrDate = Input.TrDate,
                 TrTime = Input.TrTime,

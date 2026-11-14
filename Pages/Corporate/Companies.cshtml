@@ -63,13 +63,13 @@
     <div class="col-md-3">
         <div class="card text-center py-3">
             <div class="text-secondary small">Showing</div>
-            <div class="fs-4 fw-bold text-dark">@Model.Companies.Count</div>
+            <div class="fs-4 fw-bold text-dark">@Model.TotalCount</div>
         </div>
     </div>
     <div class="col-md-3">
         <div class="card text-center py-3">
             <div class="text-secondary small">Total Service Rates</div>
-            <div class="fs-4 fw-bold text-info">@Model.Companies.Sum(c => c.ServiceRateCount)</div>
+            <div class="fs-4 fw-bold text-info">@Model.TotalServiceRates</div>
         </div>
     </div>
 </div>
@@ -77,7 +77,7 @@
 <div class="card">
     <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
         <span><i class="bi bi-list-ul me-1 text-primary"></i>Companies</span>
-        <span class="badge bg-primary">@Model.Companies.Count</span>
+        <span class="badge bg-primary">@Model.TotalCount</span>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -106,7 +106,7 @@
                             </td>
                         </tr>
                     }
-                    @{ var rowNum = 0; }
+                    @{ var rowNum = (Model.PageNumber - 1) * Model.PageSize; }
                     @foreach (var c in Model.Companies)
                     {
                         rowNum++;
@@ -149,7 +149,7 @@
                             <td class="text-end text-nowrap">
                                 <button type="button" class="btn btn-sm btn-outline-primary"
                                         data-bs-toggle="modal" data-bs-target="#editModal"
-                                        data-id="@c.Id"
+                                        data-code="@c.Code"
                                         data-name="@c.Name"
                                         data-sname=""
                                         data-code="@c.Code"
@@ -166,7 +166,7 @@
                                 @if (!c.Retired)
                                 {
                                     <form method="post" asp-page-handler="Retire" class="d-inline">
-                                        <input type="hidden" name="id" value="@c.Id" />
+                                        <input type="hidden" name="code" value="@c.Code" />
                                         <button type="submit" class="btn btn-sm btn-outline-danger" title="Retire"
                                                 onclick="return confirm('Retire company @c.Name?')">
                                             <i class="bi bi-archive"></i>
@@ -176,7 +176,7 @@
                                 else
                                 {
                                     <form method="post" asp-page-handler="Unretire" class="d-inline">
-                                        <input type="hidden" name="id" value="@c.Id" />
+                                        <input type="hidden" name="code" value="@c.Code" />
                                         <button type="submit" class="btn btn-sm btn-outline-success" title="Restore"
                                                 onclick="return confirm('Restore company @c.Name?')">
                                             <i class="bi bi-arrow-counterclockwise"></i>
@@ -191,6 +191,8 @@
         </div>
     </div>
 </div>
+
+<partial name="_Pager" model="Model" />
 
 <div class="modal fade" id="createModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
@@ -257,7 +259,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <input type="hidden" asp-for="EditId" id="editId" />
+                <input type="hidden" asp-for="EditCode" id="editId" />
                 <div class="mb-3">
                     <label class="form-label">Company Name <span class="text-danger">*</span></label>
                     <input asp-for="FormCompany.Name" class="form-control" id="editName" required />
@@ -318,7 +320,7 @@
     var editModal = document.getElementById('editModal');
     editModal.addEventListener('show.bs.modal', function (event) {
         var btn = event.relatedTarget;
-        document.getElementById('editId').value = btn.getAttribute('data-id');
+        document.getElementById('editId').value = btn.getAttribute('data-code') || '';
         document.getElementById('editName').value = btn.getAttribute('data-name') || '';
         document.getElementById('editCode').value = btn.getAttribute('data-code') || '';
         document.getElementById('editRegNo').value = btn.getAttribute('data-regno') || '';

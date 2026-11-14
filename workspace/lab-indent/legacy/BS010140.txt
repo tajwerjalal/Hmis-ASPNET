@@ -1,0 +1,1437 @@
+﻿VERSION =   3.00
+dataenvironment
+dataenvironment
+Dataenvironment
+lLeft = 11
+Top = 3
+Width = 558
+Height = 358
+InitialSelectedAlias = "obil_mst"
+Name = "Dataenvironment"
+
+Dataenvironment
+Left = 10
+Top = 19
+Width = 95
+Height = 90
+Alias = "register"
+BufferModeOverride = 5
+Order = "orno"
+CursorSource = ..\..\master\register.dbf
+Name = "Cursor1"
+
+Dataenvironment
+Left = 130
+Top = 20
+Width = 95
+Height = 90
+Alias = "patient"
+BufferModeOverride = 5
+Order = "code"
+CursorSource = ..\..\master\patient.dbf
+Name = "Cursor2"
+
+Dataenvironment
+Left = 247
+Top = 21
+Width = 95
+Height = 90
+Alias = "company"
+BufferModeOverride = 5
+Order = "id"
+CursorSource = ..\..\master\company.dbf
+Name = "Cursor3"
+
+relation
+relation
+	Relation1
+Dataenvironment
+uParentAlias = "register"
+RelationalExpr = "pcode"
+ChildAlias = "patient"
+ChildOrder = "code"
+Name = "Relation1"
+
+relation
+relation
+	Relation3
+Dataenvironment
+qParentAlias = "register"
+RelationalExpr = "cid"
+ChildAlias = "company"
+ChildOrder = "id"
+Name = "Relation3"
+
+Dataenvironment
+Left = 10
+Top = 140
+Width = 95
+Height = 90
+Alias = "obil_mst"
+BufferModeOverride = 5
+Order = "dsnew"
+CursorSource = ..\obil_mst.dbf
+Filter = ""
+Name = "Cursor4"
+
+Dataenvironment
+Left = 128
+Top = 140
+Width = 95
+Height = 90
+Alias = "obil_det"
+BufferModeOverride = 5
+Order = "ds"
+CursorSource = ..\obil_det.dbf
+Name = "Cursor5"
+
+relation
+relation
+	Relation2
+Dataenvironment
+yParentAlias = "obil_mst"
+RelationalExpr = "hos_code"
+ChildAlias = "register"
+ChildOrder = "orno"
+Name = "Relation2"
+
+Dataenvironment
+Left = 244
+Top = 140
+Width = 95
+Height = 90
+Alias = "services"
+BufferModeOverride = 5
+Order = "code"
+CursorSource = ..\..\master\services.dbf
+Filter = "dept='04'"
+Name = "Cursor6"
+
+Dataenvironment
+Left = 10
+Top = 260
+Width = 95
+Height = 90
+Alias = "compchg"
+BufferModeOverride = 5
+Order = "cidscode"
+CursorSource = ..\..\master\compchg.dbf
+Name = "Cursor7"
+
+Dataenvironment
+Left = 127
+Top = 260
+Width = 95
+Height = 90
+Alias = "resochg"
+BufferModeOverride = 5
+Order = "ridscode"
+CursorSource = ..\..\master\resochg.dbf
+Name = "Cursor8"
+
+Dataenvironment
+Left = 245
+Top = 258
+Width = 95
+Height = 90
+Alias = "resource"
+BufferModeOverride = 5
+Order = "id"
+CursorSource = ..\..\master\resource.dbf
+Name = "Cursor9"
+
+Cursor10
+Dataenvironment
+Left = 10
+Top = 380
+Width = 95
+Height = 90
+Alias = "consult"
+BufferModeOverride = 0
+Order = "id"
+CursorSource = ..\..\master\consult.dbf
+Name = "Cursor10"
+
+Cursor11
+Dataenvironment
+Left = 127
+Top = 380
+Width = 95
+Height = 90
+Alias = "concomm"
+BufferModeOverride = 5
+Order = "key"
+CursorSource = ..\..\master\concomm.dbf
+Name = "Cursor11"
+
+Cursor12
+Dataenvironment
+Left = 245
+Top = 380
+Width = 95
+Height = 90
+Alias = "consdept"
+BufferModeOverride = 5
+Order = "consid"
+CursorSource = ..\..\master\consdept.dbf
+Name = "Cursor12"
+
+Cursor13
+Dataenvironment
+Left = 10
+Top = 380
+Width = 95
+Height = 90
+Alias = "opdbill"
+BufferModeOverride = 5
+Order = "hos_code"
+CursorSource = ..\opdbill.dbf
+Name = "Cursor13"
+
+baseform
+ ..\..\common\class\baseclass.vcx
+	frmopdden
+Top = 0
+Left = 0
+Height = 242
+Width = 570
+DoCreate = .T.
+Caption = "Dental - Outdoor Patient"
+WindowState = 0
+findform = bs010140f
+menukey = bs0101
+childtable = obil_det
+Name = "frmopdden"
+
+IPROCEDURE beforetop
+local var1,var2
+var1 = 'mregno'+alltrim(str(thisform.datasessionid))
+var2 = 'mdept'+alltrim(str(thisform.datasessionid))
+
+do while obil_mst.dept+str(obil_mst.hos_code,7) = &var2+str(&var1,7) and !bof()
+	skip -1
+enddo
+skip
+return .f.
+
+ENDPROC
+PROCEDURE beforeprev
+local var1,var2
+var1 = 'mregno'+alltrim(str(thisform.datasessionid))
+var2 = 'mdept'+alltrim(str(thisform.datasessionid))
+
+IF !BOF()
+	Skip -1
+	IF obil_mst.dept+str(obil_mst.hos_code,7)<>&var2+str(&var1,7) or BOF()
+		thisform.chktop = .t.
+		skip
+	ENDIF
+ENDIF
+return .f.
+
+ENDPROC
+PROCEDURE beforenext
+local var1,var2
+var1 = 'mregno'+alltrim(str(thisform.datasessionid))
+var2 = 'mdept'+alltrim(str(thisform.datasessionid))
+
+IF !EOF()
+	Skip 1
+	IF obil_mst.dept+str(obil_mst.hos_code,7)<>&var2+str(&var1,7) or EOF()
+		thisform.chkbottom = .t.
+		skip -1
+	ENDIF
+ENDIF
+return .f.
+
+ENDPROC
+PROCEDURE beforebottom
+local var1,var2
+var1 = 'mregno'+alltrim(str(thisform.datasessionid))
+var2 = 'mdept'+alltrim(str(thisform.datasessionid))
+
+do while obil_mst.dept+str(obil_mst.hos_code,7) = &var2+str(&var1,7) and !eof()
+	skip
+enddo
+skip -1
+return .f.
+
+ENDPROC
+PROCEDURE updbuttons
+dodefault()
+local var1,var2
+var1 = 'mregno'+alltrim(str(thisform.datasessionid))
+var2 = 'mdept'+alltrim(str(thisform.datasessionid))
+
+if obil_mst.hos_code <> &var1 or eof()
+	SELECT obil_mst
+	SEEK &var2+STR(&var1,7)
+	if eof()
+		ctoolbar.cmdbottom.enabled = .f.
+		ctoolbar.cmdtop.enabled = .f.
+		ctoolbar.cmdnext.enabled = .f.
+		ctoolbar.cmdprev.enabled = .f.
+	endif
+	ctoolbar.cmdedit.enabled = .f.
+	ctoolbar.cmddelete.enabled = .f.
+	thisform.refresh
+endif
+if seek(&var1,'register') and register.billgen
+	ctoolbar.cmdadd.enabled = .f.
+	ctoolbar.cmdedit.enabled = .f.
+	ctoolbar.cmddelete.enabled = .f.
+endif
+
+ENDPROC
+PROCEDURE Init
+LPARAMETER mlcregno
+local var1,var2
+var1 = 'mregno'+alltrim(str(thisform.datasessionid))
+var2 = 'mdept'+alltrim(str(thisform.datasessionid))
+public &var1,&var2
+&var1 = mlcregno
+&var2 = '04'
+DoDefault()
+
+SELECT obil_mst
+SEEK &var2+STR(&var1,7)
+
+ENDPROC
+PROCEDURE newrecord
+local var1,var2
+var1 = 'mregno'+alltrim(str(thisform.datasessionid))
+var2 = 'mdept'+alltrim(str(thisform.datasessionid))
+replace hos_code 	with &var1, ;
+		dept 	 	with &var2, ;
+		type 		with 'A', ;
+		stat		with 'E' in obil_mst
+
+ENDPROC
+PROCEDURE validrec
+local var1,var2
+var1 = 'mregno'+alltrim(str(thisform.datasessionid))
+var2 = 'mdept'+alltrim(str(thisform.datasessionid))
+
+if empty(thisform.baseframe1.page1.txtslipno.value)
+	thisform.validmsg = "Please enter slip No."
+	return .f.
+endif
+if empty(thisform.baseframe1.page1.txtslipdt.value)
+	thisform.validmsg = "Please enter slip date"
+	return .f.
+endif
+replace stat with 'E' in obil_mst
+
+oldalias = select()
+select obil_det
+seek &var2+thisform.baseframe1.page1.txtslipno.value
+do while dept+obil_det.slipno=&var2+thisform.baseframe1.page1.txtslipno.value and !eof()
+	if empty(code)
+		delete
+	endif
+	skip
+enddo
+thisform.baseframe1.page1.cmdcalc.click()
+if !empty(oldalias)
+	select (oldalias)
+endif
+
+ENDPROC
+
+mregnoCC
+=seek(&var2+str(&var1,7)+tempo.slipno,"obil_mst")
+
+select * from obil_mst  where obil_mst.dept+str(obil_mst.hos_code,7)=&var2+str(&var1,7)  into cursor tempo
+
+THISFORM
+DATASESSIONID
+DATAENVIRONMENT
+INITIALSELECTEDALIAS
+RECORDSOURCE
+UIEnable,
+THISFORM
+OBIL_DET
+BASEFRAME1
+CHILDGRID1
+ARRFLAGDEN
+Chargeable
+ARRFLAGDEN
+Destroy,
+services
+services
+OBIL_DET
+THISFORM
+
+BASEFRAME1
+SERVICES
+OBIL_DET
+OBIL_DET
+JArial, 0, 8, 5, 14, 11, 14, 3, 0
+Comic Sans MS, 0, 7, 4, 13, 10, 12, 3, 0
+
+	baseframe
+ ..\..\common\class\baseclass.vcx
+	pageframe
+
+Baseframe1
+	frmopdden
+ErasePage = .T.
+Top = 0
+Left = 0
+Width = 572
+Height = 243
+TabIndex = 1
+Name = "Baseframe1"
+Page1.Name = "Page1"
+Page2.Name = "Page2"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+frmopdden.Baseframe1.Page1
+Comment = ""
+ControlSource = "patient.code"
+Format = "!r"
+Height = 22
+InputMask = "999-99-99999"
+Left = 251
+MaxLength = 10
+ReadOnly = .T.
+TabIndex = 1
+Top = 10
+Width = 80
+editable = .F.
+Name = "txtCode"
+
+ ..\..\common\class\baseclass.vcx
+frmopdden.Baseframe1.Page1
+iCaption = "Patient Code"
+Height = 16
+Left = 183
+Top = 16
+Width = 62
+TabIndex = 4
+Name = "lblCode"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+frmopdden.Baseframe1.Page1
+Comment = ""
+ControlSource = "patient.name"
+Height = 22
+Left = 371
+MaxLength = 30
+ReadOnly = .T.
+TabIndex = 2
+Top = 10
+Width = 158
+editable = .F.
+Name = "txtName"
+
+ ..\..\common\class\baseclass.vcx
+frmopdden.Baseframe1.Page1
+aCaption = "Name"
+Height = 16
+Left = 335
+Top = 16
+Width = 29
+TabIndex = 5
+Name = "lblName"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+txtRegno
+frmopdden.Baseframe1.Page1
+Comment = ""
+ControlSource = "register.regno"
+Height = 22
+Left = 95
+MaxLength = 7
+ReadOnly = .T.
+TabIndex = 3
+Top = 11
+Width = 69
+editable = .F.
+Name = "txtRegno"
+
+ ..\..\common\class\baseclass.vcx
+lblRegno
+frmopdden.Baseframe1.Page1
+mCaption = "Registration No."
+Height = 16
+Left = 11
+Top = 17
+Width = 78
+TabIndex = 6
+Name = "lblRegno"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+frmopdden.Baseframe1.Page1
+Comment = ""
+ControlSource = "company.id"
+Height = 22
+Left = 251
+MaxLength = 4
+ReadOnly = .T.
+TabIndex = 9
+Top = 34
+Width = 35
+editable = .F.
+Name = "txtId"
+
+ ..\..\common\class\baseclass.vcx
+frmopdden.Baseframe1.Page1
+fCaption = "Company ID"
+Height = 16
+Left = 186
+Top = 40
+Width = 59
+TabIndex = 12
+Name = "lblId"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+txtName2
+frmopdden.Baseframe1.Page1
+Comment = ""
+ControlSource = "company.name"
+Height = 22
+Left = 371
+MaxLength = 25
+ReadOnly = .T.
+TabIndex = 10
+Top = 34
+Width = 158
+editable = .F.
+Name = "txtName2"
+
+ ..\..\common\class\baseclass.vcx
+lblName2
+frmopdden.Baseframe1.Page1
+cCaption = "Name"
+Height = 16
+Left = 335
+Top = 40
+Width = 29
+TabIndex = 13
+Name = "lblName2"
+
+ ..\..\common\class\baseclass.vcx
+	lblSlipno
+frmopdden.Baseframe1.Page1
+gCaption = "Slip No."
+Height = 16
+Left = 51
+Top = 40
+Width = 38
+TabIndex = 11
+Name = "lblSlipno"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+	txtSlipdt
+frmopdden.Baseframe1.Page1
+Comment = ""
+ControlSource = "obil_mst.slipdt"
+Height = 22
+Left = 95
+MaxLength = 8
+TabIndex = 8
+Top = 58
+Width = 67
+editable = .T.
+Name = "txtSlipdt"
+
+ ..\..\common\class\baseclass.vcx
+	lblSlipdt
+frmopdden.Baseframe1.Page1
+hCaption = "Slip date"
+Height = 16
+Left = 46
+Top = 64
+Width = 43
+TabIndex = 15
+Name = "lblSlipdt"
+
+	childbtns
+ ..\..\common\class\baseclass.vcx
+commandgroup
+
+Childbtns1
+frmopdden.Baseframe1.Page1
+Left = 494
+Top = 88
+TabIndex = 18
+childfield1 = dept
+childfield2 = slipno
+parentfield1 = dept
+parentfield2 = slipno
+Name = "Childbtns1"
+CMDADD.Top = 5
+CMDADD.Left = 5
+CMDADD.Name = "CMDADD"
+CMDDELETE.Top = 45
+CMDDELETE.Left = 5
+CMDDELETE.Name = "CMDDELETE"
+
+gPROCEDURE CMDADD.Click
+dodefault()
+replace flag with 'B', ;
+		rid with 'HM' in obil_det
+
+ENDPROC
+
+OBIL_DET
+CMDADD.Click,
+commandbutton
+commandbutton
+frmopdden.Baseframe1.Page1
+Top = 182
+Left = 479
+Height = 23
+Width = 77
+FontName = "Comic Sans MS"
+FontSize = 7
+Caption = "Calculate Total"
+TabIndex = 19
+Name = "cmdcalc"
+
+~PROCEDURE Click
+local searchkey, totalchg, lcalias, ;
+		var1,var2
+var1 = 'mregno'+alltrim(str(thisform.datasessionid))
+var2 = 'mdept'+alltrim(str(thisform.datasessionid))
+
+lcalias = select()
+select obil_det
+searchkey = &var2+thisform.baseframe1.page1.txtslipno.value
+thisform.baseframe1.page1.txtntotal.value = 0
+totalchg = 0
+if seek(searchkey)
+	do while dept+slipno = searchkey and !eof()
+		if flag<>'P'
+			totalchg = totalchg + namt
+		endif
+		skip
+	enddo
+endif
+if !empty(lcalias)
+	select (lcalias)
+endif
+thisform.baseframe1.page1.txtntotal.value = totalchg
+thisform.baseframe1.page1.txtntotal.refresh
+
+ENDPROC
+
+services
+Cannot Select Inactive Service
+Selection Error
+SERVICES
+CTEXTLOOKUP1
+gFontSize = 8
+BorderStyle = 0
+Margin = 0
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+,frmopdden.Baseframe1.Page2.Listgrid1.Column9
+	childgrid
+ ..\..\common\class\baseclass.vcx
+
+Childgrid1
+frmopdden.Baseframe1.Page1
+kColumnCount = 10
+FontSize = 8
+ChildOrder = "ds"
+DeleteMark = .F.
+Height = 126
+Left = 9
+LinkMaster = "obil_mst"
+Panel = 1
+RecordSource = "obil_det"
+RelationalExpr = "dept+slipno"
+RowHeight = 17
+TabIndex = 17
+Top = 85
+Width = 459
+attachbtns = childbtns1
+refbtns = baseframe1.page1
+Name = "Childgrid1"
+Column1.FontSize = 8
+Column1.ControlSource = "obil_det.code"
+Column1.CurrentControl = "Ctextlookup1"
+Column1.Width = 50
+Column1.Sparse = .F.
+Column1.Name = "Column1"
+Column2.FontSize = 8
+Column2.Bound = .T.
+Column2.ColumnOrder = 2
+Column2.ControlSource = "obil_det.desc"
+Column2.Enabled = .F.
+Column2.Width = 151
+Column2.ReadOnly = .F.
+Column2.Name = "Column2"
+Column3.FontSize = 8
+Column3.ColumnOrder = 3
+Column3.ControlSource = "obil_det.rid"
+Column3.CurrentControl = "Ctextlookup1"
+Column3.Width = 49
+Column3.Sparse = .F.
+Column3.Name = "Column3"
+Column4.FontSize = 8
+Column4.ColumnOrder = 4
+Column4.ControlSource = "obil_det.qty"
+Column4.Width = 45
+Column4.Name = "Column4"
+Column5.FontSize = 8
+Column5.ColumnOrder = 5
+Column5.ControlSource = "obil_det.rate"
+Column5.Width = 52
+Column5.Name = "Column5"
+Column6.FontSize = 8
+Column6.ColumnOrder = 6
+Column6.ControlSource = "obil_det.namt"
+Column6.Width = 64
+Column6.ReadOnly = .T.
+Column6.Name = "Column6"
+Column7.FontSize = 8
+Column7.Bound = .T.
+Column7.ColumnOrder = 7
+Column7.ControlSource = "obil_det.flag"
+Column7.CurrentControl = "cboflag"
+Column7.Width = 74
+Column7.ReadOnly = .F.
+Column7.Sparse = .F.
+Column7.Name = "Column7"
+Column8.FontSize = 8
+Column8.Bound = .T.
+Column8.ColumnOrder = 8
+Column8.ControlSource = "obil_det.concode"
+Column8.CurrentControl = "Ctextlookup1"
+Column8.Width = 38
+Column8.Sparse = .F.
+Column8.Name = "Column8"
+Column9.FontSize = 8
+Column9.Bound = .T.
+Column9.ColumnOrder = 10
+Column9.ControlSource = "obil_det.conpay"
+Column9.Width = 69
+Column9.Name = "Column9"
+Column10.FontSize = 8
+Column10.Bound = .T.
+Column10.ColumnOrder = 9
+Column10.ControlSource = [iif(seek(obil_det.concode,"consult"),consult.name,'')]
+Column10.Enabled = .F.
+Column10.Width = 131
+Column10.Name = "Column10"
+
+-frmopdden.Baseframe1.Page1.Childgrid1.Column1
+5FontSize = 8
+Caption = "Service"
+Name = "Header1"
+
+-frmopdden.Baseframe1.Page1.Childgrid1.Column1
+gFontSize = 8
+BorderStyle = 0
+Margin = 0
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+ctextlookup
+ ..\..\common\class\baseclass.vcx
+Ctextlookup1
+-frmopdden.Baseframe1.Page1.Childgrid1.Column1
+4Left = 39
+MaxLength = 5
+Top = 20
+refpath = thisform.baseframe1.page1.childgrid1.column1
+rowsrc = select desc,code from services where dept='04'  and services.active<>'I' order by desc into cursor cboser
+searchalias = services
+searchexpr = left(this.value,5)
+emptyallowed = .T.
+Name = "Ctextlookup1"
+
+pPROCEDURE Valid
+if !dodefault()
+	return .f.
+endif
+if empty(this.value)
+	replace desc with ''
+	retu .t.
+endif
+if seek(left(this.value,5),"services") and services.active<>'I'
+	replace desc with services.desc
+	This.Parent.Parent.Column3.Ctextlookup1.valid()
+else
+	=messageb("Cannot Select Inactive Service",48,"Selection Error")
+	retu .f.
+endif
+
+ENDPROC
+
+2FontSize = 8
+Caption = "Date"
+Name = "Header1"
+
+,frmopdden.Baseframe1.Page2.Listgrid1.Column9
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+,frmopdden.Baseframe1.Page2.Listgrid1.Column8
+2FontSize = 8
+Caption = "Bill"
+Name = "Header1"
+
+,frmopdden.Baseframe1.Page2.Listgrid1.Column8
+-frmopdden.Baseframe1.Page1.Childgrid1.Column2
+9FontSize = 8
+Caption = "Description"
+Name = "Header1"
+
+-frmopdden.Baseframe1.Page1.Childgrid1.Column2
+FontSize = 8
+BorderStyle = 0
+Enabled = .F.
+Margin = 0
+ReadOnly = .F.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+-frmopdden.Baseframe1.Page1.Childgrid1.Column3
+6FontSize = 8
+Caption = "Resource"
+Name = "Header1"
+
+-frmopdden.Baseframe1.Page1.Childgrid1.Column3
+gFontSize = 8
+BorderStyle = 0
+Margin = 0
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+ctextlookup
+ ..\..\common\class\baseclass.vcx
+Ctextlookup1
+-frmopdden.Baseframe1.Page1.Childgrid1.Column3
+Left = 33
+MaxLength = 2
+Top = 20
+refpath = thisform.baseframe1.page1.childgrid1.column3
+rowsrc = select name,id from resource order by name into cursor cboreso
+searchalias = resource
+searchexpr = this.value
+Name = "Ctextlookup1"
+
+PROCEDURE Valid
+IF !thisform.chgmode
+	RETURN
+ENDIF
+IF !dodefault()
+	RETURN .f.
+ENDIF
+if obil_det.rid = 'HM'
+	if seek(thisform.baseframe1.page1.txtid.value+left(obil_det.code,5),'compchg')
+		if compchg.change
+			if !empty(obil_det.rate)
+				return
+			endif
+		endif
+	else
+		if (seek(left(obil_det.code,5),'services') and services.change)
+			if !empty(obil_det.rate)
+				return
+			endif	
+		endif
+	endif
+else
+	if seek(obil_det.rid+left(obil_det.code,5),'resochg') 
+		if resochg.change
+			if !empty(obil_det.rate)
+				return
+			endif
+		endif
+	else
+		if seek(thisform.baseframe1.page1.txtid.value+left(obil_det.code,5),'compchg')
+			if compchg.change
+				if !empty(obil_det.rate)
+					return
+				endif
+			endif
+		else
+			if (seek(left(obil_det.code,5),'services') and services.change)
+				if !empty(obil_det.rate)
+					return
+				endif
+			endif
+		endif
+	endif
+endif
+
+opage = thisform.baseframe1.page1
+foundflag = .t.
+IF obil_det.rid = "HM"
+	IF seek(opage.txtid.value+left(obil_det.code,5),"compchg")
+		REPLACE rate with compchg.srate in obil_det
+	ELSE
+		foundflag = .f.
+	ENDIF
+ELSE
+	IF seek(obil_det.rid+left(obil_det.code,5),"resochg")
+		REPLACE rate with resochg.srate in obil_det
+	ELSE
+		IF seek(opage.txtid.value+left(obil_det.code,5),"compchg")
+			REPLACE rate with compchg.srate in obil_det
+		ELSE
+			foundflag = .f.
+		ENDIF
+	endif
+ENDIF
+IF !foundflag
+	IF seek(left(obil_det.code,5),"services")
+		REPLACE rate with services.srate in obil_det
+
+	ENDIF
+ENDIF
+replace namt with obil_det.qty*obil_det.rate in obil_det
+opage.childgrid1.column6.refresh
+opage.childgrid1.column5.refresh
+RETURN
+
+ENDPROC
+
+services
+services
+services
+THISFORM
+OBIL_DET
+BASEFRAME1
+SERVICES
+FOUNDFLAG
+CHILDGRID1
+-frmopdden.Baseframe1.Page1.Childgrid1.Column4
+6FontSize = 8
+Caption = "Quantity"
+Name = "Header1"
+
+-frmopdden.Baseframe1.Page1.Childgrid1.Column4
+gFontSize = 8
+BorderStyle = 0
+Margin = 0
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+XPROCEDURE Valid
+replace namt with this.value*obil_det.rate ;
+	in obil_det
+
+ENDPROC
+
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+,frmopdden.Baseframe1.Page2.Listgrid1.Column7
+-frmopdden.Baseframe1.Page1.Childgrid1.Column5
+2FontSize = 8
+Caption = "Rate"
+Name = "Header1"
+
+-frmopdden.Baseframe1.Page1.Childgrid1.Column5
+gFontSize = 8
+BorderStyle = 0
+Margin = 0
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+PROCEDURE When
+if obil_det.rid = 'HM'
+	if seek(thisform.baseframe1.page1.txtid.value+left(obil_det.code,5),'compchg')
+		if !compchg.change
+			retu .f.
+		endif
+	else
+		if !(seek(left(obil_det.code,5),'services') and services.change)
+			retu .f.
+		endif
+	endif
+else
+	if seek(obil_det.rid+left(obil_det.code,5),'resochg') 
+		if !resochg.change
+			retu .f.
+		endif
+	else
+		if seek(thisform.baseframe1.page1.txtid.value+left(obil_det.code,5),'compchg')
+			if !compchg.change
+				retu .f.
+			endif
+		else
+			if !(seek(left(obil_det.code,5),'services') and services.change)
+				retu .f.
+			endif
+		endif
+	endif
+endif
+
+ENDPROC
+PROCEDURE Valid
+replace namt with this.value*obil_det.qty ;
+	in obil_det
+
+ENDPROC
+
+mregnoCC
+searchkey = &var2+thisform.baseframe1.page1.txtslipno.value
+
+SEARCHKEY
+TOTALCHG
+THISFORM
+DATASESSIONID
+OBIL_DET
+
+BASEFRAME1
+TXTNTOTAL
+2FontSize = 8
+Caption = "Stat"
+Name = "Header1"
+
+-frmopdden.Baseframe1.Page1.Childgrid1.Column6
+4FontSize = 8
+Caption = "Amount"
+Name = "Header1"
+
+-frmopdden.Baseframe1.Page1.Childgrid1.Column6
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+-frmopdden.Baseframe1.Page1.Childgrid1.Column7
+:FontSize = 8
+Caption = "Process Flag"
+Name = "Header1"
+
+-frmopdden.Baseframe1.Page1.Childgrid1.Column7
+gFontSize = 8
+BorderStyle = 0
+Margin = 0
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+	ccombobox
+ ..\..\common\class\baseclass.vcx
+combobox
+-frmopdden.Baseframe1.Page1.Childgrid1.Column7
+dRowSourceType = 5
+RowSource = "arrflagden"
+Left = 22
+Top = 32
+ReadOnly = .F.
+Name = "cboflag"
+
+PROCEDURE Destroy
+release arrflagden
+
+ENDPROC
+PROCEDURE Init
+public arrflagden
+dimension arrflagden[3,2]
+arrflagden[1,1]="Both"
+arrflagden[1,2]="B"
+arrflagden[2,1]="Chargeable"
+arrflagden[2,2]="C"
+arrflagden[3,1]="Payable"
+arrflagden[3,2]="P"
+
+ENDPROC
+
+,frmopdden.Baseframe1.Page2.Listgrid1.Column7
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+,frmopdden.Baseframe1.Page2.Listgrid1.Column6
+4FontSize = 8
+Caption = "Ntotal"
+Name = "Header1"
+
+,frmopdden.Baseframe1.Page2.Listgrid1.Column6
+,frmopdden.Baseframe1.Page2.Listgrid1.Column5
+-frmopdden.Baseframe1.Page1.Childgrid1.Column8
+5FontSize = 8
+Caption = "Consult"
+Name = "Header1"
+
+-frmopdden.Baseframe1.Page1.Childgrid1.Column8
+gFontSize = 8
+BorderStyle = 0
+Margin = 0
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+ctextlookup
+ ..\..\common\class\baseclass.vcx
+Ctextlookup1
+-frmopdden.Baseframe1.Page1.Childgrid1.Column8
+CLeft = 25
+MaxLength = 3
+Top = 56
+refpath = thisform.baseframe1.page1.childgrid1.column8
+rowsrc = select name,id from consult,consdept where consult.id=consdept.consid and consdept.dept="04" order by name into cursor cboconcode
+searchalias = consult
+searchexpr = this.value
+emptyallowed = .T.
+Name = "Ctextlookup1"
+
+dPROCEDURE Valid
+IF !thisform.chgmode
+	RETURN
+ENDIF
+IF !dodefault()
+	RETURN .f.
+ENDIF
+
+IF empty(obil_det.conpay)
+	opage = thisform.baseframe1.page1
+
+	IF obil_det.flag = "B" or obil_det.flag = "P"
+		REPLACE conpay with iif(empty(obil_det.concode),0, ;
+			iif(!seek(opage.txtid.value+this.value+left(obil_det.code,5),"concomm"),0, ;
+			(obil_det.qty*obil_det.rate)-round(( (obil_det.qty*obil_det.rate)*(concomm.hmcper/100)),2) )) ;
+			in obil_det
+	ELSE
+		IF obil_det.flag = "C"
+			REPLACE conpay with 0.00 in obil_det
+		ENDIF
+	ENDIF
+	opage.childgrid1.column9.refresh
+ENDIF
+RETURN
+
+ENDPROC
+
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+2FontSize = 8
+Caption = "Type"
+Name = "Header1"
+
+,frmopdden.Baseframe1.Page2.Listgrid1.Column5
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+,frmopdden.Baseframe1.Page2.Listgrid1.Column4
+4FontSize = 8
+Caption = "Slipdt"
+Name = "Header1"
+
+,frmopdden.Baseframe1.Page2.Listgrid1.Column4
+-frmopdden.Baseframe1.Page1.Childgrid1.Column9
+:FontSize = 8
+Caption = "Cons.Payable"
+Name = "Header1"
+
+-frmopdden.Baseframe1.Page1.Childgrid1.Column9
+gFontSize = 8
+BorderStyle = 0
+Margin = 0
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+.frmopdden.Baseframe1.Page1.Childgrid1.Column10
+=FontSize = 8
+Caption = "Consultant Name"
+Name = "Header1"
+
+.frmopdden.Baseframe1.Page1.Childgrid1.Column10
+vFontSize = 8
+BorderStyle = 0
+Enabled = .F.
+Margin = 0
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+	txtNtotal
+frmopdden.Baseframe1.Page1
+Comment = ""
+ControlSource = "obil_mst.ntotal"
+Format = ""
+Height = 22
+InputMask = ""
+Left = 371
+MaxLength = 0
+ReadOnly = .T.
+TabIndex = 14
+Top = 58
+Width = 75
+editable = .F.
+Name = "txtNtotal"
+
+ ..\..\common\class\baseclass.vcx
+frmopdden.Baseframe1.Page1
+hCaption = "Net Amount"
+Height = 16
+Left = 304
+Top = 64
+Width = 58
+TabIndex = 16
+Name = "Clabel1"
+
+
+ctextvalid
+ ..\..\common\class\baseclass.vcx
+	txtSlipno
+frmopdden.Baseframe1.Page1
+ControlSource = "obil_mst.slipno"
+Format = "!r"
+Height = 22
+InputMask = "999-999999"
+Left = 95
+MaxLength = 9
+TabIndex = 7
+Top = 34
+Width = 75
+editable = .F.
+searchexpr = '04'+this.value
+searchtag = ds
+validalias = obil_mst
+Name = "txtSlipno"
+
+listgrid
+ ..\..\common\class\baseclass.vcx
+	Listgrid1
+frmopdden.Baseframe1.Page2
+ColumnCount = 9
+FontSize = 8
+Height = 204
+Left = 6
+Panel = 1
+ReadOnly = .T.
+RecordSource = ""
+RowHeight = 17
+Top = 5
+Width = 542
+Name = "Listgrid1"
+Column1.FontSize = 8
+Column1.ControlSource = ""
+Column1.Width = 64
+Column1.ReadOnly = .T.
+Column1.Name = "Column1"
+Column2.FontSize = 8
+Column2.ControlSource = ""
+Column2.Width = 36
+Column2.ReadOnly = .T.
+Column2.Name = "Column2"
+Column3.FontSize = 8
+Column3.ControlSource = ""
+Column3.Width = 50
+Column3.ReadOnly = .T.
+Column3.Name = "Column3"
+Column4.FontSize = 8
+Column4.ControlSource = ""
+Column4.Width = 50
+Column4.ReadOnly = .T.
+Column4.Name = "Column4"
+Column5.FontSize = 8
+Column5.ControlSource = ""
+Column5.Width = 36
+Column5.ReadOnly = .T.
+Column5.Name = "Column5"
+Column6.FontSize = 8
+Column6.ControlSource = ""
+Column6.Width = 50
+Column6.ReadOnly = .T.
+Column6.Name = "Column6"
+Column7.FontSize = 8
+Column7.ControlSource = ""
+Column7.Width = 36
+Column7.ReadOnly = .T.
+Column7.Name = "Column7"
+Column8.FontSize = 8
+Column8.ControlSource = ""
+Column8.Width = 36
+Column8.ReadOnly = .T.
+Column8.Name = "Column8"
+Column9.FontSize = 8
+Column9.ControlSource = ""
+Column9.Width = 56
+Column9.ReadOnly = .T.
+Column9.Name = "Column9"
+
+PROCEDURE UIEnable
+LPARAMETERS lEnable
+local var1,var2
+var1 = 'mregno'+alltrim(str(thisform.datasessionid))
+var2 = 'mdept'+alltrim(str(thisform.datasessionid))
+if !lEnable
+	=seek(&var2+str(&var1,7)+tempo.slipno,"obil_mst")
+	select (thisform.dataenvironment.initialselectedalias)
+else
+	select * from obil_mst ;
+		where obil_mst.dept+str(obil_mst.hos_code,7)=&var2+str(&var1,7) ;
+		into cursor tempo
+	this.recordsource = "tempo"
+	this.refresh
+	this.column1.width = 82
+	this.column2.width = 44
+	this.column3.width = 93
+	this.column4.width = 66
+	this.column5.width = 40
+	this.column6.width = 71
+	this.column7.width = 43
+	this.column8.width = 59
+	this.column9.width = 66
+endif
+
+ENDPROC
+
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+,frmopdden.Baseframe1.Page2.Listgrid1.Column3
+4FontSize = 8
+Caption = "Slipno"
+Name = "Header1"
+
+,frmopdden.Baseframe1.Page2.Listgrid1.Column3
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+,frmopdden.Baseframe1.Page2.Listgrid1.Column2
+2FontSize = 8
+Caption = "Dept"
+Name = "Header1"
+
+,frmopdden.Baseframe1.Page2.Listgrid1.Column2
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+,frmopdden.Baseframe1.Page2.Listgrid1.Column1
+,frmopdden.Baseframe1.Page2.Listgrid1.Column1
+6FontSize = 8
+Caption = "Hos_code"
+Name = "Header1"
+
+mregnoCC
+obil_mst.dept+str(obil_mst.hos_code,7) = &var2+str(&var1,7) and !bof()
+THISFORM
+DATASESSIONID
+mregnoCC
+IF obil_mst.dept+str(obil_mst.hos_code,7)<>&var2+str(&var1,7) or BOF()
+THISFORM
+DATASESSIONID
+mregnoCC
+IF obil_mst.dept+str(obil_mst.hos_code,7)<>&var2+str(&var1,7) or EOF()
+THISFORM
+DATASESSIONID	
+CHKBOTTOM
+mregnoCC
+obil_mst.dept+str(obil_mst.hos_code,7) = &var2+str(&var1,7) and !eof()
+THISFORM
+DATASESSIONID
+mregnoCC
+if obil_mst.hos_code <> &var1 or eof()
+SEEK &var2+STR(&var1,7)
+
+if seek(&var1,'register') and register.billgen
+THISFORM
+DATASESSIONID
+OBIL_MST
+CTOOLBAR	
+CMDBOTTOM
+CMDEDIT	
+CMDDELETE
+mregnoCC
+public &var1,&var2
+
+&var1 = mlcregno
+
+&var2 = '04'
+	
+SEEK &var2+STR(&var1,7)
+
+MLCREGNO
+THISFORM
+DATASESSIONID
+OBIL_MST
+mregnoCC
+replace hos_code 	with &var1,  dept 	 	with &var2,  type 		with 'A',  stat		with 'E' in obil_mst
+
+THISFORM
+DATASESSIONID
+mregnoCC
+Please enter slip No.
+Please enter slip date
+seek &var2+thisform.baseframe1.page1.txtslipno.value
+`
+dept+obil_det.slipno=&var2+thisform.baseframe1.page1.txtslipno.value and !eof()
+THISFORM
+DATASESSIONID
+
+BASEFRAME1
+TXTSLIPNO
+VALIDMSG	
+TXTSLIPDT
+OBIL_MST
+OLDALIAS
+OBIL_DET
+beforetop,
+beforeprev
+beforenext
+beforebottom
+updbuttons
+newrecord
+validrec

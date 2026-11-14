@@ -50,6 +50,38 @@
     </div>
 </div>
 
+<div class="card shadow-sm border-0 mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label small text-secondary mb-1">Filter by company</label>
+                <select name="FilterCompanyId" class="form-select form-select-sm">
+                    <option value="">All companies</option>
+                    @foreach (var c in Model.CompanyList)
+                    {
+                        if (Model.FilterCompanyId.HasValue && Model.FilterCompanyId.Value.ToString() == c.Value)
+                        {
+                            <option value="@c.Value" selected>@c.Text</option>
+                        }
+                        else
+                        {
+                            <option value="@c.Value">@c.Text</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small text-secondary mb-1">Service code / name</label>
+                <input name="Q" value="@Model.Q" class="form-control form-control-sm" placeholder="Search this module's services" />
+            </div>
+            <div class="col-md-4 d-flex gap-2">
+                <button type="submit" class="btn btn-sm btn-outline-primary"><i class="bi bi-funnel me-1"></i>Filter</button>
+                <a asp-page="./CompanyCharges" class="btn btn-sm btn-outline-secondary">Reset</a>
+            </div>
+        </form>
+    </div>
+</div>
+
 <div class="card shadow-sm border-0">
     <div class="card-body p-0">
         <table class="table table-sm table-hover mb-0">
@@ -89,3 +121,4 @@
         </table>
     </div>
 </div>
+<partial name="_Pager" model="Model" />

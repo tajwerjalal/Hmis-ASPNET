@@ -161,7 +161,7 @@ else
             w.document.write('<h1>AUDIT STATEMENT</h1>');
             w.document.write('<div class="sub">Ultrasound &nbsp;|&nbsp; @Model.PeriodText &nbsp;|&nbsp; @Model.Rows.Count line(s)</div>');
             w.document.write(document.getElementById('asTable').innerHTML);
-            w.document.write('</body></html>');
+            w.document.write('<\/body><\/html>');
             w.document.close();
             w.focus();
             setTimeout(function () { w.print(); }, 400);

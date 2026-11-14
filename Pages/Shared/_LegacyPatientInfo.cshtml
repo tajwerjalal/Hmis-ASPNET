@@ -1,0 +1,54 @@
+@model HmisWeb.Models.Legacy.PatientLegacyInfo
+@*
+    Compact patient detail strip for the indent screens.
+    The app PERSON row is empty for most legacy patients, so the details are
+    read from Patient / REGISTER and shown under the patient name.
+*@
+@if (Model != null)
+{
+    <div class="row g-2 small text-secondary mt-2">
+        @if (!string.IsNullOrWhiteSpace(Model.RegType) || !string.IsNullOrWhiteSpace(Model.RegNo))
+        {
+            <div class="col-auto">
+                <span class="fw-semibold">Reg:</span>
+                @(string.IsNullOrWhiteSpace(Model.RegNo) ? "-" : Model.RegNo)
+                @(string.IsNullOrWhiteSpace(Model.RegType) ? "" : Model.RegType == "I" ? " (Indoor)" : " (Outdoor)")
+            </div>
+        }
+        @if (Model.RegisterRDate.HasValue)
+        {
+            <div class="col-auto"><span class="fw-semibold">Reg date:</span> @Model.RegisterRDate.Value.ToString("dd MMM yyyy") @Model.RTime</div>
+        }
+        @if (!string.IsNullOrWhiteSpace(Model.Age))
+        {
+            <div class="col-auto"><span class="fw-semibold">Age:</span> @Model.Age</div>
+        }
+        @if (!string.IsNullOrWhiteSpace(Model.Sex))
+        {
+            <div class="col-auto"><span class="fw-semibold">Sex:</span> @Model.Sex</div>
+        }
+        @if (!string.IsNullOrWhiteSpace(Model.Phone1))
+        {
+            <div class="col-auto"><span class="fw-semibold">Phone:</span> @Model.Phone1</div>
+        }
+        @if (!string.IsNullOrWhiteSpace(Model.Address))
+        {
+            <div class="col-12"><span class="fw-semibold">Address:</span> @Model.Address</div>
+        }
+        @if (!string.IsNullOrWhiteSpace(Model.GName))
+        {
+            <div class="col-auto">
+                <span class="fw-semibold">Guardian:</span> @Model.GName
+                @(string.IsNullOrWhiteSpace(Model.GRelation) ? "" : $"({Model.GRelation})")
+            </div>
+        }
+        @if (!string.IsNullOrWhiteSpace(Model.Diagnose))
+        {
+            <div class="col-auto"><span class="fw-semibold">Diagnosis:</span> @Model.Diagnose</div>
+        }
+        @if (!string.IsNullOrWhiteSpace(Model.BedNo))
+        {
+            <div class="col-auto"><span class="fw-semibold">Bed:</span> @Model.BedNo</div>
+        }
+    </div>
+}

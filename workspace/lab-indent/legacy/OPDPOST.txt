@@ -1,0 +1,475 @@
+﻿VERSION =   3.00
+dataenvironment
+dataenvironment
+Dataenvironment
+kLeft = 28
+Top = 97
+Width = 520
+Height = 200
+InitialSelectedAlias = "report"
+Name = "Dataenvironment"
+
+Dataenvironment
+Left = 10
+Top = 20
+Width = 95
+Height = 90
+Alias = "collect"
+BufferModeOverride = 5
+Order = "indentno"
+Database = ..\us.dbc
+CursorSource = "collect"
+Name = "Cursor1"
+
+Dataenvironment
+Left = 150
+Top = 20
+Width = 95
+Height = 90
+Alias = "trans"
+BufferModeOverride = 0
+Order = "indent"
+Database = ..\us.dbc
+CursorSource = "trans"
+Name = "Cursor2"
+
+baseform
+ ..\..\common\class\baseclass.vcx
+
+frmopdpost
+Top = 0
+Left = 0
+Height = 250
+Width = 615
+DoCreate = .T.
+Caption = "OPD Panel Posting"
+WindowType = 1
+ctoolbar = 
+menukey = lb0425
+Name = "frmopdpost"
+
+PROCEDURE Destroy
+release tmpdate
+select tmppost
+use
+erase tmppost.dbf
+dodefault()
+
+ENDPROC
+PROCEDURE Init
+dodefault()
+public tmpdate
+tmpdate =date()
+thisform.txtdate.valid
+thisform.txtdate.setfocus
+
+ENDPROC
+
+tmppost.dbf
+THISFORM
+SETFOCUS
+Destroy,
+postcancelbtn
+ ..\..\common\class\baseclass.vcx
+commandgroup
+Postcancelbtn1
+
+frmopdpost
+Left = 192
+Top = 199
+Name = "Postcancelbtn1"
+cmdok.Top = 5
+cmdok.Left = 5
+cmdok.Name = "cmdok"
+cmdcancel.Top = 5
+cmdcancel.Left = 65
+cmdcancel.Name = "cmdcancel"
+
+vPROCEDURE cmdok.Click
+select 0
+use ..\billsys\obil_mst
+=CURSORSETPROP("Buffering", 5, "obil_mst")
+select 0
+use ..\billsys\obil_det
+=CURSORSETPROP("Buffering", 5, "obil_det")
+
+select tmppost
+go top
+do while !eof()
+
+		if posted = ' '
+			skip
+			loop
+		endif
+		select collect
+		seek tmppost.indentno
+		**updating records in obil_mst.dbf from collect.dbf
+		append blank in obil_mst
+		replace ;
+			dept   	 with gcdept, ;
+			slipno 	 with collect.indentno, ; 
+			hos_code with collect.regno, ;
+			slipdt 	 with collect.date, ;
+			type	 with 'A', ;
+			ntotal	 with collect.total,;
+			stat	 with 'P' in obil_mst
+			
+		**updating records in obil_det.dbf from trans.dbf
+		select trans
+		seek collect.indentno
+		do while indentno = collect.indentno and !eof()
+			if empty(sid)
+				skip
+				loop
+			Endif
+			append blank in obil_det
+			replace ;
+				dept 	with gcdept, ;
+				slipno	with trans.indentno, ;
+				code 	with trans.sid, ;
+				qty		with 1, ;
+				rate	with trans.charges, ;			
+				namt	with trans.charges, ;
+				rid		with trans.rid, ;
+				desc	with trans.sname in obil_det
+			
+			select trans
+			skip
+		Enddo
+		select collect
+		replace posted with 'P'
+		
+		select tmppost
+		skip
+Enddo
+select collect
+=tableupdate(1,.t.)
+
+select obil_mst
+=tableupdate(1,.t.)
+use
+
+select obil_det
+=tableupdate(1,.t.)
+use
+
+thisform.release
+
+ENDPROC
+
+..\billsys\obil_mst
+Buffering
+obil_mst
+..\billsys\obil_det
+Buffering
+obil_det
+INDENTNO
+OBIL_MST
+HOS_CODE
+OBIL_DET
+THISFORM
+cmdok.Click,
+
+frmopdpost
+FontSize = 8
+Alignment = 3
+Value = 
+Format = "k"
+Height = 23
+Left = 108
+TabIndex = 7
+Top = 8
+Width = 71
+Comment = ""
+Name = "txtDate"
+
+PROCEDURE Valid
+select collect
+tmpdate = this.value
+if used("tmppost")
+	use in tmppost
+endif
+set safety off
+if !empty(tmpdate)
+	select date,indentno,name,regno,total,posted from collect ;
+	where date=tmpdate and empty(posted) and left(type,1) = 'O' ;
+		and !empty(regno) order by date,indentno into table tmppost
+else
+	select date,indentno,name,regno,total,posted from collect ;
+	where empty(posted) and left(type,1) = 'O' ;
+		and !empty(regno) order by date,indentno into table tmppost
+endif
+set safety on
+thisform.listgrid1.recordsource = "tmppost"
+thisform.listgrid1.column1.width=57
+thisform.listgrid1.column2.width=77
+thisform.listgrid1.column3.width=134
+thisform.listgrid1.column4.width=63
+thisform.listgrid1.column5.width=54
+thisform.listgrid1.column6.width=46
+thisform.listgrid1.readonly=.t.
+thisform.listgrid1.refresh
+
+ENDPROC
+PROCEDURE Init
+this.value = date()-1
+
+
+ENDPROC
+
+INDENTNO
+THISFORM	
+LISTGRID1
+RECORDSOURCE
+READONLY
+
+frmopdpost
+AutoSize = .T.
+FontBold = .F.
+FontSize = 8
+BackStyle = 0
+Caption = "US Indent Date"
+Left = 15
+Top = 13
+TabIndex = 6
+Name = "lblDate"
+
+listgrid
+ ..\..\common\class\baseclass.vcx
+	Listgrid1
+
+frmopdpost
+ColumnCount = 6
+AllowHeaderSizing = .F.
+AllowRowSizing = .F.
+Height = 152
+Left = 8
+Panel = 1
+ReadOnly = .F.
+RecordSource = ""
+Top = 38
+Width = 498
+Name = "Listgrid1"
+Column1.FontSize = 8
+Column1.ControlSource = ""
+Column1.Width = 57
+Column1.ReadOnly = .F.
+Column1.Name = "Column1"
+Column2.FontSize = 8
+Column2.ControlSource = ""
+Column2.Width = 77
+Column2.ReadOnly = .F.
+Column2.Name = "Column2"
+Column3.FontSize = 8
+Column3.ControlSource = ""
+Column3.Width = 134
+Column3.ReadOnly = .F.
+Column3.Name = "Column3"
+Column4.FontSize = 8
+Column4.ControlSource = ""
+Column4.Width = 63
+Column4.ReadOnly = .F.
+Column4.Name = "Column4"
+Column5.ColumnOrder = 5
+Column5.ControlSource = ""
+Column5.Width = 54
+Column5.ReadOnly = .F.
+Column5.Name = "Column5"
+Column6.FontSize = 8
+Column6.ColumnOrder = 6
+Column6.ControlSource = ""
+Column6.Width = 46
+Column6.ReadOnly = .T.
+Column6.Sparse = .F.
+Column6.Name = "Column6"
+
+frmopdpost.Listgrid1.Column1
+2FontSize = 8
+Caption = "Date"
+Name = "Header1"
+
+frmopdpost.Listgrid1.Column1
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .F.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+frmopdpost.Listgrid1.Column2
+<FontSize = 8
+Caption = "Lab Indent No."
+Name = "Header1"
+
+frmopdpost.Listgrid1.Column2
+FontSize = 8
+BorderStyle = 0
+Format = ""
+InputMask = ""
+Margin = 0
+ReadOnly = .F.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+frmopdpost.Listgrid1.Column3
+:FontSize = 8
+Caption = "Patient Name"
+Name = "Header1"
+
+frmopdpost.Listgrid1.Column3
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .F.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+frmopdpost.Listgrid1.Column4
+6FontSize = 8
+Caption = "Reg. No."
+Name = "Header1"
+
+frmopdpost.Listgrid1.Column4
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .F.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+frmopdpost.Listgrid1.Column5
+3FontSize = 8
+Caption = "Total"
+Name = "Header1"
+
+frmopdpost.Listgrid1.Column5
+}BorderStyle = 0
+Margin = 0
+ReadOnly = .F.
+PasswordChar = "X"
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+frmopdpost.Listgrid1.Column6
+2FontSize = 8
+Caption = "Post"
+Name = "Header1"
+
+frmopdpost.Listgrid1.Column6
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+commandbutton
+commandbutton
+cmdcheckall
+
+frmopdpost
+_Top = 120
+Left = 516
+Height = 24
+Width = 84
+Caption = "\<Check All"
+Name = "cmdcheckall"
+
+PROCEDURE Click
+select tmppost
+go top
+do while !eof()
+	replace posted with 'X'
+	skip
+enddo
+go top
+thisform.listgrid1.refresh
+
+ENDPROC
+
+THISFORM	
+LISTGRID1
+commandbutton
+commandbutton
+cmduncheckall
+
+frmopdpost
+dTop = 144
+Left = 516
+Height = 24
+Width = 84
+Caption = "\<Un-Check All"
+Name = "cmduncheckall"
+
+PROCEDURE Click
+select tmppost
+go top
+do while !eof()
+	replace posted with ' '
+	skip
+enddo
+
+go top
+thisform.listgrid1.refresh
+
+ENDPROC
+
+THISFORM	
+LISTGRID1
+commandbutton
+commandbutton
+cmdcheck
+
+frmopdpost
+WTop = 60
+Left = 516
+Height = 24
+Width = 84
+Caption = "C\<heck"
+Name = "cmdcheck"
+
+~PROCEDURE Click
+select tmppost
+replace posted with 'X'
+thisform.listgrid1.refresh
+thisform.listgrid1.setfocus
+
+ENDPROC
+
+THISFORM	
+LISTGRID1
+SETFOCUS
+commandbutton
+commandbutton
+
+cmduncheck
+
+frmopdpost
+\Top = 84
+Left = 516
+Height = 24
+Width = 84
+Caption = "U\<n-Check"
+Name = "cmduncheck"
+
+~PROCEDURE Click
+select tmppost
+replace posted with ' '
+thisform.listgrid1.refresh
+thisform.listgrid1.setfocus
+
+ENDPROC
+
+THISFORM	
+LISTGRID1
+SETFOCUS
+kArial, 0, 8, 5, 14, 11, 12, 3, 0
+Comic Sans MS, 0, 7, 4, 13, 10, 11, 3, 0
+Arial, 0, 9, 5, 15, 12, 13, 3, 0
+

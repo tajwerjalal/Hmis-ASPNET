@@ -19,6 +19,11 @@ namespace HmisWeb.Pages.Ot
     /// </summary>
     public class CaseEntryModel : PageModel
     {
+        /// <summary>Mirror prefix of this module on the shared services master (DEPT scoped).</summary>
+
+        private const string ItemPrefix = "INV-OT-";
+
+
         private readonly ApplicationDbContext _db;
         private readonly IAppSession _session;
         private readonly ICommonService _common;
@@ -405,7 +410,7 @@ namespace HmisWeb.Pages.Ot
             }).ToList();
 
             var procs = await _db.Items
-                .Where(i => !i.Retired && !i.Inactive)
+                .Where(i => !i.Retired && !i.Inactive && i.Code.StartsWith(ItemPrefix))
                 .OrderBy(i => i.Name)
                 .Take(1000)
                 .Select(i => new { i.Id, i.Code, i.Name, i.Total })

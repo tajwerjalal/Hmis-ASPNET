@@ -61,7 +61,7 @@
                     <tbody>
                         @foreach (var p in Model.Patients)
                         {
-                            var name = p.Person?.NameWithInitials ?? p.Person?.Name ?? "-";
+                            var name = HmisWeb.Services.PatientDisplayName.Of(p);
                             <tr>
                                 <td>@(p.PatientId?.ToString() ?? p.Phn ?? "-")</td>
                                 <td class="fw-semibold">@name</td>

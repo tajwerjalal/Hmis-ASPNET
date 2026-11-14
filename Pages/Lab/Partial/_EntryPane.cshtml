@@ -1,0 +1,250 @@
+@model HmisWeb.Pages.Lab.TestResultEntryModel
+@*
+    ============================================================================
+    File........: Pages/Lab/Partial/_EntryPane.cshtml
+    Purpose.....: Entry tab of lb0110: read-only REPORT header, TESTTR test grid,
+                  "Additional Notes" and the two lower sub-tabs (Test Result and
+                  Update Culture).
+    Inputs......: Model.Entry (header, tests, selected test, readings, culture,
+                  remarks), Model.GroupCode.
+    Outputs.....: HTML for the entry screen. All edits are collected by
+                  lab-testresult.js and posted to ?handler=Save.
+    Business
+      rules.....: 1. Result entry (READTR, notes, culture) is enabled as soon as
+                     an indent/test is opened; the patient header, Age Type,
+                     Sr.No and Report Date stay read-only until Edit is pressed.
+                  2. Selecting a TESTTR row refreshes notes, results and culture
+                     for that test (AJAX partials).
+                  3. Report Date is per test; Sr.No is editable and saved to
+                     TESTTR.SRNO.
+                  4. Insert in the notes box opens TESTREMARK; when the test has
+                     no remarks the modal shows "No Remarks Available".
+                  5. Age Type is the only editable header field and is saved to
+                     REPORT.ATYPE.
+    Developer...: Tajwer Jalal
+    Date/Time...: 2026-11-02 15:12
+    ============================================================================
+*@
+@{
+    var entry = Model.Entry;
+    var header = entry?.Header;
+    var selected = entry?.SelectedTest;
+}
+
+@if (entry == null || header == null)
+{
+    <div class="alert alert-warning mb-0">
+        <i class="bi bi-exclamation-triangle me-1"></i>
+        @(entry?.Error ?? "The selected indent could not be loaded.")
+    </div>
+    return;
+}
+
+<div id="entryPane" data-labno="@header.LabNo" data-tid="@selected?.Tid"
+     data-testno="@selected?.TestNo" data-gid="@entry.GroupCode" data-edit="0">
+
+    <div id="entryAlert"></div>
+
+    @* ================= REPORT HEADER (read-only except Age Type) ================= *@
+    <div class="card mb-3 border-primary">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <span class="fw-semibold">
+                <i class="bi bi-file-earmark-medical me-1"></i>
+                Lab Indent <span class="font-monospace">@header.LabNoDisplay</span>
+                <span class="ms-2 small opacity-75">@header.Type @header.Cid</span>
+            </span>
+            <span class="d-flex gap-2 align-items-center">
+                @if (string.Equals(header.Posted, "N", StringComparison.OrdinalIgnoreCase) || string.IsNullOrEmpty(header.Posted))
+                {
+                    <span class="badge bg-warning text-dark">Unposted</span>
+                }
+                else
+                {
+                    <span class="badge bg-light text-dark">Posted</span>
+                }
+                <span class="small opacity-75">Net @header.Net.ToString("N2")</span>
+            </span>
+        </div>
+        <div class="card-body py-2">
+            <div class="row g-2 small">
+                <div class="col-md-4">
+                    <label class="text-muted d-block">Patient Name</label>
+                    <div class="fw-semibold text-uppercase">@header.Name</div>
+                </div>
+                <div class="col-md-2">
+                    <label class="text-muted d-block">Patient Id</label>
+                    <div class="font-monospace">@header.PCodeDisplay</div>
+                </div>
+                <div class="col-md-2">
+                    <label class="text-muted d-block">Registration No</label>
+                    <div>@header.Hrno</div>
+                </div>
+                <div class="col-md-2">
+                    <label class="text-muted d-block">Collection</label>
+                    <div>@(header.Date?.ToString("dd/MM/yyyy") ?? "") @header.Time</div>
+                </div>
+                <div class="col-md-2">
+                    <label class="text-muted d-block">Sex / Bed</label>
+                    <div>@header.Sex @(string.IsNullOrWhiteSpace(header.BedNo) ? "" : "/ " + header.BedNo)</div>
+                </div>
+                <div class="col-md-2">
+                    <label class="text-muted d-block">Age</label>
+                    <div class="d-flex gap-1">
+                        <input class="form-control form-control-sm" style="max-width:70px" value="@header.Age"
+                               maxlength="3" disabled data-always="1" />
+                        <select id="ageType" class="form-select form-select-sm" style="max-width:100px" disabled>
+                            <option value="YEAR" selected="@(header.ATypeDisplay == "YEAR")">YEAR</option>
+                            <option value="MONTH" selected="@(header.ATypeDisplay == "MONTH")">MONTH</option>
+                            <option value="DAY" selected="@(header.ATypeDisplay == "DAY")">DAY</option>
+                            <option value="HOUR" selected="@(header.ATypeDisplay == "HOUR")">HOUR</option>
+                        </select>
+                    </div>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(header.Concode))
+                {
+                    <div class="col-md-2">
+                        <label class="text-muted d-block">Consultant</label>
+                        <div>@header.Concode</div>
+                    </div>
+                }
+            </div>
+
+            <div class="d-flex gap-2 mt-3">
+                <button type="button" class="btn btn-primary btn-sm" id="btnEditEntry"
+                        title="Enable Age Type, Sr.No and Report Date editing; results are always editable">
+                    <i class="bi bi-pencil me-1"></i>Edit
+                </button>
+                <button type="button" class="btn btn-success btn-sm" id="btnSaveEntry" disabled>
+                    <i class="bi bi-check2-circle me-1"></i>Save
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="btnCancelEntry" disabled>
+                    <i class="bi bi-x-circle me-1"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-outline-primary btn-sm" id="btnFindEntry">
+                    <i class="bi bi-search me-1"></i>Find
+                </button>
+                <button type="button" class="btn btn-outline-dark btn-sm" id="btnPrintEntry"
+                        title="Open the printable test report">
+                    <i class="bi bi-printer me-1"></i>Print
+                </button>
+                <span class="small text-muted align-self-center ms-2">
+                    Results can be entered directly. Use Edit for Age Type, Sr.No or Report Date.
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <input type="hidden" id="entryLabNo" value="@header.LabNo" />
+    <input type="hidden" id="entryTid" value="@selected?.Tid" />
+    <input type="hidden" id="entryTestNo" value="@selected?.TestNo" />
+    <input type="hidden" id="entryGid" value="@entry.GroupCode" />
+    <input type="hidden" id="origRemarks" value="@selected?.Remarks" />
+    <input type="hidden" id="origReportDate" value="@(selected?.RepoDt?.ToString("yyyy-MM-dd") ?? "")" />
+    <input type="hidden" id="origSrNo" value="@(selected?.SrNo ?? 0)" />
+
+    @* ================= TEST GRID ================= *@
+    <div class="card mb-3">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <span class="fw-semibold"><i class="bi bi-list-check me-1 text-primary"></i>Tests on this indent</span>
+            <span class="small text-muted">Click a row to enter its results</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0" id="testGrid">
+                <thead class="table-light">
+                    <tr>
+                        <th>Test ID</th>
+                        <th>Test Description</th>
+                        <th>Group</th>
+                        <th style="width:90px">Sr.No</th>
+                        <th style="width:160px">Report Date</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (entry.Tests.Count == 0)
+                    {
+                        <tr><td colspan="6" class="text-center text-muted py-3">No tests on this indent.</td></tr>
+                    }
+                    else
+                    {
+                        foreach (var test in entry.Tests)
+                        {
+                            var isSelected = selected != null &&
+                                             string.Equals(selected.Key, test.Key, StringComparison.OrdinalIgnoreCase);
+                            <tr class="test-row @(isSelected ? "table-primary" : "")"
+                                data-tid="@test.Tid" data-testno="@test.TestNo"
+                                data-remarks="@test.Remarks" data-repdt="@(test.RepoDt?.ToString("yyyy-MM-dd") ?? "")"
+                                data-srno="@test.SrNo" data-gid="@test.Gid" data-group="@test.GroupCode"
+                                data-culture="@(test.Culture ? "1" : "0")" style="cursor:pointer">
+                                <td class="font-monospace">@test.Tid</td>
+                                <td>@test.Name</td>
+                                <td><span class="badge bg-secondary">@test.GroupName</span></td>
+                                <td>
+                                    <input type="number" class="form-control form-control-sm test-srno"
+                                           value="@test.SrNo" min="0" max="99999" disabled />
+                                </td>
+                                <td>
+                                    <input type="date" class="form-control form-control-sm test-repodt"
+                                           value="@(test.RepoDt?.ToString("yyyy-MM-dd") ?? "")" disabled />
+                                </td>
+                                <td>
+                                    @if (test.Reported)
+                                    {
+                                        <span class="badge bg-success">Reported</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-warning text-dark">Pending</span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @* ================= ADDITIONAL NOTES ================= *@
+    <div class="card mb-3">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <span class="fw-semibold"><i class="bi bi-sticky me-1 text-primary"></i>Additional Notes</span>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="btnInsertRemark"
+                    disabled title="Press Insert key for remarks list">
+                <i class="bi bi-list-ul me-1"></i>Insert remark
+            </button>
+        </div>
+        <div class="card-body py-2">
+            <textarea id="testRemarks" class="form-control form-control-sm" rows="2" maxlength="2000"
+                      disabled title="Press Insert key for remarks list">@selected?.Remarks</textarea>
+        </div>
+    </div>
+
+    @* ================= LOWER SUB-TABS ================= *@
+    <ul class="nav nav-tabs" id="entrySubTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="resultTabBtn" data-bs-toggle="tab"
+                    data-bs-target="#resultTab" type="button" role="tab">
+                <i class="bi bi-clipboard2-pulse me-1"></i>Test Result
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="cultureTabBtn" data-bs-toggle="tab"
+                    data-bs-target="#cultureTab" type="button" role="tab">
+                <i class="bi bi-bacteria me-1"></i>Update Culture
+            </button>
+        </li>
+    </ul>
+    <div class="tab-content border border-top-0 rounded-bottom p-2">
+        <div class="tab-pane fade show active" id="resultTab" role="tabpanel">
+            <div id="resultHost">
+                @await Html.PartialAsync("Partial/_ResultGrid", Model)
+            </div>
+        </div>
+        <div class="tab-pane fade" id="cultureTab" role="tabpanel">
+            <div id="cultureHost">
+                @await Html.PartialAsync("Partial/_CulturePane", Model)
+            </div>
+        </div>
+    </div>
+</div>

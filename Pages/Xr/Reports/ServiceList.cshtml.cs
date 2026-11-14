@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using HmisWeb.Data;
+using HmisWeb.Services;
 using HmisWeb.Models;
 
 namespace HmisWeb.Pages.Xr.Reports
@@ -17,9 +18,12 @@ namespace HmisWeb.Pages.Xr.Reports
     /// services.DBF left-joined to sergrp.DBF for the logged-in department and offered
     /// three layouts: a flat list, a group-included list, or a single selected group.
     /// </summary>
-    public class ServiceListModel : PageModel
+    public class ServiceListModel : HmisWeb.Pages.Shared.PagedPageModel
     {
         private readonly ApplicationDbContext _db;
+
+        /// <summary>CSV export must contain every row, not just the visible page.</summary>
+        private bool _exportAll;
 
         public ServiceListModel(ApplicationDbContext db)
         {
@@ -43,8 +47,8 @@ namespace HmisWeb.Pages.Xr.Reports
         public List<XrServiceCategory> Categories { get; set; } = new();
         public List<ServiceListRow> Rows { get; set; } = new();
 
-        public int TotalServices => Rows.Count;
-        public double TotalRate => Rows.Sum(r => r.Rate);
+        public int TotalServices => TotalCount;
+        public double TotalRate { get; set; }
         public string ReportTitle => "Service List";
         public bool Grouped => !string.Equals(LayoutMode, "Flat", StringComparison.OrdinalIgnoreCase);
         public string PeriodText => "All active services";
@@ -56,7 +60,7 @@ namespace HmisWeb.Pages.Xr.Reports
                 .OrderBy(c => c.Name)
                 .ToListAsync();
 
-            var query = _db.XrServices
+            var query = _db.XrServices()
                 .Include(s => s.Category)
                 .Where(s => !s.Retired);
 
@@ -81,22 +85,29 @@ namespace HmisWeb.Pages.Xr.Reports
                     ? query.OrderBy(s => s.Name)
                     : query.OrderBy(s => s.Code);
 
-            Rows = await query
-                .Select(s => new ServiceListRow
+            var rowsQuery = query
+                    .Select(s => new ServiceListRow
                 {
                     Code = s.Code,
                     Name = s.Name,
-                    Rate = s.Rate ?? 0,
-                    RateForeigner = s.RateForeigner ?? 0,
+                    Rate = (double)(s.Rate ?? 0m),
+                    RateForeigner = (double)(s.RateForeigner ?? 0m),
                     Group = s.Category == null ? "" : s.Category.Name,
                     Active = s.Active,
                     Requirements = s.Requirements
-                })
-                .ToListAsync();
+                });
+
+            TotalCount = await rowsQuery.CountAsync();
+            ClampPaging();
+            Rows = _exportAll
+                ? await rowsQuery.ToListAsync()
+                : await ApplyPaging(rowsQuery).ToListAsync();
+            TotalRate = await rowsQuery.SumAsync(r => r.Rate);
         }
 
         public async Task<IActionResult> OnGetExportAsync()
         {
+            _exportAll = true;
             await OnGetAsync();
 
             var sb = new StringBuilder();

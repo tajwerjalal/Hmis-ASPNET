@@ -1,0 +1,12 @@
+@page
+@model HmisWeb.Pages.Lab.InvoiceModel
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Invoice</title></head>
+<body>
+<div>Indent: @Model.IndentNo</div>
+<div>Net: @Model.NetTotal.ToString("N2")</div>
+<button onclick="window.print()">Print</button>
+<script>var p=new URLSearchParams(location.search);if(p.get('print'))setTimeout(function(){window.print();},300);</script>
+</body>
+</html>

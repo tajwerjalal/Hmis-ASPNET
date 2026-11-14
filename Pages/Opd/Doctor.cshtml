@@ -9,17 +9,19 @@
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h4 class="mb-0"><i class="bi bi-stethoscope"></i> OPD Doctor Workbench</h4>
         <div class="d-flex gap-2">
+            <input type="date" id="sessionDate" class="form-control form-control-sm" style="width:160px"
+                   value="@Model.SelectedDate.ToString("yyyy-MM-dd")" onchange="loadPatients()" title="Session date" />
             <select id="sessionSelect" class="form-select form-select-sm" style="width:250px" onchange="loadPatients()">
                 <option value="">-- Select Session --</option>
                 @foreach (var s in Model.Sessions)
                 {
                     if (s.Id == Model.SelectedSessionId)
                     {
-                        <option value="@s.Id" selected>@s.Consultant?.Person?.NameWithInitials - @s.RoomNo (@s.FromTime)</option>
+                        <option value="@s.Id" selected>@(s.Consultant?.Person?.NameWithInitials ?? s.Consultant?.Person?.Name ?? ("Session " + s.Id)) - @s.RoomNo (@s.FromTime)</option>
                     }
                     else
                     {
-                        <option value="@s.Id">@s.Consultant?.Person?.NameWithInitials - @s.RoomNo (@s.FromTime)</option>
+                        <option value="@s.Id">@(s.Consultant?.Person?.NameWithInitials ?? s.Consultant?.Person?.Name ?? ("Session " + s.Id)) - @s.RoomNo (@s.FromTime)</option>
                     }
                 }
             </select>
@@ -629,6 +631,10 @@
             }).catch(e => { alert('Network error'); });
         }
 
-        function loadPatients() { window.location.href = '/opd/doctor?sessionId=' + document.getElementById('sessionSelect').value; }
+        function loadPatients() {
+            var session = document.getElementById('sessionSelect').value;
+            var day = document.getElementById('sessionDate').value;
+            window.location.href = '/opd/doctor?sessionId=' + encodeURIComponent(session) + '&date=' + encodeURIComponent(day);
+        }
     </script>
 }

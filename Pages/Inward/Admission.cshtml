@@ -1,5 +1,18 @@
 @page
 @model HmisWeb.Pages.Inward.AdmissionModel
+@*
+    Inward Admission - IPD registration (legacy ipdreg.scx).
+
+    The bed selector is now fed by [BED_POS] / [WARD] instead of the empty
+    [ROOM] master; the form also carries the panel-company data (employee,
+    relation, card, reference, bed entitlement) of the legacy register.
+
+    Developer : [TAJWER JALAL]
+    Date      : 22-Oct-2026
+    Time      : 17:40
+    Change Log: 22-Oct-2026 - bed selector moved to BED_POS, company / employee
+                fields added, diagnosis added.
+*@
 @{
     ViewData["Title"] = "Inward Admission";
 }
@@ -21,8 +34,11 @@
         <form asp-page="/Inward/Admission" asp-page-handler="Search" method="post">
             <label class="form-label">Patient Search</label>
             <div class="input-group">
-                <input asp-for="SearchTerm" class="form-control" placeholder="Search by name, PHN or mobile number..." />
+                <input asp-for="SearchTerm" class="form-control" placeholder="Search by patient code, name, PHN or mobile number..." />
                 <button type="submit" class="btn btn-primary"><i class="bi bi-search me-1"></i>Search</button>
+                <a asp-page="/Patients/Create" asp-route-returnUrl="/inward/Admission" class="btn btn-outline-success text-nowrap">
+                    <i class="bi bi-person-plus me-1"></i>Add New Patient
+                </a>
             </div>
         </form>
 
@@ -38,7 +54,7 @@
                            asp-route-patientId="@p.Id"
                            class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
                             <div>
-                                <div class="fw-semibold">@(p.Person?.NameWithInitials ?? "Unnamed Patient")</div>
+                                <div class="fw-semibold">@HmisWeb.Services.PatientDisplayName.Of(p)</div>
                                 <small class="text-secondary">
                                     @if (p.Person?.Dob != null)
                                     {
@@ -50,7 +66,9 @@
                                     }
                                 </small>
                             </div>
-                            <span class="badge bg-light text-secondary">PHN: @(p.Phn ?? "-")</span>
+                            <span class="badge bg-light text-secondary">
+                                PCODE: @(p.Code ?? "-") &middot; PHN: @(p.Phn ?? "-")
+                            </span>
                         </a>
                     }
                 </div>
@@ -69,6 +87,8 @@
         <i class="bi bi-person-check me-1"></i>
         Selected: @Model.SelectedPatient.Person?.NameWithInitials
         <span class="text-secondary fw-normal">
+            <text>&middot; Patient Code: @(Model.LegacyPatient?.Code ?? Model.SelectedPatient.Code ?? "-")</text>
+            <text>&middot; Latest Reg No: @(Model.LegacyPatient?.RegNo ?? "-")</text>
             @if (Model.SelectedPatient.Person?.Dob != null)
             {
                 <text>&middot; DOB: @Model.SelectedPatient.Person.Dob.Value.ToString("dd MMM yyyy") (@Model.SelectedPatient.Person.GetAgeString())</text>
@@ -103,8 +123,8 @@
                             <input type="text" class="form-control" value="@(Model.SelectedPatient?.Person?.NameWithInitials ?? "No patient selected")" readonly disabled />
                         </div>
                         <div class="col-md-6">
-                            <label asp-for="BhtNo" class="form-label">BHT Number</label>
-                            <input asp-for="BhtNo" class="form-control" placeholder="Auto generated if blank" />
+                            <label asp-for="BhtNo" class="form-label">BHT / Reg No</label>
+                            <input asp-for="BhtNo" class="form-control" placeholder="Auto generated from REGISTER.REGNO" readonly />
                         </div>
                         <div class="col-md-4">
                             <label asp-for="DateOfAdmission" class="form-label">Date of Admission</label>
@@ -125,12 +145,12 @@
                             </select>
                         </div>
                         <div class="col-md-6">
-                            <label asp-for="RoomId" class="form-label">Room / Ward</label>
-                            <select asp-for="RoomId" class="form-select">
-                                <option value="">-- No Room / Ward --</option>
-                                @foreach (var room in Model.Rooms)
+                            <label asp-for="BedId" class="form-label">Bed (ward)</label>
+                            <select asp-for="BedId" class="form-select">
+                                <option value="">-- No bed / ward --</option>
+                                @foreach (var bed in Model.BedList)
                                 {
-                                    <option value="@room.Id">@room.Name</option>
+                                    <option value="@bed.Value">@bed.Text</option>
                                 }
                             </select>
                         </div>
@@ -170,6 +190,55 @@
                 </div>
             </div>
 
+            <div class="card mb-3">
+                <div class="card-header bg-white fw-semibold"><i class="bi bi-diagnosis"></i> Diagnosis &amp; Company</div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label asp-for="Diagnosis" class="form-label">Diagnosis</label>
+                            <input asp-for="Diagnosis" class="form-control" />
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Caste" class="form-label">Caste</label>
+                            <input asp-for="Caste" class="form-control" maxlength="10" />
+                        </div>
+                        <div class="col-md-3">
+                            <label asp-for="EmployeeCode" class="form-label">Employee code</label>
+                            <input asp-for="EmployeeCode" class="form-control" />
+                        </div>
+                        <div class="col-md-3">
+                            <label asp-for="EmployeeName" class="form-label">Employee name</label>
+                            <input asp-for="EmployeeName" class="form-control" />
+                        </div>
+                        <div class="col-md-3">
+                            <label asp-for="EmployeeRelation" class="form-label">Relation</label>
+                            <input asp-for="EmployeeRelation" class="form-control" />
+                        </div>
+                        <div class="col-md-3">
+                            <label asp-for="CardNo" class="form-label">Card no.</label>
+                            <input asp-for="CardNo" class="form-control" />
+                        </div>
+                        <div class="col-md-3">
+                            <label asp-for="ReferenceNo" class="form-label">Reference no.</label>
+                            <input asp-for="ReferenceNo" class="form-control" />
+                        </div>
+                        <div class="col-md-3">
+                            <label asp-for="RefValid" class="form-label">Valid upto</label>
+                            <input asp-for="RefValid" type="date" class="form-control" />
+                        </div>
+                        <div class="col-md-3">
+                            <label asp-for="BedEntitlement" class="form-label">Bed entitlement</label>
+                            <select asp-for="BedEntitlement" class="form-select">
+                                <option value="">-- None --</option>
+                                @foreach (var w in Model.WardList)
+                                {
+                                    <option value="@w.Value">@w.Text</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <div class="card mb-3">
                 <div class="card-header bg-white fw-semibold"><i class="bi bi-people"></i> Guardian</div>
                 <div class="card-body">

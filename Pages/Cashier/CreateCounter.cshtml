@@ -1,5 +1,16 @@
 @page
 @model HmisWeb.Pages.Cashier.CreateCounterModel
+@*
+    Create / open cash counter.
+
+    Developer : [TAJWER JALAL]
+    Date      : 23-Oct-2026
+    Time      : 12:50
+    Change Log: 23-Oct-2026 - opening a counter now requires the activation key
+                to be typed twice and both values must match.
+                23-Oct-2026 - added the Department / Line selector; the chosen
+                department is stored in session so the open-counter guard matches.
+*@
 @{
     ViewData["Title"] = "Create Cash Counter";
 }
@@ -8,23 +19,42 @@
     @if (!string.IsNullOrEmpty(Model.ErrorMessage)) { <div class="alert alert-danger">@Model.ErrorMessage</div> }
     @if (!string.IsNullOrEmpty(Model.Success)) { <div class="alert alert-success">@Model.Success</div> }
 
-    <form method="post" asp-page-handler="Save" class="row g-2 mb-3">
-        <div class="col-md-2">
-            <label class="form-label">Counter</label>
-            <select asp-for="Input.CCode" class="form-select">
-                @foreach (var c in Model.Counters) { <option value="@c.CCode">@c.CCode - @c.Desc</option> }
-            </select>
+    <form method="post" asp-page-handler="Save" id="createCounterForm" class="mb-3">
+        <div class="row g-2 mb-2">
+            <div class="col-md-4">
+                <label class="form-label">Department / Line</label>
+                <select asp-for="Input.LCode" class="form-select" required>
+                    <option value="">-- select department / line --</option>
+                    @foreach (var d in Model.Departments)
+                    {
+                        <option value="@d.Id">@d.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Counter</label>
+                <select asp-for="Input.CCode" class="form-select">
+                    <option value="">-- default counter --</option>
+                    @foreach (var c in Model.Counters) { <option value="@c.CCode">@c.CCode - @c.Desc</option> }
+                </select>
+            </div>
+            <div class="col-md-5">
+                <label class="form-label">Description</label>
+                <input asp-for="Input.Desc" class="form-control" required />
+            </div>
         </div>
-        <div class="col-md-3">
-            <label class="form-label">Description</label>
-            <input asp-for="Input.Desc" class="form-control" required />
-        </div>
-        <div class="col-md-3">
-            <label class="form-label">Activation Key</label>
-            <input asp-for="Input.ActiveKey" class="form-control" required />
-        </div>
-        <div class="col-md-2 align-self-end">
-            <button type="submit" class="btn btn-primary">Create</button>
+        <div class="row g-2 mb-3">
+            <div class="col-md-3">
+                <label class="form-label">Activation Key</label>
+                <input asp-for="Input.ActiveKey" type="password" class="form-control" required autocomplete="off" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Confirm Activation Key</label>
+                <input asp-for="Input.ConfirmActiveKey" type="password" class="form-control" required autocomplete="off" />
+            </div>
+            <div class="col-md-3 align-self-end">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-plus-circle me-1"></i>Create / Open</button>
+            </div>
         </div>
     </form>
 
@@ -40,3 +70,21 @@
     </table>
     <a asp-page="/cashier" class="btn btn-secondary">Back</a>
 </div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var form = document.getElementById('createCounterForm');
+            if (!form) return;
+            form.addEventListener('submit', function (e) {
+                var key = document.getElementById('Input_ActiveKey');
+                var confirm = document.getElementById('Input_ConfirmActiveKey');
+                if (key && confirm && key.value !== confirm.value) {
+                    e.preventDefault();
+                    alert('Activation key and confirmation key do not match.');
+                    confirm.focus();
+                }
+            });
+        })();
+    </script>
+}

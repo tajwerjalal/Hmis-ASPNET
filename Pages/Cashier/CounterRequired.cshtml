@@ -1,0 +1,48 @@
+@page
+@model HmisWeb.Pages.Cashier.CounterRequiredModel
+@*
+    Cashier open-counter guard page.
+
+    Developer : [TAJWER JALAL]
+    Date      : 23-Oct-2026
+    Time      : 12:35
+    Change Log: 23-Oct-2026 - created; shown when no cash counter is open for
+                the signed-in user.
+*@
+@{
+    ViewData["Title"] = "Cash Counter Required";
+}
+
+<div class="container mt-4">
+    <div class="card border-warning shadow-sm">
+        <div class="card-header fw-semibold" style="background:#fff3cd;">
+            <i class="bi bi-exclamation-triangle me-1 text-warning"></i> No Open Cash Counter
+        </div>
+        <div class="card-body">
+            <p class="mb-2">
+                You cannot work as a cashier until a cash counter is <strong>open</strong> for your
+                user in the selected department.
+            </p>
+            <p class="text-muted small mb-4">
+                Open a new counter, or claim an existing one with its activation key, then return to
+                the transaction screen. Day End Posting closes the counter; open a new one before the
+                next shift.
+            </p>
+
+            <div class="d-flex flex-wrap gap-2">
+                <a asp-page="/cashier/createcounter" class="btn btn-primary">
+                    <i class="bi bi-plus-circle me-1"></i> Create / Open Counter
+                </a>
+                <a asp-page="/cashier/setdefault" class="btn btn-outline-primary">
+                    <i class="bi bi-check-circle me-1"></i> Set Default Counter
+                </a>
+                <a asp-page="/cashier/countersetup" class="btn btn-outline-secondary">
+                    <i class="bi bi-hdd-stack me-1"></i> Counter Setup
+                </a>
+                <a asp-page="/cashier/index" class="btn btn-outline-secondary">
+                    <i class="bi bi-grid me-1"></i> Cashier Home
+                </a>
+            </div>
+        </div>
+    </div>
+</div>

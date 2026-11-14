@@ -30,7 +30,7 @@
                 @if (hasPatient)
                 {
                     var p = Model.SelectedPatient;
-                    var pname = p.Person?.NameWithInitials ?? p.Person?.Name ?? "-";
+                    var pname = HmisWeb.Services.PatientDisplayName.Of(p);
                     <div class="alert alert-success mt-3 mb-0 d-flex justify-content-between align-items-center">
                         <div>
                             <div class="fw-semibold">@pname</div>
@@ -63,7 +63,7 @@
                             <tbody>
                                 @foreach (var p in Model.PatientResults)
                                 {
-                                    var pname = p.Person?.NameWithInitials ?? p.Person?.Name ?? "-";
+                                    var pname = HmisWeb.Services.PatientDisplayName.Of(p);
                                     <tr>
                                         <td>@(p.PatientId?.ToString() ?? p.Phn ?? "-")</td>
                                         <td>@pname</td>

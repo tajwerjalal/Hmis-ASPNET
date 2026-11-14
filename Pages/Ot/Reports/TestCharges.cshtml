@@ -137,7 +137,7 @@
             w.document.write('<h1>TEST CHARGES REPORT</h1>');
             w.document.write('<div class="sub">@Model.CompanyName &nbsp;|&nbsp; Department: @Model.Department &nbsp;|&nbsp; @Model.Rows.Count test(s) &nbsp;|&nbsp; Standard @Model.TotalStandard.ToString("N2") &nbsp;|&nbsp; Company @Model.TotalCompany.ToString("N2")</div>');
             w.document.write(document.getElementById('tcTable').innerHTML);
-            w.document.write('</body></html>');
+            w.document.write('<\/body><\/html>');
             w.document.close();
             w.focus();
             setTimeout(function () { w.print(); }, 400);

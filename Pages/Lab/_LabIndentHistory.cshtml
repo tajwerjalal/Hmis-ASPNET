@@ -1,0 +1,107 @@
+@model HmisWeb.Pages.Lab.IndentModel
+@*
+    Previous Indents card for /lab/indent.
+    Lists every indent (paid and unpaid) with search, view, print and
+    duplicate-print actions so the user can see history from the landing page.
+*@
+<div class="card mb-3">
+    <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
+        <span><i class="fa-solid fa-clock-rotate-left me-1 text-primary"></i> Previous Indents</span>
+        <div class="d-flex gap-2">
+            <a href="/lab/indent/unpaid" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">
+                <i class="fa-solid fa-hourglass-half me-1"></i> View Unpaid Indents
+            </a>
+        </div>
+    </div>
+    <div class="card-body">
+        <form method="get" asp-page="/lab/indent" class="row g-2 align-items-end mb-3">
+            <div class="col-md-4">
+                <label class="form-label small fw-bold mb-1">Search</label>
+                <input name="HistorySearch" class="form-control" value="@Model.HistorySearch" placeholder="Indent no, Reg no or patient name..." />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-bold mb-1">From</label>
+                <input name="HistoryDateFrom" type="date" class="form-control" value="@Model.HistoryDateFrom" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-bold mb-1">To</label>
+                <input name="HistoryDateTo" type="date" class="form-control" value="@Model.HistoryDateTo" />
+            </div>
+            <div class="col-md-2 d-flex gap-2 align-items-end">
+                <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-search"></i> Search</button>
+                <a href="/lab/indent" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x-lg"></i></a>
+            </div>
+        </form>
+
+        @if (!string.IsNullOrEmpty(Model.HistoryErrorMessage))
+        {
+            <div class="alert alert-danger py-2"><i class="bi bi-exclamation-triangle me-1"></i>@Model.HistoryErrorMessage</div>
+        }
+
+        @if (Model.HistoryRows.Any())
+        {
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0">
+                    <thead class="table-light"><tr>
+                        <th>Indent No</th>
+                        <th>Date/Time</th>
+                        <th>Patient</th>
+                        <th class="text-center">Items</th>
+                        <th class="text-end">Net Total</th>
+                        <th>Status</th>
+                        <th class="text-end">Actions</th>
+                    </tr></thead>
+                    <tbody>
+                        @foreach (var b in Model.HistoryRows)
+                        {
+                            <tr>
+                                <td class="fw-semibold">@b.LabNo</td>
+                                <td>@(b.BillDate?.ToString("dd MMM yyyy HH:mm") ?? "-")</td>
+                                <td>
+                                    <div class="small fw-semibold">@(b.PatientName ?? "-")</div>
+                                    <small class="text-secondary">Reg: @(b.RegNo ?? "-")</small>
+                                </td>
+                                <td class="text-center">@b.ItemsCount</td>
+                                <td class="text-end fw-semibold">@b.NetTotal.ToString("N2")</td>
+                                <td>
+                                    @if (b.Paid)
+                                    {
+                                        <span class="badge bg-success">PAID</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-warning text-dark">UNPAID</span>
+                                    }
+                                </td>
+                                <td class="text-end">
+                                    <div class="d-inline-flex gap-2">
+                                        <a href="/lab/SampleCollection?labNo=@b.LabNo&mode=view" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye"></i> View</a>
+                                        <a href="/Lab/Invoice?billId=@b.Id&format=thermal&print=1" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-printer"></i> Print</a>
+                                        <a href="/Lab/Invoice?billId=@b.Id&format=thermal&duplicate=true&print=1" target="_blank" class="btn btn-sm btn-outline-success"><i class="fa-solid fa-copy"></i> Duplicate</a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mt-2">
+                <span class="small text-secondary">Page @Model.HistoryCurrentPage of @Math.Max(1, (int)Math.Ceiling(Model.HistoryTotalCount / (double)Model.HistoryPageSize)) — @Model.HistoryTotalCount indent(s)</span>
+                <div class="d-flex gap-2">
+                    @if (Model.HistoryHasPrevious)
+                    {
+                        <a class="btn btn-sm btn-outline-secondary" href="/lab/indent?HistorySearch=@Model.HistorySearch&HistoryPage=@(Model.HistoryCurrentPage - 1)"><i class="bi bi-chevron-left"></i> Prev</a>
+                    }
+                    @if (Model.HistoryHasNext)
+                    {
+                        <a class="btn btn-sm btn-outline-secondary" href="/lab/indent?HistorySearch=@Model.HistorySearch&HistoryPage=@(Model.HistoryCurrentPage + 1)">Next <i class="bi bi-chevron-right"></i></a>
+                    }
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="text-center py-3"><i class="bi bi-inbox text-secondary" style="font-size:2rem;"></i><p class="text-secondary mt-2 mb-0">No indents found.</p></div>
+        }
+    </div>
+</div>

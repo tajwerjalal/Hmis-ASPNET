@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using HmisWeb.Data;
+using HmisWeb.Services;
 using HmisWeb.Models;
 
 namespace HmisWeb.Pages.Xr.Reports
@@ -101,7 +102,7 @@ namespace HmisWeb.Pages.Xr.Reports
                     continue;
 
                 var svcCode = itemCode.Substring("INV-XR-".Length);
-                var svc = await _db.XrServices.FirstOrDefaultAsync(s => s.Code == svcCode);
+                var svc = await _db.XrServices().FirstOrDefaultAsync(s => s.Code == svcCode);
                 if (svc == null) continue;
 
                 byCode[svcCode] = new ChargeRow
@@ -109,23 +110,23 @@ namespace HmisWeb.Pages.Xr.Reports
                     Code = svc.Code,
                     Name = svc.Name,
                     Group = svc.Category?.Name,
-                    StandardRate = svc.Rate ?? 0,
-                    StandardForeigner = svc.RateForeigner ?? 0,
-                    CompanyRate = r.Rate,
-                    CompanyUnitRate = r.UnitRate ?? r.Rate,
-                    DiscountPercent = r.DiscountPercent ?? 0
+                    StandardRate = (double)(svc.Rate ?? 0m),
+                    StandardForeigner = (double)(svc.RateForeigner ?? 0m),
+                    CompanyRate = (double)r.Rate,
+                    CompanyUnitRate = (double)(r.UnitRate ?? r.Rate),
+                    DiscountPercent = (double)(r.DiscountPercent ?? 0m)
                 };
             }
 
             // Load category names for the matched services.
-            var ids = await _db.XrServices
+            var ids = await _db.XrServices()
                 .Where(s => byCode.Keys.Contains(s.Code))
                 .Select(s => new { s.Id, s.CategoryId, Cat = s.Category != null ? s.Category.Name : null })
                 .ToDictionaryAsync(x => x.Id);
 
             foreach (var code in byCode.Keys.ToList())
             {
-                var svcId = await _db.XrServices.Where(s => s.Code == code).Select(s => s.Id).FirstOrDefaultAsync();
+                var svcId = await _db.XrServices().Where(s => s.Code == code).Select(s => s.Id).FirstOrDefaultAsync();
                 if (ids.TryGetValue(svcId, out var m)) byCode[code].Group = m.Cat;
             }
 

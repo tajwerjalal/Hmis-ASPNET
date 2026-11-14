@@ -1,0 +1,211 @@
+@model HmisWeb.Pages.Shared.DepartmentServicesModel
+@using HmisWeb.Services
+
+@{
+    var edit = Model.Editing;
+}
+
+<div class="d-flex justify-content-between align-items-end mb-3">
+    <div>
+        <h4 class="mb-0 fw-bold"><i class="bi bi-list-check me-2 text-primary"></i>@Model.ModuleTitle</h4>
+        <div class="text-secondary small">Shared master [SERVICES] &middot; department codes @string.Join(" / ", Model.AllowedDepts)</div>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.Success))
+{
+    <div class="alert alert-success alert-dismissible fade show py-2" role="alert">
+        <i class="bi bi-check-circle me-1"></i>@Model.Success
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger alert-dismissible fade show py-2" role="alert">
+        <i class="bi bi-exclamation-triangle me-1"></i>@Model.ErrorMessage
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="card mb-3 border-primary">
+    <div class="card-header bg-primary-subtle fw-semibold">
+        @(edit != null ? "Edit Service" : "New Service")
+    </div>
+    <div class="card-body">
+        <form method="post" asp-page-handler="Save">
+            <input type="hidden" name="id" value="@(edit?.Id ?? 0)" />
+            <div class="row g-3">
+                <div class="col-md-2">
+                    <label class="form-label small mb-1">Code</label>
+                    <input name="code" value="@edit?.Code" class="form-control form-control-sm" maxlength="5" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small mb-1">Service Name <span class="text-danger">*</span></label>
+                    <input name="name" value="@edit?.Name" class="form-control form-control-sm" required />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">Short Name</label>
+                    <input name="sname" value="@edit?.Sname" class="form-control form-control-sm" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">Department</label>
+                    <select name="dept" class="form-select form-select-sm">
+                        @foreach (var d in Model.Departments)
+                        {
+                            if ((edit?.Dept ?? Model.AllowedDepts[0]) == d.Code)
+                            {
+                                <option value="@d.Code" selected>@d.Name (@d.Code)</option>
+                            }
+                            else
+                            {
+                                <option value="@d.Code">@d.Name (@d.Code)</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1">Price</label>
+                    <input name="rate" value="@edit?.Rate" class="form-control form-control-sm" type="number" step="0.01" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1">Foreigner Price</label>
+                    <input name="rateForeigner" value="@edit?.RateForeigner" class="form-control form-control-sm" type="number" step="0.01" />
+                </div>
+                <div class="col-md-8">
+                    <label class="form-label small mb-1">Requirements / Notes</label>
+                    <input name="requirements" value="@edit?.Requirements" class="form-control form-control-sm" />
+                </div>
+            </div>
+            <div class="d-flex gap-2 mt-3">
+                <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-check2 me-1"></i>Save</button>
+                <a asp-page="" asp-route-SearchTerm="@Model.SearchTerm" asp-route-DeptFilter="@Model.DeptFilter"
+                   asp-route-Status="@Model.Status" asp-route-PageNumber="@Model.PageNumber" asp-route-PageSize="@Model.PageSize"
+                   class="btn btn-outline-secondary btn-sm">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<form method="get" class="card mb-3">
+    <div class="card-body py-2">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label small mb-1">Search</label>
+                <input name="SearchTerm" value="@Model.SearchTerm" class="form-control form-control-sm" placeholder="code / name" />
+            </div>
+            @if (Model.Departments.Count > 1)
+            {
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">Department</label>
+                    <select name="DeptFilter" class="form-select form-select-sm">
+                        <option value="">All</option>
+                        @foreach (var d in Model.Departments)
+                        {
+                            if (Model.DeptFilter == d.Code)
+                            {
+                                <option value="@d.Code" selected>@d.Name (@d.Code)</option>
+                            }
+                            else
+                            {
+                                <option value="@d.Code">@d.Name (@d.Code)</option>
+                            }
+                        }
+                    </select>
+                </div>
+            }
+            <div class="col-md-3">
+                <label class="form-label small mb-1">Status</label>
+                <input type="hidden" name="PageSize" value="@Model.PageSize" />
+                <select name="Status" class="form-select form-select-sm">
+                    <option value="active" selected="@(Model.Status == "active")">Active (@Model.ActiveCount)</option>
+                    <option value="retired" selected="@(Model.Status == "retired")">Retired (@Model.RetiredCount)</option>
+                    <option value="all" selected="@(Model.Status == "all")">All</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search me-1"></i>Filter</button>
+                <a asp-page="" class="btn btn-outline-secondary btn-sm">Reset</a>
+            </div>
+        </div>
+    </div>
+</form>
+
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Code</th>
+                        <th>Service Name</th>
+                        <th>Department</th>
+                        <th class="text-end">Price</th>
+                        <th class="text-end">Foreigner</th>
+                        <th>Requirements</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-end">Last Edit</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.Services.Any())
+                    {
+                        @foreach (var s in Model.Services)
+                        {
+                            <tr>
+                                <td>@(s.Code ?? "-")</td>
+                                <td class="fw-semibold">@s.Name</td>
+                                <td>@DeptServiceScopes.HospitalDeptName(s.Dept)</td>
+                                <td class="text-end">@s.Rate?.ToString("N2")</td>
+                                <td class="text-end">@s.RateForeigner?.ToString("N2")</td>
+                                <td class="text-truncate" style="max-width:200px" title="@s.Requirements">@s.Requirements</td>
+                                <td class="text-center">
+                                    @if (s.Retired)
+                                    {
+                                        <span class="badge bg-secondary">Retired</span>
+                                    }
+                                    else if (!s.Active)
+                                    {
+                                        <span class="badge bg-warning text-dark">Inactive</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-success">Active</span>
+                                    }
+                                </td>
+                                <td class="text-muted small">@s.StampUser @(s.StampDate?.ToString("dd-MMM-yy"))</td>
+                                <td class="text-end text-nowrap">
+                                    <a asp-page="" asp-route-edit="@s.Id" asp-route-SearchTerm="@Model.SearchTerm"
+                                       asp-route-DeptFilter="@Model.DeptFilter" asp-route-Status="@Model.Status"
+                                       asp-route-PageNumber="@Model.PageNumber" asp-route-PageSize="@Model.PageSize"
+                                       class="btn btn-outline-primary btn-sm" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    @if (s.Retired)
+                                    {
+                                        <form method="post" asp-page-handler="Activate" asp-route-id="@s.Id" class="d-inline">
+                                            <button type="submit" class="btn btn-outline-success btn-sm" title="Activate"><i class="bi bi-arrow-counterclockwise"></i></button>
+                                        </form>
+                                    }
+                                    else
+                                    {
+                                        <form method="post" asp-page-handler="Retire" asp-route-id="@s.Id" class="d-inline"
+                                              onsubmit="return confirm('Retire service \'@s.Name\'?');">
+                                            <button type="submit" class="btn btn-outline-danger btn-sm" title="Retire"><i class="bi bi-trash"></i></button>
+                                        </form>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    }
+                    else
+                    {
+                        <tr><td colspan="9" class="text-center text-muted py-4">No services found.</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<partial name="_Pager" model="Model" />

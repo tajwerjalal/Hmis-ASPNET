@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HmisWeb.Pages.Cashier
 {
-    public class RefundsModel : PageModel
+    public class RefundsModel : CashierPageModel
     {
         private readonly ApplicationDbContext _db;
         private readonly IAppSession _appSession;

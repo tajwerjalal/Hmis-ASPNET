@@ -34,7 +34,7 @@ namespace HmisWeb.Models
     public class CashCounterSession
     {
         [Column("CCODE")] public string CCode { get; set; } = "";
-        [Column("LCODE")] public long LCode { get; set; }
+        [Column("LCODE")] public int LCode { get; set; }
         [Column("DESC")] public string Desc { get; set; } = "";
         [Column("ACTIVE_DT")] public DateTime? ActiveDt { get; set; }
         [Column("ACTIVE_TM")] public string ActiveTm { get; set; } = "";
@@ -52,7 +52,8 @@ namespace HmisWeb.Models
     public class CashControl
     {
         // Single-row control table (RECNO/PAYNO/VOUNO counters).
-        [Key] public int Id { get; set; } = 1;
+        // Id is an IDENTITY column in the legacy schema; leave it store-generated.
+        [Key] [DatabaseGenerated(DatabaseGeneratedOption.Identity)] public int Id { get; set; }
         [Column("RECNO")] public int RecNo { get; set; }
         [Column("PAYNO")] public int PayNo { get; set; }
         [Column("VOUNO")] public int VouNo { get; set; }
@@ -62,12 +63,12 @@ namespace HmisWeb.Models
     public class CashReceipt
     {
         [Column("CCODE")] public string CCode { get; set; } = "";
-        [Column("LCODE")] public long LCode { get; set; }
+        [Column("LCODE")] public int LCode { get; set; }
         [Key] [Column("TRNO")] public string TrNo { get; set; } = "";
         [Column("TRDATE")] public DateTime TrDate { get; set; }
         [Column("TRTIME")] public string TrTime { get; set; } = "";
         [Column("TYPE")] public string Type { get; set; } = "";
-        [Column("REGNO")] public long? RegNo { get; set; }
+        [Column("REGNO")] public int? RegNo { get; set; }
         [Column("SETTLE")] public bool Settle { get; set; }
         [Column("REFERENCE")] public string Reference { get; set; } = "";
         [Column("MODE")] public int Mode { get; set; }            // 1 cash, 2 card
@@ -104,12 +105,12 @@ namespace HmisWeb.Models
     public class CashPayment
     {
         [Column("CCODE")] public string CCode { get; set; } = "";
-        [Column("LCODE")] public long LCode { get; set; }
+        [Column("LCODE")] public int LCode { get; set; }
         [Key] [Column("TRNO")] public string TrNo { get; set; } = "";
         [Column("TRDATE")] public DateTime TrDate { get; set; }
         [Column("TRTIME")] public string TrTime { get; set; } = "";
         [Column("TYPE")] public string Type { get; set; } = "";
-        [Column("REGNO")] public long? RegNo { get; set; }
+        [Column("REGNO")] public int? RegNo { get; set; }
         [Column("ECODE")] public string ECode { get; set; } = "";
         [Column("SETTLE")] public bool Settle { get; set; }
         [Column("REFERENCE")] public string Reference { get; set; } = "";
@@ -148,7 +149,7 @@ namespace HmisWeb.Models
         [Column("TRDATE")] public DateTime TrDate { get; set; }
         [Column("TRTIME")] public string TrTime { get; set; } = "";
         [Column("TYPE")] public string Type { get; set; } = "";
-        [Column("REGNO")] public long? RegNo { get; set; }
+        [Column("REGNO")] public int? RegNo { get; set; }
         [Column("ECODE")] public string ECode { get; set; } = "";
         [Column("SETTLE")] public bool Settle { get; set; }
         [Column("REFERENCE")] public string Reference { get; set; } = "";

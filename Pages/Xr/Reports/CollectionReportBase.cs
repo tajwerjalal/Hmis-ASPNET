@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using HmisWeb.Data;
+using HmisWeb.Services;
 using HmisWeb.Models;
 
 namespace HmisWeb.Pages.Xr.Reports
@@ -118,7 +119,7 @@ namespace HmisWeb.Pages.Xr.Reports
 
             // services are few (61 rows) so mapping the INV-XR-{code} mirror in memory
             // avoids a cross-table join on a computed column.
-            var services = await Db.XrServices.Include(s => s.Category).ToListAsync();
+            var services = await Db.XrServices().Include(s => s.Category).ToListAsync();
             var byCode = services.ToDictionary(s => s.Code ?? "", s => s, StringComparer.OrdinalIgnoreCase);
 
             var companyIds = bills.Where(b => b.CreditCompanyId.HasValue).Select(b => b.CreditCompanyId.Value).Distinct().ToList();

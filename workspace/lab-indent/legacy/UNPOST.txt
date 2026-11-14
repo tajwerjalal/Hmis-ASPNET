@@ -1,0 +1,257 @@
+﻿VERSION =   3.00
+dataenvironment
+dataenvironment
+Dataenvironment
+kLeft = 28
+Top = 97
+Width = 520
+Height = 200
+InitialSelectedAlias = "report"
+Name = "Dataenvironment"
+
+Dataenvironment
+Left = 10
+Top = 20
+Width = 95
+Height = 90
+Alias = "collect"
+BufferModeOverride = 5
+Order = "indentno"
+Database = ..\us.dbc
+CursorSource = "collect"
+Name = "Cursor1"
+
+Dataenvironment
+Left = 150
+Top = 20
+Width = 95
+Height = 90
+Alias = "trans"
+BufferModeOverride = 0
+Order = "indent"
+Database = ..\us.dbc
+CursorSource = "trans"
+Name = "Cursor2"
+
+baseform
+ ..\..\common\class\baseclass.vcx
+	frmunpost
+Top = 0
+Left = 0
+Height = 152
+Width = 267
+DoCreate = .T.
+Caption = "Un-Post Indent"
+WindowType = 1
+ctoolbar = 
+menukey = lb0427
+Name = "frmunpost"
+
+postcancelbtn
+ ..\..\common\class\baseclass.vcx
+commandgroup
+Postcancelbtn1
+	frmunpost
+Left = 84
+Top = 79
+TabIndex = 3
+Name = "Postcancelbtn1"
+cmdok.Top = 5
+cmdok.Left = 5
+cmdok.Caption = "Un-Post"
+cmdok.Name = "cmdok"
+cmdcancel.Top = 5
+cmdcancel.Left = 65
+cmdcancel.Name = "cmdcancel"
+
+GPROCEDURE cmdok.Click
+if empty(thisform.txtindentno.value)
+	=messagebox("Enter Indent No. ",0+16+0,"Validation Error")
+	return
+endif
+select 0
+use ..\billsys\obil_mst
+set order to tag DS
+=CURSORSETPROP("Buffering", 5, "obil_mst")
+		
+select 0
+use ..\billsys\obil_det
+set order to tag DS
+=CURSORSETPROP("Buffering", 5, "obil_det")
+
+select 0
+use ..\billsys\ibil_mst
+set order to tag DS
+=CURSORSETPROP("Buffering", 5, "ibil_mst")
+		
+select 0
+use ..\billsys\ibil_det
+set order to tag DS
+=CURSORSETPROP("Buffering", 5, "ibil_det")
+
+select collect
+seek thisform.txtindentno.value
+if !eof() and posted='P'
+	if collect.type = 'OPD'
+		
+		select obil_mst
+		go top
+		seek gcdept + thisform.txtindentno.value
+		if bill<>0
+			=messagebox("Bill Generated, cannot unpost the Indent",0+16+0,"Processing Error")
+			select obil_mst
+			use
+			select obil_det
+			use
+			thisform.release
+			return
+		endif
+	
+		replace posted with ' ' in collect
+	
+		select obil_mst
+		go top
+		seek gcdept + thisform.txtindentno.value
+		if !eof()
+			delete
+		endif
+	
+		select obil_det
+		go top
+		seek gcdept + thisform.txtindentno.value
+		do while dept+slipno = gcdept+thisform.txtindentno.value and !eof()
+			delete
+			skip
+		enddo
+	else
+		select ibil_mst
+		go top
+		seek gcdept + thisform.txtindentno.value
+		if bill<>0
+			=messagebox("Bill Generated, cannot unpost the Indent",0+16+0,"Processing Error")
+			select ibil_mst
+			use
+			select ibil_det
+			use
+			thisform.release
+			return
+		endif
+	
+		replace posted with ' ' in collect
+	
+		select ibil_mst
+		go top
+		seek gcdept + thisform.txtindentno.value
+		if !eof()
+			delete
+		endif
+	
+		select ibil_det
+		go top
+		seek gcdept + thisform.txtindentno.value
+		do while dept+slipno = gcdept+thisform.txtindentno.value and !eof()
+			delete
+			skip
+		enddo
+	endif
+endif
+
+select collect
+=tableupdate(1,.t.)
+
+select obil_mst
+=tableupdate(1,.t.)
+use
+
+select obil_det
+=tableupdate(1,.t.)
+use
+
+select ibil_mst
+=tableupdate(1,.t.)
+use
+
+select ibil_det
+=tableupdate(1,.t.)
+use
+
+thisform.release
+
+ENDPROC
+
+Invalid Indent No.
+Validation error
+Indent No. already Un-Posted
+Validation error
+JArial, 0, 8, 5, 14, 11, 12, 3, 0
+Comic Sans MS, 0, 7, 4, 13, 10, 11, 3, 0
+
+AutoSize = .T.
+FontBold = .F.
+FontSize = 8
+BackStyle = 0
+Caption = "US Indent No."
+Left = 34
+Top = 29
+TabIndex = 2
+Name = "lblDate"
+
+	frmunpost
+/PROCEDURE Valid
+if empty(this.value)
+	return .t.
+endif
+select collect
+seek this.value
+if eof()
+	=messagebox("Invalid Indent No.",0+16+0,"Validation error")
+	return .f.
+endif
+if posted<>'P'
+	=messagebox("Indent No. already Un-Posted",0+16+0,"Validation error")
+	return .f.
+endif
+
+ENDPROC
+
+FontSize = 8
+Alignment = 3
+Value = 
+Format = "!r"
+Height = 23
+InputMask = "999-999999"
+Left = 117
+MaxLength = 9
+TabIndex = 1
+Top = 24
+Width = 100
+Comment = ""
+Name = "txtIndentno"
+
+	frmunpost
+txtIndentno
+Enter Indent No. 
+Validation Error
+..\billsys\obil_mst
+Buffering
+obil_mst
+..\billsys\obil_det
+Buffering
+obil_det
+..\billsys\ibil_mst
+Buffering
+ibil_mst
+..\billsys\ibil_det
+Buffering
+ibil_det
+Bill Generated, cannot unpost the Indent
+Processing Error
+Bill Generated, cannot unpost the Indent
+Processing Error
+THISFORM
+TXTINDENTNO
+OBIL_MST
+OBIL_DET
+IBIL_MST
+IBIL_DET
+cmdok.Click,

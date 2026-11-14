@@ -1,60 +1,605 @@
 @page
 @model HmisWeb.Pages.Account.LoginModel
 @{
-    ViewData["Title"] = "Login";
+    Layout = "_AuthLayout";
+    ViewData["Title"] = "Sign In";
 }
-<div class="row justify-content-center mt-4">
-    <div class="col-md-5 col-lg-4">
-        <div class="card shadow-sm">
-            <div class="card-body p-4">
-                <h4 class="card-title mb-1">Hospital Management System</h4>
-                <p class="text-muted small mb-4">Sign in to continue</p>
 
-                @if (Model.NeedSetup)
-                {
-                    <div class="alert alert-info">
-                        No users configured yet. Please <a asp-page="/Account/Setup">create the first administrator account</a>.
+<style>
+    .login-shell {
+        display: grid;
+        grid-template-columns: 70% 30%;
+        min-height: 100vh;
+        width: 100%;
+        background: #eaf2fa;
+    }
+
+    /* ------------------------------------------------------------------
+       Left showcase — 70%
+       ------------------------------------------------------------------ */
+    .login-showcase {
+        position: relative;
+        overflow: hidden;
+        isolation: isolate;
+        background: #0b2545 url('/images/login-hospital.jpg') center center / cover no-repeat;
+    }
+    .login-showcase::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(circle at 18% 20%, rgba(77, 163, 232, .28) 0%, rgba(77, 163, 232, 0) 42%),
+            radial-gradient(circle at 85% 85%, rgba(29, 111, 184, .30) 0%, rgba(29, 111, 184, 0) 45%),
+            linear-gradient(135deg, rgba(6, 23, 44, .94) 0%, rgba(10, 42, 76, .90) 45%, rgba(8, 31, 58, .82) 100%);
+        z-index: -1;
+    }
+    .login-showcase::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image:
+            linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+        background-size: 64px 64px;
+        mask-image: linear-gradient(180deg, rgba(0,0,0,.65), transparent 78%);
+        z-index: -1;
+        pointer-events: none;
+    }
+
+    .showcase-content {
+        position: relative;
+        z-index: 1;
+        width: 100%;
+        max-width: 1500px;
+        margin: 0 auto;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 1.15rem;
+        padding: clamp(1.3rem, 2.8vw, 2.6rem) clamp(1.6rem, 4vw, 4.2rem);
+        color: #fff;
+    }
+
+    .showcase-brand {
+        display: flex;
+        align-items: center;
+        gap: .9rem;
+        animation: riseIn .7s ease both;
+    }
+    .showcase-brand strong {
+        display: block;
+        font-family: 'Playfair Display', Georgia, serif;
+        font-size: 1.32rem;
+        letter-spacing: .5px;
+        line-height: 1.1;
+    }
+    .showcase-brand span {
+        display: block;
+        margin-top: .22rem;
+        font-size: .72rem;
+        letter-spacing: .8px;
+        text-transform: uppercase;
+        color: rgba(255,255,255,.68);
+    }
+
+    .showcase-hero { max-width: 720px; animation: riseIn .8s .08s ease both; }
+    .showcase-hero .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: .45rem;
+        padding: .38rem .75rem;
+        border: 1px solid rgba(126, 190, 245, .38);
+        border-radius: 999px;
+        background: rgba(255,255,255,.07);
+        backdrop-filter: blur(6px);
+        font-size: .68rem;
+        font-weight: 700;
+        letter-spacing: 1.3px;
+        text-transform: uppercase;
+        color: #bfe0ff;
+    }
+    .showcase-hero .eyebrow i { font-size: .78rem; color: #7ec2ff; }
+    .showcase-hero h1 {
+        margin: .85rem 0 .65rem;
+        font-family: 'Playfair Display', Georgia, serif;
+        font-size: clamp(1.85rem, 3.1vw, 2.95rem);
+        line-height: 1.12;
+        font-weight: 700;
+        letter-spacing: -.4px;
+        text-wrap: balance;
+        text-shadow: 0 10px 30px rgba(0,0,0,.28);
+    }
+    .showcase-hero h1 .accent {
+        background: linear-gradient(90deg, #9ed4ff 0%, #66b6f5 55%, #b7e2ff 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+    .showcase-hero p {
+        max-width: 560px;
+        margin: 0;
+        font-size: clamp(.9rem, 1.1vw, 1.02rem);
+        line-height: 1.65;
+        color: rgba(235, 245, 255, .78);
+    }
+
+    /* Feature orbs */
+    .feature-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: clamp(.7rem, 1.3vw, 1.15rem);
+        max-width: 700px;
+        animation: riseIn .9s .16s ease both;
+    }
+    .feature-orb {
+        position: relative;
+        width: 100%;
+        max-width: 185px;
+        justify-self: center;
+        aspect-ratio: 1;
+        border-radius: 50%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: .38rem;
+        padding: clamp(.6rem, 1.1vw, .95rem);
+        text-align: center;
+        text-decoration: none;
+        color: #eaf6ff;
+        background:
+            radial-gradient(circle at 32% 24%, rgba(255,255,255,.16) 0%, rgba(255,255,255,.045) 42%, rgba(255,255,255,.02) 100%);
+        border: 1px solid rgba(154, 205, 248, .24);
+        box-shadow:
+            inset 0 1px 0 rgba(255,255,255,.14),
+            0 16px 36px rgba(1, 14, 30, .28);
+        backdrop-filter: blur(9px);
+        -webkit-backdrop-filter: blur(9px);
+        transition:
+            transform .38s cubic-bezier(.2, .8, .2, 1),
+            border-color .3s ease,
+            box-shadow .3s ease,
+            background .3s ease;
+        will-change: transform;
+        cursor: default;
+    }
+    .feature-orb::after {
+        content: "";
+        position: absolute;
+        inset: 9px;
+        border-radius: 50%;
+        border: 1px dashed rgba(160, 212, 255, .18);
+        pointer-events: none;
+        transition: border-color .3s ease, inset .3s ease;
+    }
+    .feature-orb .orb-image {
+        width: clamp(64px, 7vw, 96px);
+        height: clamp(64px, 7vw, 96px);
+        border-radius: 50%;
+        object-fit: cover;
+        flex-shrink: 0;
+        border: 3px solid rgba(160, 212, 255, .46);
+        box-shadow:
+            0 10px 22px rgba(0, 0, 0, .34),
+            0 0 0 4px rgba(126, 194, 255, .06),
+            inset 0 1px 0 rgba(255, 255, 255, .20);
+        transition:
+            transform .38s cubic-bezier(.2, .8, .2, 1),
+            border-color .3s ease,
+            box-shadow .3s ease;
+    }
+    .feature-orb .orb-title {
+        font-size: clamp(.66rem, .82vw, .8rem);
+        font-weight: 700;
+        letter-spacing: .25px;
+        line-height: 1.25;
+        text-shadow: 0 2px 8px rgba(0,0,0,.25);
+    }
+    .feature-orb .orb-sub {
+        font-size: clamp(.56rem, .66vw, .64rem);
+        line-height: 1.25;
+        color: rgba(213, 235, 255, .62);
+    }
+    .feature-orb:hover,
+    .feature-orb:focus-visible {
+        transform: scale(1.09);
+        border-color: rgba(142, 208, 255, .62);
+        background:
+            radial-gradient(circle at 32% 24%, rgba(142, 208, 255, .26) 0%, rgba(93, 165, 230, .10) 48%, rgba(255,255,255,.03) 100%);
+        box-shadow:
+            inset 0 1px 0 rgba(255,255,255,.22),
+            0 24px 52px rgba(1, 14, 30, .38),
+            0 0 0 6px rgba(126, 194, 255, .07);
+        outline: none;
+    }
+    .feature-orb:hover::after,
+    .feature-orb:focus-visible::after { inset: 6px; border-color: rgba(160, 212, 255, .36); }
+    .feature-orb:hover .orb-image,
+    .feature-orb:focus-visible .orb-image {
+        transform: scale(1.13) translateY(-1px);
+        border-color: rgba(195, 232, 255, .78);
+        box-shadow:
+            0 12px 26px rgba(0, 0, 0, .36),
+            0 0 0 4px rgba(126, 194, 255, .12);
+    }
+
+    .showcase-stats {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .65rem;
+        animation: riseIn 1s .24s ease both;
+    }
+    .stat-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: .55rem;
+        padding: .55rem .85rem;
+        border-radius: 999px;
+        border: 1px solid rgba(154, 205, 248, .20);
+        background: rgba(255,255,255,.055);
+        backdrop-filter: blur(6px);
+        font-size: .74rem;
+        color: rgba(231, 244, 255, .82);
+    }
+    .stat-pill i { color: #7ec2ff; font-size: .85rem; }
+    .stat-pill strong { color: #fff; font-weight: 700; }
+
+    /* ------------------------------------------------------------------
+       Right login panel — 30%
+       ------------------------------------------------------------------ */
+    .login-panel {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: clamp(1.4rem, 2.6vw, 2.6rem);
+        background:
+            radial-gradient(circle at 100% 0%, rgba(77, 163, 232, .12) 0%, rgba(77, 163, 232, 0) 40%),
+            linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+        border-left: 1px solid rgba(20, 60, 100, .08);
+    }
+    .login-card {
+        width: 100%;
+        max-width: 390px;
+        animation: riseIn .75s .05s ease both;
+    }
+
+    .login-card-head { margin-bottom: 1.55rem; }
+    .login-card-head .login-brand {
+        display: inline-flex;
+        align-items: center;
+        gap: .7rem;
+        margin-bottom: 1.35rem;
+        text-decoration: none;
+        color: inherit;
+    }
+    .login-card-head .login-brand .auth-brand-mark {
+        width: 42px; height: 42px; border-radius: 12px;
+        box-shadow: 0 8px 18px rgba(23, 78, 132, .16);
+        border: 1px solid #e1ecf7;
+    }
+    .login-card-head .login-brand strong {
+        display: block;
+        font-family: 'Playfair Display', Georgia, serif;
+        font-size: 1.05rem;
+        color: #133457;
+        line-height: 1.1;
+    }
+    .login-card-head .login-brand small {
+        display: block;
+        font-size: .64rem;
+        letter-spacing: .9px;
+        text-transform: uppercase;
+        color: #8ba0b6;
+        margin-top: .15rem;
+    }
+    .login-card-head h2 {
+        margin: 0 0 .35rem;
+        font-size: 1.72rem;
+        font-weight: 800;
+        letter-spacing: -.4px;
+        color: #102a45;
+    }
+    .login-card-head p {
+        margin: 0;
+        font-size: .86rem;
+        line-height: 1.5;
+        color: #6b8096;
+    }
+
+    .login-meta-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin: .15rem 0 1.25rem;
+    }
+    .login-meta-row .auth-check { flex: 1; }
+    .login-meta-row .meta-hint {
+        font-size: .72rem;
+        color: #8ba0b6;
+        white-space: nowrap;
+    }
+    .login-meta-row .meta-hint i { color: #4d9bdd; margin-right: .2rem; }
+
+    .demo-box {
+        margin-top: 1.35rem;
+        padding: .8rem .9rem;
+        border: 1px dashed #cfe0f0;
+        border-radius: 11px;
+        background: #f7fbff;
+        font-size: .76rem;
+        color: #5d748c;
+    }
+    .demo-box .demo-title {
+        display: flex; align-items: center; gap: .4rem;
+        font-weight: 700; color: #33577c; margin-bottom: .3rem;
+        text-transform: uppercase; letter-spacing: .5px; font-size: .66rem;
+    }
+    .demo-box code {
+        display: inline-block;
+        padding: .08rem .35rem;
+        border-radius: 5px;
+        background: #e8f2fb;
+        color: #165a99;
+        font-size: .76rem;
+        font-weight: 600;
+    }
+
+    .login-footer {
+        margin-top: 1.7rem;
+        padding-top: 1rem;
+        border-top: 1px solid #e8eff7;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: .75rem;
+        font-size: .7rem;
+        color: #93a6ba;
+    }
+    .login-footer .secure {
+        display: inline-flex;
+        align-items: center;
+        gap: .3rem;
+        color: #5e8bb5;
+        font-weight: 600;
+    }
+
+    @@keyframes riseIn {
+        from { opacity: 0; transform: translateY(14px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    @@media (prefers-reduced-motion: reduce) {
+        .feature-orb, .feature-orb .orb-image, .showcase-brand, .showcase-hero, .feature-grid,
+        .showcase-stats, .login-card { animation: none !important; transition: none !important; }
+    }
+
+    /* Responsive */
+    @@media (max-width: 1199.98px) {
+        .feature-grid { gap: .9rem; }
+        .feature-orb .orb-sub { display: none; }
+        .login-panel { padding: 1.5rem 1.35rem; }
+    }
+    @@media (max-width: 991.98px) {
+        .login-shell { grid-template-columns: 1fr; }
+        .login-showcase { min-height: 54vh; }
+        .showcase-content { min-height: 54vh; justify-content: flex-start; gap: 1.3rem; }
+        .showcase-hero h1 { font-size: clamp(1.75rem, 5vw, 2.6rem); }
+        .feature-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 620px; }
+        .showcase-stats { display: none; }
+        .login-panel { min-height: 46vh; border-left: 0; border-top: 1px solid #e4eef8; padding: 2.2rem 1.2rem 2.6rem; }
+        .login-card { max-width: 460px; }
+    }
+    @@media (max-width: 575.98px) {
+        .login-showcase, .showcase-content { min-height: 44vh; }
+        .showcase-content { padding: 1.4rem 1.2rem 1.6rem; }
+        .showcase-hero p { display: none; }
+        .feature-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .6rem; }
+        .feature-orb .orb-title { font-size: .58rem; }
+        .feature-orb .orb-sub { display: none; }
+        .feature-orb .orb-image { width: 44px; height: 44px; }
+        .login-panel { padding: 1.8rem 1.1rem 2.2rem; }
+    }
+</style>
+
+<div class="login-shell">
+
+    <!-- ================= LEFT / 70% SHOWCASE ================= -->
+    <section class="login-showcase" aria-label="Hospital Management Information System highlights">
+        <div class="showcase-content">
+
+            <header class="showcase-brand">
+                <span class="auth-brand-mark">
+                    <img src="~/images/logo.jpg" alt="HMIS logo" />
+                </span>
+                <div>
+                    <strong>HMIS</strong>
+                    <span>Hospital Management Information System</span>
+                </div>
+            </header>
+
+            <div class="showcase-hero">
+                <span class="eyebrow"><i class="fa-solid fa-shield-heart"></i> Integrated hospital operations</span>
+                <h1>Every patient journey,<br /><span class="accent">beautifully connected.</span></h1>
+                <p>
+                    One secure workspace for registration, outpatient and inpatient billing,
+                    laboratory, imaging, pharmacy and management reporting — built for the
+                    pace of a modern hospital.
+                </p>
+            </div>
+
+            <div class="feature-grid" role="list">
+                <div class="feature-orb" role="listitem" title="Patient registration, encounters and medical records">
+                    <img src="~/images/features/patient-records.jpg" alt="Patient records" class="orb-image" />
+                    <span class="orb-title">Patient Records</span>
+                    <span class="orb-sub">Registration &amp; encounters</span>
+                </div>
+                <div class="feature-orb" role="listitem" title="OPD and IPD billing with cashier settlement">
+                    <img src="~/images/features/billing.jpg" alt="Billing" class="orb-image" />
+                    <span class="orb-title">OPD &amp; IPD Billing</span>
+                    <span class="orb-sub">Bills, payments &amp; receipts</span>
+                </div>
+                <div class="feature-orb" role="listitem" title="Laboratory orders, results, ranges and reports">
+                    <img src="~/images/features/laboratory.jpg" alt="Laboratory" class="orb-image" />
+                    <span class="orb-title">Laboratory</span>
+                    <span class="orb-sub">Orders, results &amp; reports</span>
+                </div>
+                <div class="feature-orb" role="listitem" title="Ultrasound and X-ray collection and reporting">
+                    <img src="~/images/features/radiology.jpg" alt="Radiology and imaging" class="orb-image" />
+                    <span class="orb-title">Radiology &amp; Imaging</span>
+                    <span class="orb-sub">Ultrasound &amp; X-ray</span>
+                </div>
+                <div class="feature-orb" role="listitem" title="Pharmacy stock, sales, returns and balances">
+                    <img src="~/images/features/pharmacy.jpg" alt="Pharmacy" class="orb-image" />
+                    <span class="orb-title">Pharmacy</span>
+                    <span class="orb-sub">Stock, sales &amp; balances</span>
+                </div>
+                <div class="feature-orb" role="listitem" title="Operational and financial dashboards and reports">
+                    <img src="~/images/features/analytics.jpg" alt="Analytics" class="orb-image" />
+                    <span class="orb-title">Analytics</span>
+                    <span class="orb-sub">Dashboards &amp; reports</span>
+                </div>
+            </div>
+
+            <div class="showcase-stats">
+                <span class="stat-pill"><i class="bi bi-grid-1x2"></i> <strong>20+</strong> modules</span>
+                <span class="stat-pill"><i class="bi bi-buildings"></i> <strong>15+</strong> departments</span>
+                <span class="stat-pill"><i class="bi bi-shield-lock"></i> <strong>Secure</strong> role-based access</span>
+                <span class="stat-pill"><i class="bi bi-clock-history"></i> <strong>24/7</strong> availability</span>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- ================= RIGHT / 30% LOGIN ================= -->
+    <aside class="login-panel">
+        <div class="login-card">
+
+            <div class="login-card-head">
+                <a class="login-brand" href="/Account/Login">
+                    <span class="auth-brand-mark">
+                        <img src="~/images/logo.jpg" alt="HMIS logo" />
+                    </span>
+                    <span>
+                        <strong>HMIS</strong>
+                        <small>Hospital Management</small>
+                    </span>
+                </a>
+                <h2>Welcome back</h2>
+                <p>Sign in to continue to your hospital workspace.</p>
+            </div>
+
+            @if (Model.NeedSetup)
+            {
+                <div class="auth-alert auth-alert-info mb-3">
+                    No users are configured yet.
+                    <a class="auth-link" asp-page="/Account/Setup">Create the first administrator account</a>.
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+            {
+                <div class="auth-alert auth-alert-danger mb-3" role="alert">
+                    <i class="bi bi-exclamation-circle me-1"></i>@Model.ErrorMessage
+                </div>
+            }
+
+            <form method="post" id="loginform" autocomplete="on" onsubmit="return beginSignIn(this);">
+                <input type="hidden" asp-for="ReturnUrl" />
+
+                <div class="auth-field">
+                    <label asp-for="UserName">User name</label>
+                    <div class="auth-input-wrap">
+                        <i class="bi bi-person"></i>
+                        <input asp-for="UserName" class="auth-input" autocomplete="username"
+                               placeholder="Enter your user name" autofocus required />
                     </div>
-                }
-
-                @if (!string.IsNullOrEmpty(Model.ErrorMessage))
-                {
-                    <div class="alert alert-danger py-2 small">@Model.ErrorMessage</div>
-                }
-
-                <div class="alert alert-info py-2 small">
-                    <strong>Demo credentials</strong><br />
-                    User Name: <code>admin</code><br />
-                    Password: <code>Admin@123</code>
                 </div>
 
-                <form method="post" id="loginform">
-                    <div class="mb-3">
-                        <label class="form-label">User Name</label>
-                        <input asp-for="UserName" class="form-control" autocomplete="username" required />
+                <div class="auth-field">
+                    <label asp-for="Password">Password</label>
+                    <div class="auth-input-wrap">
+                        <i class="bi bi-lock"></i>
+                        <input asp-for="Password" type="password" class="auth-input" id="passwordInput"
+                               autocomplete="current-password" placeholder="Enter your password" required />
+                        <button type="button" class="auth-eye" id="togglePassword"
+                                aria-label="Show password" title="Show password">
+                            <i class="bi bi-eye"></i>
+                        </button>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Password</label>
-                        <input asp-for="Password" type="password" class="form-control" autocomplete="current-password" required />
-                    </div>
+                </div>
 
-                    @if (Model.Departments != null && Model.Departments.Any())
-                    {
-                        <div class="mb-3">
-                            <label class="form-label">Logging Department</label>
-                            <select name="departmentId" class="form-select">
-                                <option value="">-- Select Department --</option>
+                <div class="login-meta-row">
+                    <div class="auth-check">
+                        <input asp-for="RememberMe" id="rememberMe" />
+                        <label for="rememberMe">Keep me signed in</label>
+                    </div>
+                    <span class="meta-hint"><i class="bi bi-shield-check"></i>Secure sign-in</span>
+                </div>
+
+                @if (Model.Departments != null && Model.Departments.Any())
+                {
+                    <div class="auth-field">
+                        <label for="departmentId">Logging department</label>
+                        <div class="auth-input-wrap">
+                            <i class="bi bi-diagram-3"></i>
+                            <select name="departmentId" id="departmentId" class="auth-select">
+                                <option value="">Select department</option>
                                 @foreach (var d in Model.Departments)
                                 {
                                     <option value="@d.Id" selected="@(Model.DepartmentId == d.Id)">@d.Name</option>
                                 }
                             </select>
+                            <i class="bi bi-chevron-down auth-chevron"></i>
                         </div>
-                    }
+                    </div>
+                }
 
-                    <button type="submit" class="btn btn-primary w-100">Sign In</button>
-                </form>
+                <button type="submit" class="auth-submit" id="signInButton">
+                    <span class="btn-label">Sign In</span>
+                    <i class="bi bi-arrow-right"></i>
+                </button>
+            </form>
+
+            <div class="demo-box">
+                <div class="demo-title"><i class="bi bi-info-circle"></i>Demo access</div>
+                User name <code>admin</code> &nbsp;·&nbsp; Password <code>Admin@@123</code>
             </div>
+
+            <div class="login-footer">
+                <span>&copy; @DateTime.Now.Year HMIS · All rights reserved</span>
+                <span class="secure"><i class="bi bi-lock-fill"></i>Protected</span>
+            </div>
+
         </div>
-    </div>
+    </aside>
 </div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var password = document.getElementById('passwordInput');
+            var toggle = document.getElementById('togglePassword');
+            if (password && toggle) {
+                toggle.addEventListener('click', function () {
+                    var show = password.type === 'password';
+                    password.type = show ? 'text' : 'password';
+                    toggle.innerHTML = show ? '<i class="bi bi-eye-slash"></i>' : '<i class="bi bi-eye"></i>';
+                    toggle.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+                    toggle.setAttribute('title', show ? 'Hide password' : 'Show password');
+                });
+            }
+        })();
+
+        function beginSignIn(form) {
+            var btn = document.getElementById('signInButton');
+            if (btn) {
+                btn.disabled = true;
+                var label = btn.querySelector('.btn-label');
+                if (label) { label.textContent = 'Signing in…'; }
+            }
+            return true;
+        }
+    </script>
+}

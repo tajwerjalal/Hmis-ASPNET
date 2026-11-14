@@ -13,6 +13,11 @@ namespace HmisWeb.Pages.Lab
     /// <summary>Test Report II - tests summarised by classification. VFP Labsys report lb0220.</summary>
     public class TestReportIIModel : PageModel
     {
+        /// <summary>Mirror prefix of the laboratory bank on the shared services master.</summary>
+
+        private const string ItemPrefix = "INV-LB-";
+
+
         private readonly ApplicationDbContext _db;
         public TestReportIIModel(ApplicationDbContext db) { _db = db; }
 
@@ -42,7 +47,8 @@ namespace HmisWeb.Pages.Lab
         private async Task LoadAsync()
         {
             var items = await _db.Items.Include(i => i.Category)
-                .Where(i => !i.Retired && (i.ItemType == ItemType.Investigation || i.ItemType == ItemType.Service))
+                .Where(i => !i.Retired && (i.ItemType == ItemType.Investigation || i.ItemType == ItemType.Service)
+                && i.Code.StartsWith(ItemPrefix))
                 .Select(i => new { ClassName = i.Category != null ? i.Category.Name : "(Unclassified)", Price = i.Total ?? 0 })
                 .ToListAsync();
 

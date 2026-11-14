@@ -24,7 +24,7 @@
                     <div class="row g-3">
                         <div class="col-md-6">
                             <div class="text-muted small">Patient</div>
-                            <div class="fw-semibold">@(Model.Bill.Patient?.Person?.NameWithInitials ?? Model.Bill.Patient?.Person?.Name ?? "-")</div>
+                            <div class="fw-semibold">@HmisWeb.Services.PatientDisplayName.Of(Model.Bill.Patient)</div>
                         </div>
                         <div class="col-md-6">
                             <div class="text-muted small">Date</div>

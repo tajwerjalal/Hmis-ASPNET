@@ -10,6 +10,11 @@ namespace HmisWeb.Pages.Cnp
 {
     public class ConsultantFeeSetupModel : PageModel
     {
+        /// <summary>Mirror prefix of this module on the shared services master (DEPT scoped).</summary>
+
+        private const string ItemPrefix = "INV-CNP-";
+
+
         private readonly ApplicationDbContext _db;
         private readonly IAppSession _session;
 
@@ -32,8 +37,8 @@ namespace HmisWeb.Pages.Cnp
         {
             public long? ConsultantId { get; set; }
             public long? ItemId { get; set; }
-            public double? StaffRate { get; set; }
-            public double? UnitRate { get; set; }
+            public decimal? StaffRate { get; set; }
+            public decimal? UnitRate { get; set; }
         }
 
         public async Task OnGetAsync() => await LoadAsync();
@@ -80,7 +85,7 @@ namespace HmisWeb.Pages.Cnp
         {
             ConsultantList = await _db.Consultants.Where(x => !x.Retired).OrderBy(x => x.Person.Name)
                 .Select(x => new SelectListItem { Value = x.Id.ToString(), Text = x.Person.Name }).ToListAsync();
-            ItemList = await _db.Items.Where(x => !x.Retired && x.Billable).OrderBy(x => x.Name)
+            ItemList = await _db.Items.Where(x => !x.Retired && x.Billable && x.Code.StartsWith(ItemPrefix)).OrderBy(x => x.Name)
                 .Select(x => new SelectListItem { Value = x.Id.ToString(), Text = x.Name + " (" + x.Code + ")" }).ToListAsync();
             Items = await _db.ConsultantServiceRates
                 .Include(x => x.Consultant).Include(x => x.Item)

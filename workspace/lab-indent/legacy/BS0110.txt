@@ -1,0 +1,1860 @@
+﻿VERSION =   3.00
+dataenvironment
+dataenvironment
+Dataenvironment
+lLeft = 8
+Top = 22
+Width = 520
+Height = 294
+InitialSelectedAlias = "register"
+Name = "Dataenvironment"
+
+Dataenvironment
+Left = 10
+Top = 19
+Width = 95
+Height = 90
+Alias = "register"
+BufferModeOverride = 0
+Order = "irno"
+CursorSource = ..\..\master\register.dbf
+Name = "Cursor1"
+
+Dataenvironment
+Left = 161
+Top = 3
+Width = 95
+Height = 90
+Alias = "patient"
+BufferModeOverride = 0
+Order = "code"
+CursorSource = ..\..\master\patient.dbf
+Name = "Cursor2"
+
+Dataenvironment
+Left = 289
+Top = 8
+Width = 95
+Height = 90
+Alias = "company"
+BufferModeOverride = 0
+Order = "id"
+CursorSource = ..\..\master\company.dbf
+Name = "Cursor3"
+
+Dataenvironment
+Left = 10
+Top = 140
+Width = 95
+Height = 90
+Alias = "employee"
+BufferModeOverride = 0
+Order = "code"
+CursorSource = ..\..\master\employee.dbf
+Name = "Cursor4"
+
+relation
+relation
+	Relation1
+Dataenvironment
+uParentAlias = "register"
+RelationalExpr = "pcode"
+ChildAlias = "patient"
+ChildOrder = "code"
+Name = "Relation1"
+
+relation
+relation
+	Relation2
+Dataenvironment
+zParentAlias = "register"
+RelationalExpr = "cid+ecode"
+ChildAlias = "employee"
+ChildOrder = "code"
+Name = "Relation2"
+
+relation
+relation
+	Relation3
+Dataenvironment
+qParentAlias = "register"
+RelationalExpr = "cid"
+ChildAlias = "company"
+ChildOrder = "id"
+Name = "Relation3"
+
+Dataenvironment
+Left = 148
+Top = 145
+Width = 95
+Height = 90
+Alias = "ipdbill"
+BufferModeOverride = 0
+Order = "hos_code"
+CursorSource = ..\ipdbill.dbf
+Filter = "stat <> 'X'"
+Name = "Cursor5"
+
+relation
+relation
+	Relation4
+Dataenvironment
+yParentAlias = "register"
+RelationalExpr = "regno"
+ChildAlias = "ipdbill"
+ChildOrder = "hos_code"
+Name = "Relation4"
+
+Dataenvironment
+Left = 291
+Top = 143
+Width = 95
+Height = 90
+Alias = "consult"
+BufferModeOverride = 0
+Order = "id"
+CursorSource = ..\..\master\consult.dbf
+Name = "Cursor6"
+
+relation
+relation
+	Relation5
+Dataenvironment
+uParentAlias = "register"
+RelationalExpr = "concode"
+ChildAlias = "consult"
+ChildOrder = "id"
+Name = "Relation5"
+
+baseform
+ ..\..\common\class\baseclass.vcx
+
+frmipdtran
+Top = -1
+Left = -1
+Height = 328
+Width = 627
+DoCreate = .T.
+Caption = "Indoor Patient"
+WindowState = 0
+findform = bs0110f
+menukey = bs0110
+Name = "frmipdtran"
+
+7PROCEDURE Init
+dodefault()
+thisform.chkadd = .F.
+thisform.chkdelete = .F.
+thisform.chkedit = .F.
+
+ENDPROC
+PROCEDURE updbuttons
+local nbalance, nadvance, nused
+store 0 to nbalance, nadvance, nused
+oldalias = select()
+select dept,count(slipno),sum(iif(type<>'R',ntotal,ntotal*-1)) as sum_ntotal;
+	from ibil_mst ;	
+	where hos_code=register.regno group by dept into cursor cntslip
+
+thisform.txtcntphar.value = ' 0:'
+thisform.txtcntlab.value = ' 0:'
+thisform.txtcntxray.value = ' 0:'
+thisform.txtcntus.value = ' 0:'
+thisform.txtcntden.value = ' 0:'
+thisform.txtcntcnp.value = ' 0:'
+thisform.txtcntot.value = ' 0:'
+thisform.txtcnthos.value = ' 0:'
+select cntslip
+go top
+do while !eof()
+	nused = nused + cntslip.sum_ntotal
+	do case
+		case dept='10'
+			thisform.txtcntphar.value = str(cntslip.cnt_slipno,2)+':'+str(cntslip.sum_ntotal,7,2)
+		case dept='01'
+			thisform.txtcntlab.value = str(cntslip.cnt_slipno,2)+':'+str(cntslip.sum_ntotal,7,2)
+		case dept='02'
+			thisform.txtcntxray.value = str(cntslip.cnt_slipno,2)+':'+str(cntslip.sum_ntotal,7,2)
+		case dept='03'
+			thisform.txtcntus.value = str(cntslip.cnt_slipno,2)+':'+str(cntslip.sum_ntotal,7,2)
+		case dept='04'
+			thisform.txtcntden.value = str(cntslip.cnt_slipno,2)+':'+str(cntslip.sum_ntotal,7,2)
+		case dept='11'
+			thisform.txtcntcnp.value = str(cntslip.cnt_slipno,2)+':'+str(cntslip.sum_ntotal,7,2)
+		case dept='06'
+			thisform.txtcntot.value = str(cntslip.cnt_slipno,2)+':'+str(cntslip.sum_ntotal,7,2)
+		case dept='07'
+			thisform.txtcnthos.value = str(cntslip.cnt_slipno,2)+':'+str(cntslip.sum_ntotal,7,2)
+	endcase
+	skip
+enddo
+use in cntslip
+thisform.baseframe1.page1.txtused.value = nused
+thisform.baseframe1.page1.txtbalance.value = nused - register.trcvd + register.tpymt - register.cashdisc
+select (oldalias)
+dodefault()
+
+ENDPROC
+
+bs011070
+BS011070
+REGISTER
+bs011060
+BS011060
+REGISTER
+bs011050
+BS011050
+REGISTER
+bs011040
+BS011040
+REGISTER
+bs011030
+BS011030
+REGISTER
+bs011020
+BS011020
+REGISTER
+bs011010
+BS011010
+REGISTER
+JArial, 0, 8, 5, 14, 11, 14, 3, 0
+Comic Sans MS, 0, 8, 5, 15, 12, 14, 3, 0
+
+
+frmipdtran
+	txtcnthos
+
+frmipdtran
+cTop = 254
+Left = 21
+Height = 73
+Width = 590
+SpecialEffect = 0
+ZOrderSet = 0
+Name = "Shape1"
+
+	baseframe
+ ..\..\common\class\baseclass.vcx
+	pageframe
+
+Baseframe1
+
+frmipdtran
+ErasePage = .T.
+Top = 0
+Left = 0
+Width = 629
+Height = 252
+TabIndex = 1
+ZOrderSet = 1
+Name = "Baseframe1"
+Page1.Name = "Page1"
+Page2.Name = "Page2"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+frmipdtran.Baseframe1.Page1
+ControlSource = "patient.code"
+Format = "!r"
+Height = 22
+InputMask = "999-99-99999"
+Left = 95
+MaxLength = 10
+ReadOnly = .F.
+TabIndex = 13
+Top = 34
+Width = 80
+Comment = ""
+ZOrderSet = 1
+editable = .F.
+Name = "txtCode"
+
+ ..\..\common\class\baseclass.vcx
+frmipdtran.Baseframe1.Page1
+xCaption = "Patient Code"
+Height = 16
+Left = 28
+Top = 40
+Width = 62
+TabIndex = 15
+ZOrderSet = 2
+Name = "lblCode"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+frmipdtran.Baseframe1.Page1
+ControlSource = "patient.name"
+Height = 22
+Left = 210
+MaxLength = 30
+ReadOnly = .F.
+TabIndex = 14
+Top = 34
+Width = 158
+Comment = ""
+ZOrderSet = 3
+editable = .F.
+Name = "txtName"
+
+ ..\..\common\class\baseclass.vcx
+frmipdtran.Baseframe1.Page1
+qCaption = "Name"
+Height = 16
+Left = 179
+Top = 41
+Width = 29
+TabIndex = 17
+ZOrderSet = 4
+Name = "lblName"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+txtRegno
+frmipdtran.Baseframe1.Page1
+ControlSource = "register.regno"
+Height = 22
+Left = 95
+MaxLength = 7
+ReadOnly = .F.
+TabIndex = 3
+Top = 11
+Width = 69
+Comment = ""
+ZOrderSet = 5
+editable = .F.
+Name = "txtRegno"
+
+ ..\..\common\class\baseclass.vcx
+lblRegno
+frmipdtran.Baseframe1.Page1
+|Caption = "Registration No."
+Height = 16
+Left = 12
+Top = 17
+Width = 78
+TabIndex = 9
+ZOrderSet = 6
+Name = "lblRegno"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+txtRdate
+frmipdtran.Baseframe1.Page1
+ControlSource = "register.rdate"
+Height = 22
+Left = 210
+MaxLength = 8
+ReadOnly = .F.
+TabIndex = 4
+Top = 11
+Width = 63
+Comment = ""
+ZOrderSet = 7
+editable = .F.
+Name = "txtRdate"
+
+ ..\..\common\class\baseclass.vcx
+lblRdate
+frmipdtran.Baseframe1.Page1
+rCaption = "Date"
+Height = 16
+Left = 184
+Top = 17
+Width = 24
+TabIndex = 10
+ZOrderSet = 8
+Name = "lblRdate"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+txtRtime
+frmipdtran.Baseframe1.Page1
+ControlSource = "register.rtime"
+Height = 22
+Left = 328
+MaxLength = 5
+ReadOnly = .F.
+TabIndex = 5
+Top = 11
+Width = 40
+Comment = ""
+ZOrderSet = 9
+editable = .F.
+Name = "txtRtime"
+
+ ..\..\common\class\baseclass.vcx
+lblRtime
+frmipdtran.Baseframe1.Page1
+sCaption = "Time"
+Height = 16
+Left = 298
+Top = 17
+Width = 24
+TabIndex = 11
+ZOrderSet = 10
+Name = "lblRtime"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+frmipdtran.Baseframe1.Page1
+ControlSource = "company.id"
+Height = 22
+Left = 95
+MaxLength = 4
+ReadOnly = .F.
+TabIndex = 20
+Top = 57
+Width = 35
+Comment = ""
+ZOrderSet = 11
+editable = .F.
+Name = "txtId"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+
+txtconcode
+frmipdtran.Baseframe1.Page1
+ControlSource = "register.concode"
+Height = 22
+Left = 95
+MaxLength = 4
+ReadOnly = .F.
+TabIndex = 20
+Top = 103
+Width = 35
+Comment = ""
+ZOrderSet = 11
+editable = .F.
+Name = "txtconcode"
+
+ ..\..\common\class\baseclass.vcx
+frmipdtran.Baseframe1.Page1
+uCaption = "Company ID"
+Height = 16
+Left = 31
+Top = 63
+Width = 59
+TabIndex = 22
+ZOrderSet = 12
+Name = "lblId"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+txtName2
+frmipdtran.Baseframe1.Page1
+ControlSource = "company.name"
+Height = 22
+Left = 210
+MaxLength = 25
+ReadOnly = .F.
+TabIndex = 21
+Top = 57
+Width = 158
+Comment = ""
+ZOrderSet = 13
+editable = .F.
+Name = "txtName2"
+
+ ..\..\common\class\baseclass.vcx
+lblName2
+frmipdtran.Baseframe1.Page1
+sCaption = "Name"
+Height = 16
+Left = 179
+Top = 65
+Width = 29
+TabIndex = 25
+ZOrderSet = 14
+Name = "lblName2"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+	txtsettle
+frmipdtran.Baseframe1.Page1
+Alignment = 3
+Value = {  /  /    }
+ControlSource = "register.settledt"
+Format = ""
+Height = 22
+Left = 539
+MaxLength = 0
+ReadOnly = .F.
+TabIndex = 40
+Top = 195
+Width = 72
+Comment = ""
+ZOrderSet = 15
+editable = .F.
+Name = "txtsettle"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+txtcashdisc
+frmipdtran.Baseframe1.Page1
+Alignment = 3
+Value = 0
+ControlSource = "register.cashdisc"
+Format = ""
+Height = 22
+Left = 311
+MaxLength = 0
+ReadOnly = .F.
+TabIndex = 40
+Top = 195
+Width = 58
+Comment = ""
+ZOrderSet = 15
+editable = .F.
+Name = "txtcashdisc"
+
+ ..\..\common\class\baseclass.vcx
+Clabel19
+frmipdtran.Baseframe1.Page1
+zCaption = "Settlement"
+Height = 16
+Left = 486
+Top = 198
+Width = 52
+TabIndex = 43
+ZOrderSet = 16
+Name = "Clabel19"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+frmipdtran.Baseframe1.Page1
+Alignment = 3
+Value = 0
+ControlSource = "register.tpymt"
+Format = ""
+Height = 22
+Left = 210
+MaxLength = 0
+ReadOnly = .F.
+TabIndex = 40
+Top = 195
+Width = 58
+Comment = ""
+ZOrderSet = 15
+editable = .F.
+Name = "txtpymt"
+
+ ..\..\common\class\baseclass.vcx
+Clabel17
+frmipdtran.Baseframe1.Page1
+wCaption = "Payment"
+Height = 16
+Left = 165
+Top = 198
+Width = 43
+TabIndex = 42
+ZOrderSet = 16
+Name = "Clabel17"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+txttbillamt
+frmipdtran.Baseframe1.Page1
+Alignment = 3
+Value = 0
+ControlSource = "register.tbillamt"
+Format = ""
+Height = 22
+Left = 425
+MaxLength = 0
+ReadOnly = .F.
+TabIndex = 41
+Top = 172
+Width = 58
+Comment = ""
+ZOrderSet = 15
+editable = .F.
+Name = "txttbillamt"
+
+ ..\..\common\class\baseclass.vcx
+Clabel12
+frmipdtran.Baseframe1.Page1
+}Caption = "Billed Amount"
+Height = 16
+Left = 357
+Top = 175
+Width = 67
+TabIndex = 43
+ZOrderSet = 16
+Name = "Clabel12"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+
+txtbalance
+frmipdtran.Baseframe1.Page1
+Alignment = 3
+Value = 0
+ControlSource = ""
+Format = ""
+Height = 22
+Left = 425
+MaxLength = 0
+ReadOnly = .F.
+TabIndex = 41
+Top = 195
+Width = 58
+Comment = ""
+ZOrderSet = 15
+editable = .F.
+Name = "txtbalance"
+
+ ..\..\common\class\baseclass.vcx
+frmipdtran.Baseframe1.Page1
+wCaption = "Amt. Due"
+Height = 16
+Left = 378
+Top = 198
+Width = 46
+TabIndex = 43
+ZOrderSet = 16
+Name = "Clabel9"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+frmipdtran.Baseframe1.Page1
+Alignment = 3
+Value = 0
+ControlSource = "register.trcvd"
+Format = ""
+Height = 22
+Left = 95
+MaxLength = 10
+ReadOnly = .F.
+TabIndex = 40
+Top = 195
+Width = 58
+Comment = ""
+ZOrderSet = 15
+editable = .F.
+Name = "txtrcpt"
+
+ ..\..\common\class\baseclass.vcx
+frmipdtran.Baseframe1.Page1
+vCaption = "Reciepts"
+Height = 16
+Left = 46
+Top = 198
+Width = 44
+TabIndex = 42
+ZOrderSet = 16
+Name = "Clabel8"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+	txtbillno
+frmipdtran.Baseframe1.Page1
+Alignment = 3
+ControlSource = "ipdbill.billno"
+Height = 22
+Left = 95
+MaxLength = 10
+ReadOnly = .F.
+TabIndex = 40
+Top = 172
+Width = 69
+Comment = ""
+ZOrderSet = 15
+editable = .F.
+Name = "txtbillno"
+
+ ..\..\common\class\baseclass.vcx
+frmipdtran.Baseframe1.Page1
+tCaption = "Disc."
+Height = 16
+Left = 284
+Top = 198
+Width = 26
+TabIndex = 43
+ZOrderSet = 16
+Name = "Clabel5"
+
+ ..\..\common\class\baseclass.vcx
+frmipdtran.Baseframe1.Page1
+vCaption = "Bill No."
+Height = 16
+Left = 56
+Top = 175
+Width = 34
+TabIndex = 42
+ZOrderSet = 16
+Name = "Clabel1"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+txtddate
+frmipdtran.Baseframe1.Page1
+ControlSource = "register.ddate"
+Format = "d"
+Height = 22
+Left = 95
+MaxLength = 10
+ReadOnly = .F.
+TabIndex = 35
+Top = 149
+Width = 69
+Comment = ""
+ZOrderSet = 15
+editable = .F.
+Name = "txtddate"
+
+ ..\..\common\class\baseclass.vcx
+lblddate
+frmipdtran.Baseframe1.Page1
+}Caption = "Discharge Date"
+Height = 16
+Left = 14
+Top = 152
+Width = 76
+TabIndex = 37
+ZOrderSet = 16
+Name = "lblddate"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+txtName3
+frmipdtran.Baseframe1.Page1
+ControlSource = "employee.name"
+Height = 22
+Left = 210
+MaxLength = 30
+ReadOnly = .F.
+TabIndex = 29
+Top = 80
+Width = 158
+Comment = ""
+ZOrderSet = 17
+editable = .F.
+Name = "txtName3"
+
+ ..\..\common\class\baseclass.vcx
+lblName3
+frmipdtran.Baseframe1.Page1
+sCaption = "Name"
+Height = 16
+Left = 179
+Top = 89
+Width = 29
+TabIndex = 33
+ZOrderSet = 18
+Name = "lblName3"
+
+ ..\..\common\class\baseclass.vcx
+frmipdtran.Baseframe1.Page1
+WCaption = "Age"
+Left = 402
+Top = 16
+TabIndex = 7
+ZOrderSet = 19
+Name = "Clabel6"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+frmipdtran.Baseframe1.Page1
+Value = 
+ControlSource = "Patient.Age"
+Format = "!"
+Height = 22
+InputMask = ""
+Left = 425
+MaxLength = 3
+ReadOnly = .F.
+TabIndex = 1
+Top = 10
+Width = 35
+ZOrderSet = 20
+editable = .F.
+Name = "txtage"
+
+SPROCEDURE When
+IF EMPTY(THIS.PARENT.TXTpcode.VALUE)
+	RETURN .F.
+ENdif
+ENDPROC
+
+bs011001
+BS011001
+REGISTER
+	ccombobox
+ ..\..\common\class\baseclass.vcx
+combobox
+cboatype
+frmipdtran.Baseframe1.Page1
+BoundColumn = 2
+ColumnCount = 0
+RowSourceType = 5
+RowSource = "aatype"
+ControlSource = "Patient.Atype"
+FirstElement = 1
+Height = 22
+Left = 461
+NumberOfElements = 0
+TabIndex = 2
+Top = 10
+Width = 68
+ZOrderSet = 21
+ReadOnly = .F.
+editable = .F.
+Name = "cboatype"
+
+PROCEDURE When
+If empty(this.parent.txtpcode.value)
+	RETURN .F.
+endif
+ENDPROC
+PROCEDURE Destroy
+release aatype
+ENDPROC
+PROCEDURE Init
+public aatype
+dimen aatype(5,2)
+aatype(1,1) = 'Years'
+aatype(1,2) = 'Y'
+aatype(2,1) = 'Months'
+aatype(2,2) = 'M'
+aatype(3,1) = 'Week'
+aatype(3,2) = 'W'
+aatype(4,1) = 'Day'
+aatype(4,2) = 'D'
+aatype(5,1) = 'Hours'
+aatype(5,2) = 'H'
+
+
+ENDPROC
+
+TXTPCODE
+Destroyu
+|Alignment = 3
+Value = 
+Enabled = .F.
+Height = 22
+Left = 546
+Top = 293
+Width = 57
+ZOrderSet = 17
+Name = "txtcnthos"
+
+ ..\..\common\class\baseclass.vcx
+ ..\..\common\class\baseclass.vcx
+frmipdtran.Baseframe1.Page1
+WCaption = "Sex"
+Left = 533
+Top = 16
+TabIndex = 8
+ZOrderSet = 22
+Name = "Clabel7"
+
+	ccombobox
+ ..\..\common\class\baseclass.vcx
+combobox
+cbocstat
+frmipdtran.Baseframe1.Page1
+BoundColumn = 2
+ColumnCount = 0
+RowSourceType = 5
+RowSource = "acstat"
+ControlSource = "register.cstat"
+Height = 21
+Left = 425
+NumberOfElements = 0
+TabIndex = 34
+Top = 150
+Width = 78
+ZOrderSet = 23
+ReadOnly = .F.
+editable = .F.
+Name = "cbocstat"
+
+PROCEDURE Init
+public acstat
+dimen acstat(5,2)
+acstat[1,1]="Discharge"
+acstat[1,2]="D"
+acstat[2,1]="LAMA"
+acstat[2,2]="L"
+acstat[3,1]="Transfer"
+acstat[3,2]="T"
+acstat[4,1]="Expired"
+acstat[4,2]="E"
+acstat[5,1]="DOR"
+acstat[5,2]="R"
+
+ENDPROC
+PROCEDURE Destroy
+release acstat
+ENDPROC
+PROCEDURE When
+IF EMPTY(THIS.PARENT.TXTpcode.VALUE)
+	RETURN .F.
+ENDIF
+ENDPROC
+
+Discharge
+Transfer
+TXTPCODE
+Destroys
+	ccombobox
+ ..\..\common\class\baseclass.vcx
+combobox
+frmipdtran.Baseframe1.Page1
+BoundColumn = 2
+ColumnCount = 0
+RowSourceType = 5
+RowSource = "asex"
+ControlSource = "patient.sex"
+Height = 21
+Left = 560
+NumberOfElements = 0
+TabIndex = 6
+Top = 11
+Width = 60
+ZOrderSet = 23
+ReadOnly = .F.
+editable = .F.
+Name = "cbosex"
+
+PROCEDURE When
+IF EMPTY(THIS.PARENT.TXTpcode.VALUE)
+	RETURN .F.
+ENDIF
+ENDPROC
+PROCEDURE Destroy
+release asex
+ENDPROC
+PROCEDURE Init
+public asex
+dime asex(2,2)
+asex(1,1) = 'Male'
+asex(1,2) = 'M'
+asex(2,1) = 'Female'
+asex(2,2) = 'F'
+
+
+ENDPROC
+
+TXTPCODE
+ctextbox
+{Alignment = 3
+Value = 
+Enabled = .F.
+Height = 22
+Left = 546
+Top = 265
+Width = 57
+ZOrderSet = 16
+Name = "txtcntot"
+
+
+frmipdtran
+txtcntot
+ ..\..\common\class\baseclass.vcx
+ctextbox
+ ..\..\common\class\baseclass.vcx
+Clabel13
+frmipdtran.Baseframe1.Page1
+^Caption = "Relation"
+Left = 384
+Top = 40
+TabIndex = 16
+ZOrderSet = 24
+Name = "Clabel13"
+
+	ccombobox
+ ..\..\common\class\baseclass.vcx
+combobox
+cboerelation
+frmipdtran.Baseframe1.Page1
+ColumnCount = 0
+RowSourceType = 5
+RowSource = "aerelation"
+ControlSource = "Register.Erelation"
+FirstElement = 1
+Height = 22
+Left = 425
+NumberOfElements = 0
+TabIndex = 12
+Top = 33
+Width = 104
+ZOrderSet = 25
+ReadOnly = .F.
+editable = .F.
+Name = "cboerelation"
+
+PROCEDURE Destroy
+releas aerelation
+ENDPROC
+PROCEDURE Init
+public aerelation
+dimen aerelation(7,2)
+aerelation(1,1) = 'Son'
+aerelation(1,2) = 'S'
+aerelation(2,1) = 'Daughter'
+aerelation(2,2) = 'D'
+aerelation(3,1) = 'Wife'
+aerelation(3,2) = 'W'
+aerelation(4,1) = 'Mother'
+aerelation(4,2) = 'M'
+aerelation(5,1) = 'Father'
+aerelation(5,2) = 'F'
+aerelation(6,1) = 'Husband'
+aerelation(6,2) = 'B'
+aerelation(7,1) = 'Self'
+aerelation(7,2) = 's'
+
+ENDPROC
+
+AERELATION
+Daughter
+AERELATION
+Destroy,
+ ..\..\common\class\baseclass.vcx
+Clabel14
+frmipdtran.Baseframe1.Page1
+\Caption = "Ref No"
+Left = 501
+Top = 63
+TabIndex = 24
+ZOrderSet = 26
+Name = "Clabel14"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+txtrefno
+frmipdtran.Baseframe1.Page1
+Value = 
+ControlSource = "Register.Refno"
+Format = "!"
+Height = 22
+InputMask = ""
+Left = 539
+MaxLength = 10
+ReadOnly = .F.
+TabIndex = 19
+Top = 56
+Width = 74
+ZOrderSet = 27
+editable = .F.
+Name = "txtrefno"
+
+ ..\..\common\class\baseclass.vcx
+Clabel15
+frmipdtran.Baseframe1.Page1
+`Caption = "Valid Upto"
+Left = 373
+Top = 88
+TabIndex = 31
+ZOrderSet = 28
+Name = "Clabel15"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+txtrefvalid
+frmipdtran.Baseframe1.Page1
+Value = 
+ControlSource = "Register.Refvalid"
+Format = "!"
+InputMask = ""
+Left = 425
+MaxLength = 8
+ReadOnly = .F.
+TabIndex = 26
+Top = 79
+Width = 72
+ZOrderSet = 29
+editable = .F.
+Name = "txtrefvalid"
+
+ ..\..\common\class\baseclass.vcx
+Clabel16
+frmipdtran.Baseframe1.Page1
+vCaption = "Card No"
+Height = 16
+Left = 500
+Top = 88
+Width = 41
+TabIndex = 32
+ZOrderSet = 30
+Name = "Clabel16"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+	txtcardno
+frmipdtran.Baseframe1.Page1
+Value = 
+ControlSource = "Register.Cardno"
+Format = "!"
+Height = 22
+InputMask = ""
+Left = 539
+MaxLength = 10
+ReadOnly = .F.
+TabIndex = 27
+Top = 79
+Width = 81
+ZOrderSet = 31
+editable = .F.
+Name = "txtcardno"
+
+ ..\..\common\class\baseclass.vcx
+lblCode2
+frmipdtran.Baseframe1.Page1
+{Caption = "Employee Code"
+Height = 16
+Left = 14
+Top = 86
+Width = 76
+TabIndex = 30
+ZOrderSet = 16
+Name = "lblCode2"
+
+ ..\..\common\class\baseclass.vcx
+lbldtime
+frmipdtran.Baseframe1.Page1
+tCaption = "Time"
+Height = 16
+Left = 183
+Top = 155
+Width = 24
+TabIndex = 39
+ZOrderSet = 16
+Name = "lbldtime"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+txtdtime
+frmipdtran.Baseframe1.Page1
+ControlSource = "register.dtime"
+Height = 22
+Left = 210
+MaxLength = 10
+ReadOnly = .F.
+TabIndex = 36
+Top = 149
+Width = 69
+Comment = ""
+ZOrderSet = 15
+editable = .F.
+Name = "txtdtime"
+
+ ..\..\common\class\baseclass.vcx
+lblcstat
+frmipdtran.Baseframe1.Page1
+vCaption = "Status"
+Height = 16
+Left = 391
+Top = 154
+Width = 33
+TabIndex = 38
+ZOrderSet = 16
+Name = "lblcstat"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+txtbdate
+frmipdtran.Baseframe1.Page1
+ControlSource = "ipdbill.bdate"
+Format = "d"
+Height = 22
+Left = 210
+MaxLength = 10
+ReadOnly = .F.
+TabIndex = 41
+Top = 172
+Width = 69
+Comment = ""
+ZOrderSet = 15
+editable = .F.
+Name = "txtbdate"
+
+ ..\..\common\class\baseclass.vcx
+frmipdtran.Baseframe1.Page1
+xCaption = "Bill Date"
+Height = 16
+Left = 168
+Top = 175
+Width = 40
+TabIndex = 43
+ZOrderSet = 16
+Name = "Clabel4"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+txtCode2
+frmipdtran.Baseframe1.Page1
+ControlSource = "employee.code"
+Height = 22
+Left = 95
+MaxLength = 10
+ReadOnly = .F.
+TabIndex = 28
+Top = 80
+Width = 69
+Comment = ""
+ZOrderSet = 15
+editable = .F.
+Name = "txtCode2"
+
+ ..\..\common\class\baseclass.vcx
+Clabel10
+frmipdtran.Baseframe1.Page1
+}Caption = "Consultant Code"
+Height = 16
+Left = 9
+Top = 109
+Width = 81
+TabIndex = 22
+ZOrderSet = 12
+Name = "Clabel10"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+
+txtconname
+frmipdtran.Baseframe1.Page1
+ControlSource = "consult.name"
+Height = 22
+Left = 210
+MaxLength = 25
+ReadOnly = .F.
+TabIndex = 21
+Top = 103
+Width = 158
+Comment = ""
+ZOrderSet = 13
+editable = .F.
+Name = "txtconname"
+
+ ..\..\common\class\baseclass.vcx
+Clabel11
+frmipdtran.Baseframe1.Page1
+tCaption = "Name"
+Height = 16
+Left = 179
+Top = 111
+Width = 29
+TabIndex = 25
+ZOrderSet = 14
+Name = "Clabel11"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+frmipdtran.Baseframe1.Page1
+Alignment = 3
+Value = 0
+ControlSource = ""
+Format = ""
+Height = 22
+Left = 539
+MaxLength = 0
+ReadOnly = .F.
+TabIndex = 41
+Top = 172
+Width = 72
+Comment = ""
+ZOrderSet = 15
+editable = .F.
+Name = "txtused"
+
+ ..\..\common\class\baseclass.vcx
+Clabel18
+frmipdtran.Baseframe1.Page1
+xCaption = "Used Amt"
+Height = 16
+Left = 490
+Top = 175
+Width = 49
+TabIndex = 43
+ZOrderSet = 16
+Name = "Clabel18"
+
+ ..\..\common\class\baseclass.vcx
+Clabel20
+frmipdtran.Baseframe1.Page1
+uAlignment = 1
+Caption = "Bed No."
+Height = 16
+Left = 384
+Top = 63
+Width = 40
+TabIndex = 23
+Name = "Clabel20"
+
+ctextlookup
+ ..\..\common\class\baseclass.vcx
+frmipdtran.Baseframe1.Page1
+gControlSource = "register.bedno"
+Format = "!r"
+Height = 22
+InputMask = "XX-9/99"
+Left = 425
+MaxLength = 5
+TabIndex = 18
+Tag = "wd_cd"
+Top = 56
+Width = 73
+refpath = thisform.baseframe1.page1
+rowsrc = select desc,wd_cd from bed_pos order by wd_cd into cursor txtbdno
+searchalias = bed_pos
+searchexpr = this.value
+editable = .F.
+Name = "txtbdno"
+
+ ..\..\common\class\baseclass.vcx
+Clabel21
+frmipdtran.Baseframe1.Page1
+xCaption = "Diagnosis"
+Height = 16
+Left = 41
+Top = 132
+Width = 49
+TabIndex = 22
+ZOrderSet = 12
+Name = "Clabel21"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+txtdiagnose
+frmipdtran.Baseframe1.Page1
+ControlSource = "register.diagnose"
+Format = ""
+Height = 22
+Left = 95
+ReadOnly = .F.
+TabIndex = 21
+Top = 126
+Width = 518
+Comment = ""
+ZOrderSet = 13
+editable = .F.
+Name = "txtdiagnose"
+
+listgrid
+ ..\..\common\class\baseclass.vcx
+	Listgrid1
+frmipdtran.Baseframe1.Page2
+TColumnCount = 14
+Height = 143
+Left = 4
+Panel = 1
+ReadOnly = .T.
+RecordSource = "register"
+RecordSourceType = 1
+Top = 5
+Width = 617
+Name = "Listgrid1"
+Column1.ColumnOrder = 2
+Column1.ControlSource = "register.pcode"
+Column1.Width = 94
+Column1.ReadOnly = .T.
+Column1.Format = "r"
+Column1.InputMask = "999-99-99999"
+Column1.Name = "colpcode"
+Column2.ColumnOrder = 3
+Column2.ControlSource = "register.rdate"
+Column2.ReadOnly = .T.
+Column2.Format = "d"
+Column2.Name = "colrdate"
+Column3.ColumnOrder = 4
+Column3.ControlSource = "register.rtime"
+Column3.Width = 57
+Column3.ReadOnly = .T.
+Column3.Name = "colrtiem"
+Column4.ColumnOrder = 5
+Column4.ControlSource = "patient.name"
+Column4.Width = 154
+Column4.ReadOnly = .T.
+Column4.Name = "colpname"
+Column5.ColumnOrder = 6
+Column5.ControlSource = "patient.age"
+Column5.Width = 63
+Column5.ReadOnly = .T.
+Column5.Name = "Colage"
+Column6.ColumnOrder = 7
+Column6.ControlSource = "patient.sex"
+Column6.Width = 46
+Column6.ReadOnly = .T.
+Column6.Name = "Colsex"
+Column7.ColumnOrder = 8
+Column7.ControlSource = "patient.address"
+Column7.Width = 149
+Column7.ReadOnly = .T.
+Column7.Name = "coladdress"
+Column8.ColumnOrder = 9
+Column8.ControlSource = "patient.phone1"
+Column8.ReadOnly = .T.
+Column8.Name = "colphone1"
+Column9.ColumnOrder = 10
+Column9.ControlSource = "patient.phone2"
+Column9.ReadOnly = .T.
+Column9.Name = "colphone2"
+Column10.ColumnOrder = 11
+Column10.ControlSource = "register.diagnose"
+Column10.Width = 132
+Column10.ReadOnly = .T.
+Column10.Name = "coldiagnose"
+Column11.ColumnOrder = 12
+Column11.ControlSource = "register.cid"
+Column11.ReadOnly = .T.
+Column11.Name = "colconsult"
+Column12.ColumnOrder = 13
+Column12.ControlSource = "company.name"
+Column12.Width = 125
+Column12.ReadOnly = .T.
+Column12.Name = "colcompany"
+Column13.ColumnOrder = 14
+Column13.ControlSource = "register.erelation"
+Column13.ReadOnly = .T.
+Column13.Name = "colrelation"
+Column14.ColumnOrder = 1
+Column14.ControlSource = "register.regno"
+Column14.Width = 60
+Column14.ReadOnly = .T.
+Column14.Format = ""
+Column14.Name = "colregno"
+
+.frmipdtran.Baseframe1.Page2.Listgrid1.colpcode
+,Caption = "Patient Code"
+Name = "Header1"
+
+.frmipdtran.Baseframe1.Page2.Listgrid1.colpcode
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+.frmipdtran.Baseframe1.Page2.Listgrid1.colrdate
+7Alignment = 2
+Caption = "Reg.Date"
+Name = "Header1"
+
+.frmipdtran.Baseframe1.Page2.Listgrid1.colrdate
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+.frmipdtran.Baseframe1.Page2.Listgrid1.colrtiem
+7Alignment = 2
+Caption = "Reg.Time"
+Name = "Header1"
+
+.frmipdtran.Baseframe1.Page2.Listgrid1.colrtiem
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+.frmipdtran.Baseframe1.Page2.Listgrid1.colpname
+3Alignment = 2
+Caption = "Name"
+Name = "Header1"
+
+.frmipdtran.Baseframe1.Page2.Listgrid1.colpname
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+,frmipdtran.Baseframe1.Page2.Listgrid1.Colage
+2Alignment = 2
+Caption = "Age"
+Name = "Header1"
+
+,frmipdtran.Baseframe1.Page2.Listgrid1.Colage
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+,frmipdtran.Baseframe1.Page2.Listgrid1.Colsex
+2Alignment = 2
+Caption = "Sex"
+Name = "Header1"
+
+,frmipdtran.Baseframe1.Page2.Listgrid1.Colsex
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+0frmipdtran.Baseframe1.Page2.Listgrid1.coladdress
+6Alignment = 2
+Caption = "Address"
+Name = "Header1"
+
+0frmipdtran.Baseframe1.Page2.Listgrid1.coladdress
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+/frmipdtran.Baseframe1.Page2.Listgrid1.colphone1
+4Alignment = 2
+Caption = "Ph.No"
+Name = "Header1"
+
+/frmipdtran.Baseframe1.Page2.Listgrid1.colphone1
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+/frmipdtran.Baseframe1.Page2.Listgrid1.colphone2
+4Alignment = 2
+Caption = "Ph.No"
+Name = "Header1"
+
+/frmipdtran.Baseframe1.Page2.Listgrid1.colphone2
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+1frmipdtran.Baseframe1.Page2.Listgrid1.coldiagnose
+7Alignment = 2
+Caption = "Diagnose"
+Name = "Header1"
+
+1frmipdtran.Baseframe1.Page2.Listgrid1.coldiagnose
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+0frmipdtran.Baseframe1.Page2.Listgrid1.colconsult
+9Alignment = 2
+Caption = "Consultant"
+Name = "Header1"
+
+0frmipdtran.Baseframe1.Page2.Listgrid1.colconsult
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+0frmipdtran.Baseframe1.Page2.Listgrid1.colcompany
+6Alignment = 2
+Caption = "Company"
+Name = "Header1"
+
+0frmipdtran.Baseframe1.Page2.Listgrid1.colcompany
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+1frmipdtran.Baseframe1.Page2.Listgrid1.colrelation
+7Alignment = 2
+Caption = "Relation"
+Name = "Header1"
+
+1frmipdtran.Baseframe1.Page2.Listgrid1.colrelation
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+.frmipdtran.Baseframe1.Page2.Listgrid1.colregno
+5Alignment = 2
+Caption = "Reg.No"
+Name = "Header1"
+
+.frmipdtran.Baseframe1.Page2.Listgrid1.colregno
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+ccmdbtns
+ ..\..\common\class\baseclass.vcx
+commandbutton
+
+frmipdtran
+[Top = 262
+Left = 32
+Caption = "Pharmacy"
+TabIndex = 2
+ZOrderSet = 2
+Name = "cmdphar"
+
+BPROCEDURE Click
+do form bs011001 with register.regno
+
+ENDPROC
+
+BPROCEDURE Click
+do form bs011070 with register.regno
+
+ENDPROC
+
+\Top = 290
+Left = 464
+Caption = "Hospital"
+TabIndex = 7
+ZOrderSet = 15
+Name = "cmdhos"
+
+
+frmipdtran
+commandbutton
+ccmdbtns
+ ..\..\common\class\baseclass.vcx
+commandbutton
+
+frmipdtran
+\Top = 290
+Left = 32
+Caption = "Laboratory"
+TabIndex = 3
+ZOrderSet = 3
+Name = "cmdlab"
+
+BPROCEDURE Click
+do form bs011010 with register.regno
+
+ENDPROC
+
+ ..\..\common\class\baseclass.vcx
+ccmdbtns
+BPROCEDURE Click
+do form bs011060 with register.regno
+
+ENDPROC
+
+WTop = 262
+Left = 464
+Caption = "O.T."
+TabIndex = 7
+ZOrderSet = 14
+Name = "cmdot"
+
+ccmdbtns
+ ..\..\common\class\baseclass.vcx
+commandbutton
+
+frmipdtran
+YTop = 262
+Left = 176
+Caption = "X-Ray"
+TabIndex = 4
+ZOrderSet = 4
+Name = "cmdxray"
+
+BPROCEDURE Click
+do form bs011020 with register.regno
+
+ENDPROC
+
+
+frmipdtran
+commandbutton
+ ..\..\common\class\baseclass.vcx
+ccmdbtns
+|Alignment = 3
+Value = 
+Enabled = .F.
+Height = 22
+Left = 402
+Top = 293
+Width = 57
+ZOrderSet = 13
+Name = "txtcntcnp"
+
+ccmdbtns
+ ..\..\common\class\baseclass.vcx
+commandbutton
+
+frmipdtran
+]Top = 290
+Left = 176
+Caption = "Ultra-Sound"
+TabIndex = 5
+ZOrderSet = 5
+Name = "cmdus"
+
+BPROCEDURE Click
+do form bs011030 with register.regno
+
+ENDPROC
+
+
+frmipdtran
+	txtcntcnp
+ ..\..\common\class\baseclass.vcx
+ctextbox
+
+frmipdtran
+	txtcntden
+ ..\..\common\class\baseclass.vcx
+ctextbox
+	txtcntlab
+ccmdbtns
+ ..\..\common\class\baseclass.vcx
+commandbutton
+
+frmipdtran
+YTop = 262
+Left = 320
+Caption = "Dental"
+TabIndex = 6
+ZOrderSet = 6
+Name = "cmdden"
+
+BPROCEDURE Click
+do form bs011040 with register.regno
+
+ENDPROC
+
+|Alignment = 3
+Value = 
+Enabled = .F.
+Height = 22
+Left = 402
+Top = 265
+Width = 57
+ZOrderSet = 12
+Name = "txtcntden"
+
+
+frmipdtran
+ ..\..\common\class\baseclass.vcx
+ctextbox
+ccmdbtns
+ ..\..\common\class\baseclass.vcx
+commandbutton
+
+frmipdtran
+
+frmipdtran
+]Top = 290
+Left = 320
+Caption = "Procedures"
+TabIndex = 7
+ZOrderSet = 7
+Name = "cmdcnp"
+
+BPROCEDURE Click
+do form bs011050 with register.regno
+
+ENDPROC
+
+|Alignment = 3
+Value = 
+Enabled = .F.
+Height = 22
+Left = 114
+Top = 293
+Width = 57
+ZOrderSet = 11
+Name = "txtcntlab"
+
+
+txtcntxray
+ ..\..\common\class\baseclass.vcx
+ctextbox
+ctextbox
+ ..\..\common\class\baseclass.vcx
+
+txtcntphar
+
+frmipdtran
+|Alignment = 3
+Value = 
+Enabled = .F.
+Height = 22
+Left = 114
+Top = 265
+Width = 57
+ZOrderSet = 8
+Name = "txtcntphar"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+txtcntus
+
+frmipdtran
+zAlignment = 3
+Value = 
+Enabled = .F.
+Height = 22
+Left = 258
+Top = 293
+Width = 57
+ZOrderSet = 9
+Name = "txtcntus"
+
+}Alignment = 3
+Value = 
+Enabled = .F.
+Height = 22
+Left = 258
+Top = 265
+Width = 57
+ZOrderSet = 10
+Name = "txtcntxray"
+
+TXTPCODE
+Destroyu
+THISFORM
+CHKDELETE
+ibil_mst
+NBALANCE
+NADVANCE
+OLDALIAS
+SUM_NTOTAL
+IBIL_MST
+HOS_CODE
+REGISTER
+THISFORM
+
+TXTCNTPHAR
+TXTCNTLAB
+
+TXTCNTXRAY
+TXTCNTUS	
+TXTCNTDEN	
+TXTCNTCNP
+TXTCNTOT	
+TXTCNTHOS
+
+CNT_SLIPNO
+
+BASEFRAME1
+TXTUSED
+
+TXTBALANCE
+CASHDISC
+updbuttons

@@ -51,7 +51,7 @@ namespace HmisWeb.Pages.Xr
         [BindProperty] public string NewMedicalSynonyms { get; set; }
 
         public List<XrReportTemplate> Templates { get; set; } = new();
-        public List<XrService> Services { get; set; } = new();
+        public List<DeptService> Services { get; set; } = new();
         public List<SelectListItem> ServiceOptions { get; set; } = new();
         public List<XrMedicalTerm> XrMedicalTerms { get; set; } = new();
         public XrReportTemplate Editing { get; set; }
@@ -195,7 +195,7 @@ namespace HmisWeb.Pages.Xr
         {
             Sections = _templates.GetStandardSections();
             Placeholders = BuildPlaceholderDocs();
-            Services = await _db.XrServices
+            Services = await _db.XrServices()
                 .Where(s => !s.Retired && s.Active)
                 .OrderBy(s => s.Code)
                 .ToListAsync();

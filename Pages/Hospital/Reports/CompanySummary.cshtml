@@ -121,7 +121,7 @@ else
             w.document.write('<h1>COMPANY WISE SUMMARY</h1>');
             w.document.write('<div class="sub">Ultrasound &nbsp;|&nbsp; @Model.PeriodText</div>');
             w.document.write(document.getElementById('csTable').innerHTML);
-            w.document.write('</body></html>');
+            w.document.write('<\/body><\/html>');
             w.document.close();
             w.focus();
             setTimeout(function () { w.print(); }, 400);

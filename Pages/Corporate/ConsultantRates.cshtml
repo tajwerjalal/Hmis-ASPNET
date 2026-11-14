@@ -1,114 +1,237 @@
 @page "/corporate/consultantrates"
 @model HmisWeb.Pages.Corporate.ConsultantRatesModel
+@*
+    Consultant rate card - the legacy con_rat.DBF imported into
+    [CONSULTANTSERVICERATE] (company x consultant x ward class -> RATE_1 /
+    RATE_2 for service 11001 "Visit (s)").
+
+    Developer : [TAJWER JALAL]
+    Date      : 22-Oct-2026
+    Time      : 15:05
+    Change Log: 22-Oct-2026 15:05 - rebuilt on con_rat: company / consultant /
+                ward class filters, server-side paging, add-edit popup with the
+                legacy RT_FLG, retire with reason (SweetAlert) and restore.
+*@
 @{
     ViewData["Title"] = "Consultant Rates";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+<div class="d-flex justify-content-between align-items-end mb-3 flex-wrap gap-2">
     <div>
         <h4 class="mb-0 fw-bold"><i class="bi bi-person-vcard me-1 text-primary"></i>Consultant Rates</h4>
-        <div class="text-secondary small">Per-consultant service charges: Staff Rate (SRATE) and Unit Rate (URATE).</div>
+        <div class="text-secondary small">
+            Legacy rate card <code>con_rat.DBF</code>: one charge per company, consultant and ward class.
+            Staff Rate = legacy <code>RATE_1</code>, Unit Rate = legacy <code>RATE_2</code>,
+            service <code>11001</code> "Visit (s)".
+        </div>
     </div>
-    <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#addRateModal">
-        <i class="bi bi-plus-circle me-1"></i>Add Consultant Fee
-    </button>
+    <div class="d-flex gap-2">
+        <span class="badge bg-primary rounded-pill align-self-center">@Model.TotalCount rates</span>
+        @if (Model.CanEdit)
+        {
+            <button type="button" class="btn btn-success btn-sm" id="btnAddRate"
+                    data-bs-toggle="modal" data-bs-target="#rateModal">
+                <i class="bi bi-plus-circle me-1"></i>Add Consultant Rate
+            </button>
+        }
+    </div>
 </div>
 
-@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+<ul class="nav nav-tabs mb-3">
+    <li class="nav-item">
+        <a class="nav-link" asp-page="/Consultants/Index">Consultants</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link active" asp-page="/Corporate/ConsultantRates">Consultant Rate Card</a>
+    </li>
+</ul>
+
+@if (!string.IsNullOrEmpty(Model.Error))
 {
     <div class="alert alert-danger alert-dismissible fade show py-2" role="alert">
-        @Model.ErrorMessage
-        <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert"></button>
+        @Model.Error
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
 }
-@if (!string.IsNullOrEmpty(Model.SuccessMessage))
+@if (!string.IsNullOrEmpty(Model.Success))
 {
     <div class="alert alert-success alert-dismissible fade show py-2" role="alert">
-        @Model.SuccessMessage
-        <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert"></button>
+        @Model.Success
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
 }
 
 <form method="get" class="mb-3">
     <div class="row g-2 align-items-end">
-        <div class="col-md-4">
-            <label class="form-label">Consultant</label>
-            <select asp-for="FilterConsultantId" asp-items="Model.ConsultantList" class="form-select form-select-sm">
-                <option value="">All Consultants</option>
+        <div class="col-lg-3 col-md-4">
+            <label class="form-label small text-secondary mb-1">Company</label>
+            <select name="Company" class="form-select form-select-sm">
+                <option value="">-- all companies --</option>
+                @foreach (var c in Model.CompanyFilterList)
+                {
+                    <option value="@c.Value" selected="@(Model.Company == c.Value)">@c.Text</option>
+                }
             </select>
         </div>
-        <div class="col-md-4">
-            <label class="form-label">Department</label>
-            <select asp-for="FilterDepartmentId" asp-items="Model.DepartmentList" class="form-select form-select-sm">
-                <option value="">All Departments</option>
+        <div class="col-lg-3 col-md-4">
+            <label class="form-label small text-secondary mb-1">Consultant</label>
+            <select name="Consultant" class="form-select form-select-sm">
+                <option value="">-- all consultants --</option>
+                @foreach (var c in Model.ConsultantList)
+                {
+                    <option value="@c.Value" selected="@(Model.ConsultantId.HasValue && Model.ConsultantId.Value.ToString() == c.Value)">@c.Text</option>
+                }
             </select>
         </div>
-        <div class="col-md-4 d-flex gap-1">
-            <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search me-1"></i>Filter</button>
-            <a asp-page="/Corporate/ConsultantRates" class="btn btn-outline-secondary btn-sm">Reset</a>
+        <div class="col-lg-2 col-md-4">
+            <label class="form-label small text-secondary mb-1">Ward class</label>
+            <select name="Ward" class="form-select form-select-sm">
+                <option value="">-- all --</option>
+                @foreach (var w in Model.WardList)
+                {
+                    <option value="@w.Value" selected="@(Model.Ward == w.Value)">@w.Text</option>
+                }
+            </select>
+        </div>
+        <div class="col-lg-1 col-md-3">
+            <label class="form-label small text-secondary mb-1">Flag</label>
+            <select name="Flag" class="form-select form-select-sm">
+                <option value="">-- all --</option>
+                @foreach (var f in Model.FlagList)
+                {
+                    <option value="@f.Value" selected="@(Model.Flag == f.Value)">@f.Text</option>
+                }
+            </select>
+        </div>
+        <div class="col-lg-2 col-md-3">
+            <div class="form-check mt-3">
+                <input class="form-check-input" type="checkbox" name="ShowRetired" value="true"
+                       id="showRetired" @(Model.ShowRetired ? "checked" : "") />
+                <label class="form-check-label small" for="showRetired">Include retired</label>
+            </div>
+        </div>
+        <div class="col-lg-1 col-md-2 d-flex gap-1">
+            <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-search"></i></button>
+            <a asp-page="/Corporate/ConsultantRates" class="btn btn-sm btn-outline-secondary" title="Reset">
+                <i class="bi bi-arrow-counterclockwise"></i>
+            </a>
         </div>
     </div>
 </form>
 
-<div class="card mb-4">
-    <div class="card-header bg-white fw-semibold">
-        <span><i class="bi bi-person-vcard me-1 text-primary"></i>Assigned Consultant Rates</span>
-        <span class="badge bg-primary ms-1">@Model.Rates.Count</span>
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-white d-flex align-items-center justify-content-between">
+        <strong><i class="bi bi-table me-1 text-primary"></i>Consultant rate card</strong>
+        <span class="badge bg-primary rounded-pill">@Model.TotalCount</span>
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-sm table-hover align-middle mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th>#</th>
+                        <th style="width:46px">#</th>
+                        <th>Company</th>
                         <th>Consultant</th>
-                        <th>Service</th>
-                        <th class="text-end">Staff Rate</th>
-                        <th class="text-end">Unit Rate</th>
-                        <th class="text-end">Actions</th>
+                        <th style="width:190px">Ward class</th>
+                        <th style="width:90px">Service</th>
+                        <th class="text-end" style="width:110px">Staff Rate</th>
+                        <th class="text-end" style="width:110px">Unit Rate</th>
+                        <th style="width:60px" class="text-center">Flag</th>
+                        <th class="text-end" style="width:130px">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @if (!Model.Rates.Any())
+                    @{
+                        var rowNo = Model.FirstRow - 1;
+                    }
+                    @foreach (var r in Model.Rates)
                     {
-                        <tr>
-                            <td colspan="6" class="text-center text-muted py-4">
-                                <i class="bi bi-person-vcard fs-3 d-block mb-2"></i>
-                                No consultant rates assigned yet. Click "Add Consultant Fee" to add one.
+                        rowNo++;
+                        <tr class="@(r.Retired ? "table-secondary" : "")">
+                            <td class="text-muted">@rowNo</td>
+                            <td>
+                                <span class="fw-semibold">@r.CompanyCode</span>
+                                @if (!string.IsNullOrWhiteSpace(r.CompanyName))
+                                {
+                                    <div class="small text-muted text-truncate" style="max-width:240px">@r.CompanyName</div>
+                                }
+                            </td>
+                            <td>
+                                <span class="fw-semibold">@r.ConsultantName</span>
+                                <div class="small text-muted">
+                                    @r.ConsultantCode
+                                    @if (!r.ConsultantId.HasValue)
+                                    {
+                                        <span class="badge bg-secondary ms-1">legacy</span>
+                                    }
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-dark border">@r.WardCode</span>
+                                <span class="small text-muted ms-1">@r.WardName</span>
+                            </td>
+                            <td class="small">
+                                @r.ServiceCode
+                                @if (!string.IsNullOrWhiteSpace(r.ServiceName))
+                                {
+                                    <div class="text-muted">@r.ServiceName</div>
+                                }
+                            </td>
+                            <td class="text-end fw-semibold">@r.StaffRate.ToString("N2")</td>
+                            <td class="text-end">@r.UnitRate.ToString("N2")</td>
+                            <td class="text-center">
+                                @if (r.Retired)
+                                {
+                                    <span class="badge bg-secondary" title="@r.RetireComments">Retired</span>
+                                }
+                                else
+                                {
+                                    <span class="badge @HmisWeb.Pages.Corporate.ConsultantRatesModel.FlagCss(r.RateFlag)">@r.RateFlag</span>
+                                }
+                            </td>
+                            <td class="text-end text-nowrap">
+                                @if (Model.CanEdit)
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-primary btn-edit-rate"
+                                            data-id="@r.Id"
+                                            data-company="@r.CompanyCode"
+                                            data-consultant-id="@(r.ConsultantId?.ToString() ?? "")"
+                                            data-consultant-code="@r.ConsultantCode"
+                                            data-ward="@r.WardCode"
+                                            data-staffrate="@r.StaffRate.ToString("0.00")"
+                                            data-unitrate="@r.UnitRate.ToString("0.00")"
+                                            data-flag="@r.RateFlag"
+                                            data-bs-toggle="modal" data-bs-target="#rateModal" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    @if (r.Retired)
+                                    {
+                                        <button type="button" class="btn btn-sm btn-outline-success btn-restore-rate"
+                                                data-id="@r.Id"
+                                                data-name="@r.CompanyCode / @r.ConsultantCode / @r.WardCode"
+                                                title="Restore">
+                                            <i class="bi bi-arrow-counterclockwise"></i>
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button type="button" class="btn btn-sm btn-outline-danger btn-retire-rate"
+                                                data-id="@r.Id"
+                                                data-name="@r.CompanyCode / @r.ConsultantCode / @r.WardCode"
+                                                title="Retire">
+                                            <i class="bi bi-slash-circle"></i>
+                                        </button>
+                                    }
+                                }
                             </td>
                         </tr>
                     }
-                    @{ var crNum = 0; }
-                    @foreach (var rate in Model.Rates.OrderBy(r => r.Consultant?.Person?.Name).ThenBy(r => r.Item?.Name))
+                    @if (!Model.Rates.Any())
                     {
-                        crNum++;
-                        var consultantName = rate.Consultant?.Person != null
-                            ? (rate.Consultant.Person.NameWithInitials ?? rate.Consultant.Person.Name ?? "Consultant")
-                            : "Consultant";
                         <tr>
-                            <td class="text-muted">@crNum</td>
-                            <td class="fw-semibold">@consultantName</td>
-                            <td>@(rate.Item?.Name ?? "-")</td>
-                            <td class="text-end">@rate.StaffRate.ToString("N2")</td>
-                            <td class="text-end">@rate.UnitRate.ToString("N2")</td>
-                            <td class="text-end">
-                                <button type="button" class="btn btn-sm btn-outline-primary"
-                                        data-bs-toggle="modal" data-bs-target="#rateModal"
-                                        data-id="@rate.Id"
-                                        data-consultant-id="@rate.ConsultantId"
-                                        data-item-id="@rate.ItemId"
-                                        data-consultant-name="@consultantName"
-                                        data-item-name="@(rate.Item?.Name ?? "")"
-                                        data-staffrate="@rate.StaffRate"
-                                        data-unitrate="@rate.UnitRate"
-                                        title="Edit">
-                                    <i class="bi bi-pencil"></i>
-                                </button>
-                                <form method="post" asp-page-handler="Delete" class="d-inline"
-                                      onsubmit="return confirm('Retire this consultant rate?');">
-                                    <input type="hidden" name="id" value="@rate.Id" />
-                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Retire"><i class="bi bi-trash"></i></button>
-                                </form>
+                            <td colspan="9" class="text-center text-secondary py-4">
+                                <i class="bi bi-person-vcard fs-3 d-block mb-2"></i>
+                                No consultant rate matches this filter.
                             </td>
                         </tr>
                     }
@@ -118,108 +241,223 @@
     </div>
 </div>
 
-<div class="modal fade" id="addRateModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <form method="post" asp-page-handler="Save" class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="bi bi-plus-circle me-1 text-success"></i>Add Consultant Fee</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <input type="hidden" asp-for="Rate.Id" id="addRateId" />
-                <div class="row g-3 mb-3">
-                    <div class="col-md-6">
-                        <label class="form-label">Consultant <span class="text-danger">*</span></label>
-                        <select asp-for="Rate.ConsultantId" asp-items="Model.ConsultantList" class="form-select" id="addRateConsultantId">
-                            <option value="">-- Select Consultant --</option>
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label">Service <span class="text-danger">*</span></label>
-                        <select asp-for="Rate.ItemId" class="form-select" id="addRateItemId">
-                            <option value="">-- Select Service --</option>
-                            @foreach (var s in Model.Services)
-                            {
-                                <option value="@s.Id">@s.Name (@string.IsNullOrEmpty(s.Code) ? "-" : s.Code)</option>
-                            }
-                        </select>
-                    </div>
-                </div>
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label class="form-label">Staff Rate</label>
-                        <input asp-for="Rate.StaffRate" class="form-control" type="number" step="0.01" min="0" id="addRateStaffRate" />
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label">Unit Rate</label>
-                        <input asp-for="Rate.UnitRate" class="form-control" type="number" step="0.01" min="0" id="addRateUnitRate" />
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="submit" class="btn btn-success"><i class="bi bi-check2-circle me-1"></i>Save Consultant Fee</button>
-            </div>
-        </form>
-    </div>
-</div>
+<partial name="_Pager" model="Model" />
 
-<div class="modal fade" id="rateModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <form method="post" asp-page-handler="Save" class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="bi bi-pencil-square me-1 text-primary"></i>Edit Consultant Rate</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <input type="hidden" asp-for="Rate.Id" id="rateId2" />
-                <input type="hidden" asp-for="Rate.ConsultantId" id="rateConsultantId" />
-                <input type="hidden" asp-for="Rate.ItemId" id="rateItemId" />
-                <div class="row g-3 mb-3">
-                    <div class="col-md-6">
-                        <label class="form-label text-muted small">Consultant</label>
-                        <div class="form-control-plaintext fw-semibold" id="rateConsultantName">-</div>
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label text-muted small">Service</label>
-                        <div class="form-control-plaintext fw-semibold" id="rateItemName">-</div>
+@if (Model.CanEdit)
+{
+    <!-- add / edit popup -->
+    <div class="modal fade" id="rateModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <form method="post" asp-page-handler="Save" class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="rateModalTitle">Add consultant rate</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" asp-for="Rate.Id" id="rId" />
+                    <input type="hidden" asp-for="Rate.ConsultantCode" id="rConsultantCode" />
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Company <span class="text-danger">*</span></label>
+                            <select asp-for="Rate.CompanyCode" id="rCompany" class="form-select">
+                                <option value="">-- select company --</option>
+                                @foreach (var c in Model.CompanyList)
+                                {
+                                    <option value="@c.Value">@c.Text</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Consultant <span class="text-danger">*</span></label>
+                            <select asp-for="Rate.ConsultantId" id="rConsultant" class="form-select">
+                                <option value="">-- select consultant --</option>
+                                @foreach (var c in Model.ConsultantList)
+                                {
+                                    <option value="@c.Value" data-code="">@c.Text</option>
+                                }
+                                @foreach (var c in Model.LegacyConsultantList)
+                                {
+                                    <option value="" data-code="@c.Value">@c.Text</option>
+                                }
+                            </select>
+                            <div class="form-text">
+                                Codes marked <em>legacy</em> exist in con_rat but not in the staff master;
+                                they are kept so the old rows stay editable.
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Ward class <span class="text-danger">*</span></label>
+                            <select asp-for="Rate.WardCode" id="rWard" class="form-select">
+                                <option value="">-- select ward class --</option>
+                                @foreach (var w in Model.WardList)
+                                {
+                                    <option value="@w.Value">@w.Text</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Staff Rate <span class="text-muted small">(RATE_1)</span></label>
+                            <input asp-for="Rate.StaffRate" id="rStaffRate" class="form-control"
+                                   type="number" step="0.01" min="0" max="999999.99" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Unit Rate <span class="text-muted small">(RATE_2)</span></label>
+                            <input asp-for="Rate.UnitRate" id="rUnitRate" class="form-control"
+                                   type="number" step="0.01" min="0" max="999999.99" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Flag <span class="text-muted small">(RT_FLG)</span></label>
+                            <select asp-for="Rate.RateFlag" id="rFlag" class="form-select">
+                                <option value="V">V</option>
+                                <option value="F">F</option>
+                            </select>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label">Service</label>
+                            <input class="form-control" value="11001 - Visit (s)" readonly disabled />
+                            <div class="form-text">The legacy file prices this one consultation service.</div>
+                        </div>
                     </div>
                 </div>
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <label class="form-label text-muted small">Staff Rate</label>
-                        <input asp-for="Rate.StaffRate" class="form-control" type="number" step="0.01" min="0" id="rateStaffRate2" />
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label text-muted small">Unit Rate</label>
-                        <input asp-for="Rate.UnitRate" class="form-control" type="number" step="0.01" min="0" id="rateUnitRate2" />
-                    </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="bi bi-save me-1"></i>Save rate
+                    </button>
                 </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Save</button>
-            </div>
-        </form>
+            </form>
+        </div>
     </div>
-</div>
+
+    <!-- retire / restore forms -->
+    <form method="post" asp-page-handler="Retire" id="retireForm">
+        <input type="hidden" name="id" id="retireId" />
+        <input type="hidden" name="reason" id="retireReason" />
+    </form>
+    <form method="post" asp-page-handler="Restore" id="restoreForm">
+        <input type="hidden" name="id" id="restoreId" />
+    </form>
+}
 
 @section Scripts {
-<script>
-    @if (!string.IsNullOrEmpty(Model.ErrorMessage) && Model.Rate != null && Model.Rate.ConsultantId > 0)
-    {
-        <text>bootstrap.Modal.getOrCreateInstance(document.getElementById('addRateModal')).show();</text>
-    }
-    var rateModal = document.getElementById('rateModal');
-    rateModal.addEventListener('show.bs.modal', function (event) {
-        var btn = event.relatedTarget;
-        document.getElementById('rateId2').value = btn.getAttribute('data-id');
-        document.getElementById('rateConsultantId').value = btn.getAttribute('data-consultant-id');
-        document.getElementById('rateItemId').value = btn.getAttribute('data-item-id');
-        document.getElementById('rateConsultantName').textContent = btn.getAttribute('data-consultant-name') || '-';
-        document.getElementById('rateItemName').textContent = btn.getAttribute('data-item-name') || '-';
-        document.getElementById('rateStaffRate2').value = btn.getAttribute('data-staffrate');
-        document.getElementById('rateUnitRate2').value = btn.getAttribute('data-unitrate');
-    });
-</script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert2/11.10.1/sweetalert2.all.min.js"></script>
+    <script>
+        (function () {
+            var rateModal = document.getElementById('rateModal');
+            var consultantSelect = document.getElementById('rConsultant');
+            var consultantCode = document.getElementById('rConsultantCode');
+
+            // keep the legacy code in step with the consultant select
+            function syncConsultantCode() {
+                if (!consultantSelect || !consultantCode) return;
+                var opt = consultantSelect.options[consultantSelect.selectedIndex];
+                consultantCode.value = (opt && opt.dataset.code) ? opt.dataset.code : '';
+            }
+
+            if (consultantSelect) consultantSelect.addEventListener('change', syncConsultantCode);
+
+            if (rateModal) {
+                rateModal.addEventListener('show.bs.modal', function (event) {
+                    var btn = event.relatedTarget;
+                    if (!btn) return;
+
+                    var isEdit = btn.classList.contains('btn-edit-rate');
+                    document.getElementById('rateModalTitle').textContent =
+                        isEdit ? 'Edit consultant rate' : 'Add consultant rate';
+
+                    document.getElementById('rId').value = isEdit ? (btn.dataset.id || '0') : '0';
+                    document.getElementById('rCompany').value = isEdit ? (btn.dataset.company || '') : '';
+                    document.getElementById('rWard').value = isEdit ? (btn.dataset.ward || '') : '';
+                    document.getElementById('rStaffRate').value = isEdit ? (btn.dataset.staffrate || '0.00') : '0.00';
+                    document.getElementById('rUnitRate').value = isEdit ? (btn.dataset.unitrate || '0.00') : '0.00';
+                    document.getElementById('rFlag').value = isEdit ? (btn.dataset.flag || 'V') : 'V';
+
+                    var consultantId = isEdit ? (btn.dataset.consultantId || '') : '';
+                    var code = isEdit ? (btn.dataset.consultantCode || '') : '';
+                    consultantCode.value = '';
+
+                    if (consultantId) {
+                        consultantSelect.value = consultantId;
+                    } else {
+                        // legacy-only code: select the option that carries it
+                        consultantSelect.value = '';
+                        for (var i = 0; i < consultantSelect.options.length; i++) {
+                            var opt = consultantSelect.options[i];
+                            if (!opt.value && (opt.dataset.code || '') === code) {
+                                opt.selected = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    syncConsultantCode();
+                });
+            }
+
+            // retire with a reason
+            document.querySelectorAll('.btn-retire-rate').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    window.Swal.fire({
+                        title: 'Retire consultant rate?',
+                        text: btn.dataset.name,
+                        input: 'textarea',
+                        inputLabel: 'Reason (kept with the row)',
+                        inputPlaceholder: 'e.g. company agreement ended',
+                        inputValidator: function (value) {
+                            return (!value || !value.trim()) ? 'A reason is required.' : undefined;
+                        },
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: 'Retire',
+                        confirmButtonColor: '#dc3545'
+                    }).then(function (result) {
+                        if (!result.isConfirmed) return;
+                        document.getElementById('retireId').value = btn.dataset.id;
+                        document.getElementById('retireReason').value = result.value;
+                        document.getElementById('retireForm').submit();
+                    });
+                });
+            });
+
+            // restore
+            document.querySelectorAll('.btn-restore-rate').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    window.Swal.fire({
+                        title: 'Restore consultant rate?',
+                        text: btn.dataset.name,
+                        icon: 'question',
+                        showCancelButton: true,
+                        confirmButtonText: 'Restore'
+                    }).then(function (result) {
+                        if (!result.isConfirmed) return;
+                        document.getElementById('restoreId').value = btn.dataset.id;
+                        document.getElementById('restoreForm').submit();
+                    });
+                });
+            });
+
+            // toasts
+            @if (!string.IsNullOrEmpty(Model.Success))
+            {
+                <text>
+                if (window.Swal) {
+                    window.Swal.fire({ toast: true, position: 'top-end', icon: 'success',
+                        title: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Success)),
+                        showConfirmButton: false, timer: 2600 });
+                }
+                </text>
+            }
+            @if (!string.IsNullOrEmpty(Model.Error))
+            {
+                <text>
+                if (window.Swal) {
+                    window.Swal.fire({ toast: true, position: 'top-end', icon: 'error',
+                        title: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Error)),
+                        showConfirmButton: false, timer: 4200 });
+                }
+                </text>
+            }
+        })();
+    </script>
 }

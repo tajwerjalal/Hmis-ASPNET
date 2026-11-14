@@ -1,0 +1,159 @@
+@page "/lab/indent/{Id:int}/print"
+@model HmisWeb.Pages.Lab.IndentPrintModel
+@using HmisWeb.Data.Enums
+@{
+    ViewData["Title"] = Model.Duplicate ? "Duplicate Lab Service Indent" : "Lab Service Indent";
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>@(Model.Duplicate ? "DUPLICATE COPY" : "LABORATORY SERVICE INDENT")</title>
+    <style>
+        body { font-family: "Courier New", Courier, monospace; margin: 0; padding: 0; font-size: 10pt; text-align: center; }
+        .no-print { display: none; }
+        .header { text-align: center; margin-bottom: 5mm; }
+        .hospital { font-size: 14pt; font-weight: bold; }
+        .title { font-size: 16pt; font-weight: bold; letter-spacing: 1px; }
+        .sub { font-size: 9pt; }
+        .field { display: flex; justify-content: space-between; margin: 2mm 0; font-size: 9pt; }
+        .divider { border-bottom: 1px solid #000; margin: 3mm 0; }
+        .section { text-align: left; margin: 2mm 0; }
+        .table-header { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 3mm; font-size: 9pt; }
+        .table-header > div { width: 16%; }
+        .table-header > div:first-child { width: 50%; }
+        .table-row { display: flex; justify-content: space-between; margin: 2mm 0; font-size: 8pt; }
+        .table-row > div { width: 16%; }
+        .table-row > div:first-child { width: 50%; }
+        .total { font-weight: bold; text-align: right; margin-top: 3mm; font-size: 10pt; }
+        .footer { margin-top: 4mm; text-align: center; font-size: 8pt; }
+        .duplicate { color: red; font-weight: bold; margin: 2mm 0; font-size: 14pt; }
+        .status { font-size: 11pt; font-weight: bold; margin: 2mm 0; }
+        .print-btn { display: block; margin: 5mm auto; padding: 3mm 6mm; border: 1px solid #000; background: #fff; cursor: pointer; }
+        .print-btn:hover { background: #f0f0f0; }
+    </style>
+    <style media="print">
+        body { width: 80mm; }
+        .no-print { display: none !important; }
+    </style>
+</head>
+<body>
+    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+    {
+        <div style="text-align:center; font-size:12pt; color:red;">
+            @Model.ErrorMessage
+        </div>
+    }
+    <div class="header">
+        <div class="hospital">HMIS - HOSPITAL</div>
+        <div class="title">LABORATORY SERVICE INDENT</div>
+        <div class="sub">@(Model.Duplicate ? "DUPLICATE COPY" : "(Payment Slip - OPD)")</div>
+        @if (Model.Duplicate)
+        {
+            <div class="duplicate">DUPLICATE COPY</div>
+        }
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section">
+        <div class="field">
+            <span><strong>Indent No:</strong> @(Model.Bill == null ? "N/A" : Model.Bill.Id.ToString("D6"))</span>
+            <span><strong>Date/Time:</strong> @((Model.Bill?.BillDate ?? Model.Bill?.CreatedAt ?? DateTime.Now).ToString("dd MMM yyyy HH:mm"))</span>
+        </div>
+        <div class="field">
+            <span><strong>Mode:</strong> @Model.Mode @(Model.Mode == "OPD" ? "(Pay at Cashier)" : "") &nbsp;|&nbsp; <span><strong>Payment Status:</strong> @Model.PaymentStatus</span></span>
+        </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section">
+        <div class="field"><span><strong>Patient:</strong> @Model.Bill?.Patient?.Person?.NameWithInitials</span></div>
+        <div class="field"><span><strong>Reg No:</strong> @(Model.Bill?.Patient?.PatientId?.ToString() ?? "-")</span><span><strong>PHN:</strong> @(Model.Bill?.Patient?.Phn ?? "-")</span></div>
+        <div class="field"><span><strong>Age / Sex:</strong> - / -</span><span><strong>Phone:</strong> @(Model.Bill?.Patient?.Person?.Mobile ?? "-")</span></div>
+        <div class="field"><span><strong>Address:</strong> @(Model.Bill?.Patient?.Person?.Address ?? "-")</span></div>
+        <div class="field"><span><strong>Guardian:</strong> @(Model.Bill?.Patient?.Person?.NameWithInitials ?? "-")</span><span><strong>Diagnosis:</strong> -</span></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section">
+        <div class="table-header">
+            <div>Code</div>
+            <div>Description</div>
+            <div>Qty</div>
+            <div>Rate</div>
+            <div>Amount</div>
+        </div>
+        @if (Model.Bill?.BillItems != null)
+        {
+            foreach (var line in Model.Bill.BillItems)
+            {
+                <div class="table-row">
+                    <div>@(line.Item?.Code ?? line.ItemId?.ToString() ?? "-")</div>
+                    <div>@(line.Item?.Name ?? line.Descreption ?? "Service")</div>
+                    <div>@(line.Qty?.ToString() ?? "1")</div>
+                    <div>@(line.Rate.ToString("N2"))</div>
+                    <div>@(line.NetValue.ToString("N2"))</div>
+                </div>
+            }
+        }
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section">
+        <div class="total">Gross Total: @(Model.Bill == null ? "0.00" : Model.Bill.GrantTotal.ToString("N2"))</div>
+        <div class="total">Discount: @(Model.Bill == null ? "0.00" : Model.Bill.Discount.ToString("N2"))</div>
+        <div class="total">NET PAYABLE (PKR): @(Model.Bill == null ? "0.00" : Model.Bill.NetTotal.ToString("N2"))</div>
+        <div class="status">@Model.PaymentStatus</div>
+        @if (Model.PaymentStatus == "PAID")
+        {
+            <div style="margin-top: 2mm; text-align: center; font-size: 8pt;">
+                Receipt No: - &nbsp;|&nbsp; Paid on: @Model.Bill?.PaidAt?.ToString("dd MMM yyyy HH:mm") ?? "-"
+            </div>
+        }
+        else
+        {
+            <div style="margin-top: 2mm; text-align: center; font-size: 8pt;">
+                *** NOT PAID - Present this slip at Cashier for payment ***
+            </div>
+        }
+        @if (Model.Duplicate)
+        {
+            <div style="margin-top: 2mm; text-align: center; font-size: 8pt;">
+                Duplicate printed on: @(Model.PrintLog == null ? "-" : Model.PrintLog.PrintedAt.ToString("dd MMM yyyy HH:mm")) &nbsp;|&nbsp; by: @Model.UserName
+            </div>
+        }
+        <div style="margin-top: 2mm; text-align: center; font-size: 8pt;">
+            Created By: @Model.UserName
+        </div>
+        @if (Model.PrintCount > 0)
+        {
+            <div style="margin-top: 1mm; text-align: center; font-size: 8pt;">
+                Print Count: @Model.PrintCount
+            </div>
+        }
+    </div>
+
+    <div class="footer">
+        <div>*** Computer generated - not valid without cashier's stamp ***</div>
+        <div class="no-print" style="margin-top: 2mm;">
+            <button class="print-btn" onclick="window.print()">Print / Reprint Invoice</button>
+        </div>
+    </div>
+</body>
+</html>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var params = new URLSearchParams(location.search);
+            if (params.has('print')) {
+                setTimeout(function () { window.print(); }, 500);
+            }
+        });
+    </script>
+}

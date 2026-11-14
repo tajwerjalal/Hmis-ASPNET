@@ -8,6 +8,11 @@ namespace HmisWeb.Pages.Lab
 {
     public class InvestigationModel : PageModel
     {
+        /// <summary>Mirror prefix of the laboratory bank on the shared services master.</summary>
+
+        private const string ItemPrefix = "INV-LB-";
+
+
         private readonly ApplicationDbContext _db;
 
         public InvestigationModel(ApplicationDbContext db)
@@ -21,7 +26,7 @@ namespace HmisWeb.Pages.Lab
         {
             Items = await _db.Items
                 .Include(i => i.Category)
-                .Where(i => !i.Retired && i.ItemType == ItemType.Investigation)
+                .Where(i => !i.Retired && i.ItemType == ItemType.Investigation && i.Code.StartsWith(ItemPrefix))
                 .OrderBy(i => i.Name)
                 .ToListAsync();
         }

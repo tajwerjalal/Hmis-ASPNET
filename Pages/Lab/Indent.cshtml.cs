@@ -6,646 +6,125 @@ using Microsoft.EntityFrameworkCore;
 using HmisWeb.Data;
 using HmisWeb.Data.Enums;
 using HmisWeb.Models;
+using HmisWeb.Models.Legacy;
 using HmisWeb.Services;
-using PdfSharpCore.Drawing;
-using PdfSharpCore.Fonts;
-using PdfSharpCore.Pdf;
 
 namespace HmisWeb.Pages.Lab
 {
     public class IndentModel : PageModel
     {
+        private const string CartKey = "LabIndentCart";
+        private const string PatientKey = "LabIndentPatientId";
+        private const string RegNoKey = "LabIndentRegNo";
+        private const string LastBillKey = "LabIndentLastBillId";
         private readonly ApplicationDbContext _db;
         private readonly ICommonService _common;
         private readonly IAppSession _appSession;
+        public IndentModel(ApplicationDbContext db, ICommonService common, IAppSession appSession) { _db = db; _common = common; _appSession = appSession; }
 
-        public IndentModel(ApplicationDbContext db, ICommonService common, IAppSession appSession)
-        {
-            _db = db;
-            _common = common;
-            _appSession = appSession;
-        }
+        [BindProperty] public string PatientSearch { get; set; }
+        [BindProperty] public string Comments { get; set; }
+        [BindProperty(SupportsGet = true)] public long? SelectedPatientId { get; set; }
 
-        private const string CartKey = "LabIndentCart";
-        private const string PatientKey = "LabIndentPatientId";
-
-        [BindProperty]
-        public string PatientSearch { get; set; }
-
-        [BindProperty]
-        public string NewName { get; set; }
-
-        [BindProperty]
-        public string NewNameWithInitials { get; set; }
-
-        [BindProperty]
-        public string NewNic { get; set; }
-
-        [BindProperty]
-        public string NewMobile { get; set; }
-
-        [BindProperty]
-        public string NewPhone { get; set; }
-
-        [BindProperty]
-        public Sex? NewSex { get; set; }
-
-        [BindProperty(SupportsGet = true)]
-        public long? SelectedPatientId { get; set; }
-
-        [BindProperty]
-        public string ItemSearch { get; set; }
-
-        [BindProperty]
-        public long? SelectedItemId { get; set; }
-
-        [BindProperty]
-        public long? ItemToRemove { get; set; }
-
-        [BindProperty]
-        public List<IndentCartItem> Cart { get; set; } = new();
-
-        [BindProperty]
-        public long? SelectedEncounterId { get; set; }
-
-        [BindProperty]
-        public string Comments { get; set; }
+        /// <summary>
+        /// Set by the OPD registration page after a patient is added from the
+        /// lab "Add New Patient" button. Selects the patient for a fresh indent.
+        /// </summary>
+        [BindProperty(SupportsGet = true)] public long? SelectPatientId { get; set; }
+        [BindProperty] public List<IndentCartItem> Cart { get; set; } = new();
 
         public Patient SelectedPatient { get; set; }
-        public List<Patient> PatientResults { get; set; } = new();
-        public List<Item> ItemResults { get; set; } = new();
-        public List<IndentCartItem> DisplayCart { get; set; } = new();
-        public List<PatientEncounter> ActiveEncounters { get; set; } = new();
-        public PatientEncounter SelectedEncounter { get; set; }
-        public Department LabDepartment { get; set; }
-        public List<Bill> UnpaidBills { get; set; } = new();
-        public bool HasUnpaidBills => UnpaidBills.Any();
-        public double Total { get; set; }
-        public double DiscountTotal { get; set; }
-        public double NetTotal { get; set; }
+        public PatientLegacyInfo LegacyPatient { get; set; }
         public string Message { get; set; }
         public string ErrorMessage { get; set; }
         public string Success { get; set; }
+        public List<LegacyPatientRow> SearchResults { get; set; } = new();
+        [BindProperty] public string SelectedRegNo { get; set; }
+        public List<DeptService> DeptServiceResults { get; set; } = new();
+        public List<Item> ItemResults { get; set; } = new();
+        public List<IndentCartItem> DisplayCart { get; set; } = new();
+        public List<PatientEncounter> ActiveEncounters { get; set; } = new();
+        [BindProperty]
+        public long? SelectedEncounterId { get; set; }
 
-        // Invoice for printing
+        // ===== Previous Indents state for the history card =====
+        [BindProperty] public string HistoryDateFrom { get; set; }
+        [BindProperty] public string HistoryDateTo { get; set; }
+        [BindProperty(SupportsGet = true)] public string HistorySearch { get; set; }
+        [BindProperty(SupportsGet = true)] public int HistoryPage { get; set; }
+
+        public Bill SelectedBill { get; set; }
+        public class LegacyIndentHistoryItem
+        {
+            public long Id { get; set; }
+            public string LabNo { get; set; }
+            public DateTime? BillDate { get; set; }
+            public DateTime? CreatedAt { get; set; }
+            public string PatientName { get; set; }
+            public string RegNo { get; set; }
+            public int ItemsCount { get; set; }
+            public double NetTotal { get; set; }
+            public bool Paid { get; set; }
+        }
+
+        public List<LegacyIndentHistoryItem> HistoryRows { get; set; } = new();
+        public int HistoryTotalCount { get; set; }
+        public int HistoryCurrentPage { get; set; } = 1;
+        public int HistoryPageSize { get; set; } = 10;
+        public bool HistoryHasPrevious { get; set; }
+        public bool HistoryHasNext { get; set; }
+        public string HistoryErrorMessage { get; set; }
+
+        public PatientEncounter SelectedEncounter { get; set; }
+        public List<Bill> UnpaidBills { get; set; } = new();
+        public bool HasUnpaidBills => UnpaidBills.Any();
+        /// <summary>Last saved indent Bill Id (session-cached) - enables the Print button.</summary>
+        public long? LastBillId { get; set; }
+        public bool HasSavedIndent => LastBillId.HasValue;
+        public double Total { get; set; }
+        public double DiscountTotal { get; set; }
+        public double NetTotal { get; set; }
+        public Department LabDepartment { get; set; }
+        [BindProperty(SupportsGet = true)] public string ItemSearch { get; set; }
+        [BindProperty(SupportsGet = true)] public bool OpenItemModal { get; set; }
+        [BindProperty] public long? SelectedItemId { get; set; }
+        [BindProperty] public long? ItemToRemove { get; set; }
+        [BindProperty] public string NewName { get; set; }
+        [BindProperty] public string NewNameWithInitials { get; set; }
+        [BindProperty] public string NewNic { get; set; }
+        [BindProperty] public string NewMobile { get; set; }
+        [BindProperty] public string NewPhone { get; set; }
+        [BindProperty] public Sex? NewSex { get; set; }
         public LabInvoiceModel Invoice { get; set; }
 
-        public class LabInvoiceModel
+        public async Task<IActionResult> OnGetAsync()
         {
-            public long BillId { get; set; }
-            public string InvoiceNumber { get; set; }
-            public string HospitalName { get; set; }
-            public string HospitalNo { get; set; }
-            public DateTime InvoiceDate { get; set; }
-            public string PatientName { get; set; }
-            public long? PatientPhn { get; set; }
-            public string VisitNumber { get; set; }
-            public string DepartmentName { get; set; }
-            public List<InvoiceLine> Lines { get; set; } = new();
-            public double SubTotal { get; set; }
-            public double Discount { get; set; }
-            public double NetTotal { get; set; }
-            public string Cashier { get; set; }
-            public bool IsIPD { get; set; }
-        }
-
-        public class InvoiceLine
-        {
-            public string ItemName { get; set; }
-            public int Qty { get; set; }
-            public double Rate { get; set; }
-            public double Discount { get; set; }
-            public double NetValue { get; set; }
-        }
-
-        public async Task OnGetAsync()
-        {
-            if (SelectedPatientId.HasValue)
+            // Returned from OPD registration after adding a new patient: select
+            // the patient and start a fresh indent.
+            if (SelectPatientId.HasValue && SelectPatientId.Value > 0)
             {
-                var patient = await _db.Patients.FirstOrDefaultAsync(p => p.Id == SelectedPatientId.Value && !p.Retired);
-                if (patient != null)
-                {
-                    var current = GetSelectedPatientId();
-                    if (current != patient.Id)
-                        HttpContext.Session.Remove(CartKey);
-                    HttpContext.Session.SetString(PatientKey, patient.Id.ToString());
-                }
-            }
-            await LoadStateAsync();
-            if (TempData["IndentSuccess"] != null)
-                Success = TempData["IndentSuccess"].ToString();
-        }
-
-        public async Task<IActionResult> OnPostSearchPatientsAsync()
-        {
-            await LoadStateAsync();
-            PatientResults = await _common.SearchPatientsAsync(PatientSearch);
-            return Page();
-        }
-
-        public async Task<IActionResult> OnPostSelectPatientAsync()
-        {
-            if (SelectedPatientId == null)
-                return RedirectToPage();
-
-            var patient = await _db.Patients
-                .Include(p => p.Person)
-                .FirstOrDefaultAsync(p => p.Id == SelectedPatientId && !p.Retired);
-            if (patient == null)
-                return RedirectToPage();
-
-            HttpContext.Session.SetString(PatientKey, patient.Id.ToString());
-            return RedirectToPage("/Lab/Indent");
-        }
-
-        public IActionResult OnPostStartNewAsync()
-        {
-            HttpContext.Session.Remove(PatientKey);
-            HttpContext.Session.Remove(CartKey);
-            return RedirectToPage("/Lab/Indent");
-        }
-
-        public async Task<IActionResult> OnPostCreatePatientAsync()
-        {
-            if (string.IsNullOrWhiteSpace(NewName))
-            {
-                ErrorMessage = "Patient name is required.";
-                return Page();
-            }
-
-            var person = new Person
-            {
-                Name = NewName.Trim(),
-                NameWithInitials = string.IsNullOrWhiteSpace(NewNameWithInitials) ? NewName.Trim() : NewNameWithInitials.Trim(),
-                Nic = NewNic?.Trim() ?? "",
-                Mobile = NewMobile?.Trim() ?? "",
-                Phone = NewPhone?.Trim() ?? "",
-                Sex = NewSex,
-                CreatedAt = DateTime.Now,
-                CreaterId = _appSession.WebUserId
-            };
-            _db.Persons.Add(person);
-            await _db.SaveChangesAsync();
-
-            long? maxPatientId = await _db.Patients.MaxAsync(p => (long?)p.PatientId);
-            var patient = new Patient
-            {
-                PersonId = person.Id,
-                PatientId = (maxPatientId ?? 0) + 1,
-                CreatedAt = DateTime.Now,
-                CreaterId = _appSession.WebUserId,
-                CreatedInstitutionId = _appSession.LoggedSite?.Id
-            };
-            _db.Patients.Add(patient);
-            await _db.SaveChangesAsync();
-
-            HttpContext.Session.Remove(CartKey);
-            HttpContext.Session.SetString(PatientKey, patient.Id.ToString());
-            return RedirectToPage("/Lab/Indent");
-        }
-
-        public async Task<IActionResult> OnPostSearchItemsAsync()
-        {
-            await LoadStateAsync();
-            await SearchItemsAsync();
-            return Page();
-        }
-
-        public async Task<IActionResult> OnPostAddItemAsync()
-        {
-            await LoadStateAsync();
-            if (SelectedItemId == null)
-                return Page();
-
-            var departmentId = LabDepartment?.Id ?? _appSession.LoggedDepartment?.Id;
-            var item = await _db.Items.FirstOrDefaultAsync(i => i.Id == SelectedItemId && !i.Retired && i.Billable
-                && (i.ItemType == ItemType.Investigation || i.ItemType == ItemType.Service)
-                && (departmentId == null || i.DepartmentId == departmentId));
-            if (item == null)
-                return Page();
-
-            var patientId = GetSelectedPatientId();
-            var companyId = patientId.HasValue
-                ? await _common.GetPatientCompanyIdAsync(
-                    await _db.Patients.Where(p => p.Id == patientId.Value && !p.Retired).Select(p => p.PersonId).FirstOrDefaultAsync() ?? 0)
-                : null;
-            var rate = await _common.GetAppliedRateAsync(item, companyId);
-            var name = string.IsNullOrWhiteSpace(item.PrintName) ? item.Name : item.PrintName;
-            var cart = GetCart();
-            var existing = cart.FirstOrDefault(c => c.ItemId == item.Id);
-            if (existing != null)
-            {
-                existing.Qty += 1;
-            }
-            else
-            {
-                cart.Add(new IndentCartItem
-                {
-                    ItemId = item.Id,
-                    Code = item.Code,
-                    ItemName = name,
-                    Qty = 1,
-                    Rate = rate,
-                    Discount = 0
-                });
-            }
-            SaveCart(cart);
-            TempData["IndentMessage"] = $"{name} added to the indent.";
-            return RedirectToPage("/Lab/Indent");
-        }
-
-        public IActionResult OnPostUpdateCartAsync()
-        {
-            if (ItemToRemove.HasValue)
-            {
-                var cart = GetCart();
-                cart.RemoveAll(c => c.ItemId == ItemToRemove.Value);
-                SaveCart(cart);
+                await SelectPatientForNewRegistrationAsync(SelectPatientId.Value);
                 return RedirectToPage("/Lab/Indent");
             }
 
-            var rows = Cart ?? new List<IndentCartItem>();
-            foreach (var r in rows)
-            {
-                if (r.Qty <= 0) r.Qty = 1;
-                if (r.Rate < 0) r.Rate = 0;
-                if (r.Discount < 0) r.Discount = 0;
-                if (r.Discount > r.Qty * r.Rate) r.Discount = r.Qty * r.Rate;
-            }
-            rows = rows.Where(r => r.ItemId > 0).ToList();
-            SaveCart(rows);
-            return RedirectToPage("/Lab/Indent");
-        }
-
-        public IActionResult OnPostClearAsync()
-        {
-            HttpContext.Session.Remove(CartKey);
-            return RedirectToPage("/Lab/Indent");
-        }
-
-        public async Task<IActionResult> OnPostSaveAsync()
-        {
-            await LoadLookupsAsync();
-
-            var patientId = GetSelectedPatientId();
-            var cart = GetCart();
-            if (patientId == null)
-            {
-                Message = "Please select a patient before saving the indent.";
-                return Page();
-            }
-            if (!cart.Any())
-            {
-                Message = "Add at least one investigation / service before saving.";
-                return Page();
-            }
-
-            var patient = await _db.Patients
-                .Include(p => p.Person)
-                .FirstOrDefaultAsync(p => p.Id == patientId.Value && !p.Retired);
-            if (patient == null)
-            {
-                Message = "Selected patient not found.";
-                return Page();
-            }
-
-            var encounter = await GetSelectedEncounterAsync(patient.Id);
-
-            double total = Math.Round(cart.Sum(c => c.GrossValue), 2);
-            double itemDiscount = Math.Round(cart.Sum(c => c.Discount), 2);
-            double maxBillDiscount = Math.Max(total - itemDiscount, 0);
-            double billDiscount = 0; // Bill-level discount removed; only item-level discounts
-            double netTotal = Math.Round(total - itemDiscount - billDiscount, 2);
-            if (netTotal < 0) netTotal = 0;
-
-            var now = DateTime.Now;
-            var userId = _appSession.WebUserId;
-            var site = _appSession.LoggedSite;
-            var dept = LabDepartment ?? _appSession.LoggedDepartment ?? await _db.Departments.OrderBy(d => d.Id).FirstOrDefaultAsync();
-
-            bool ipd = encounter != null;
-
-            var bill = new Bill
-            {
-                BillType = ipd ? BillType.InwardServiceBill : BillType.OpdBill,
-                BillClassType = ipd ? BillClassType.PreBill : BillClassType.BilledBill,
-                PatientId = patient.Id,
-                PersonId = patient.PersonId,
-                PatientEncounterId = ipd ? encounter.Id : null,
-                InstitutionId = site?.Id ?? patient.CreatedInstitutionId,
-                DepartmentId = dept?.Id,
-                CreaterId = userId,
-                CreatedAt = now,
-                BillDate = now,
-                GrantTotal = total,
-                Total = total,
-                BillTotal = total,
-                Discount = itemDiscount + billDiscount,
-                NetTotal = netTotal,
-                Balance = netTotal,
-                Paid = false,
-                BillPaymentCompletelySettled = false,
-                PaymentMethod = null,
-                TenderedAmount = 0,
-                CashPaid = 0,
-                CashBalance = 0,
-                ReferenceNumber = ipd ? encounter.BhtNo : null,
-                Comments = "Lab service indent. " + (Comments ?? string.Empty)
-            };
-            _db.Bills.Add(bill);
-            await _db.SaveChangesAsync();
-
-            int serial = 1;
-            foreach (var c in cart)
-            {
-                var gross = Math.Round(c.Qty * c.Rate, 2);
-                var lineDiscount = c.Discount > 0 ? Math.Round(c.Discount, 2) : Math.Round(gross - c.NetValue, 2);
-                bill.BillItems.Add(new BillItem
-                {
-                    ItemId1 = c.ItemId,
-                    Qty = c.Qty,
-                    Rate = c.Rate,
-                    NetRate = c.Rate,
-                    GrossValue = gross,
-                    Discount = lineDiscount,
-                    NetValue = Math.Round(gross - lineDiscount, 2),
-                    SearialNo = serial++,
-                    CreatedAt = now,
-                    CreaterId = userId
-                });
-            }
-            await _db.SaveChangesAsync();
-
-            HttpContext.Session.Remove(CartKey);
-
-            TempData["IndentSuccess"] = ipd
-                ? $"Lab indent #{bill.Id} saved to IPD bill of #{encounter.Id} ({encounter.BhtNo}). Amount {netTotal:N2} added to the patient account."
-                : $"Lab bill #{bill.Id} created as UNPAID. Patient must pay at Cashier. Amount due: {netTotal:N2}.";
-
-            return RedirectToPage("/Lab/Indent");
-        }
-
-        public async Task<IActionResult> OnGetPrintInvoiceAsync(long billId)
-        {
-            var bill = await _db.Bills
-                .Include(b => b.Patient).ThenInclude(p => p.Person)
-                .Include(b => b.Department)
-                .Include(b => b.BillItems).ThenInclude(bi => bi.Item)
-                .Include(b => b.PatientEncounter)
-                .FirstOrDefaultAsync(b => b.Id == billId && !b.Retired);
-
-            if (bill == null) return NotFound();
-
-            var invoice = BuildInvoiceModel(bill);
-            var pdfBytes = BuildInvoicePdf(invoice);
-            return base.File(pdfBytes, "application/pdf", $"LabInvoice-{bill.Id}.pdf");
-        }
-
-        public async Task<IActionResult> OnGetViewInvoiceAsync(long billId)
-        {
-            var bill = await _db.Bills
-                .Include(b => b.Patient).ThenInclude(p => p.Person)
-                .Include(b => b.Department)
-                .Include(b => b.BillItems).ThenInclude(bi => bi.Item)
-                .Include(b => b.PatientEncounter)
-                .FirstOrDefaultAsync(b => b.Id == billId && !b.Retired);
-
-            if (bill == null) return NotFound();
-
-            Invoice = BuildInvoiceModel(bill);
             await LoadStateAsync();
             return Page();
         }
 
-        private LabInvoiceModel BuildInvoiceModel(Bill bill)
+        /// <summary>
+        /// Selects a patient that was just created on the OPD registration
+        /// screen and clears the previous indent.
+        /// </summary>
+        private async Task SelectPatientForNewRegistrationAsync(long patientId)
         {
-            var lines = new List<InvoiceLine>();
-            if (bill.BillItems != null)
-            {
-                foreach (var bi in bill.BillItems)
-                {
-                    lines.Add(new InvoiceLine
-                    {
-                        ItemName = bi.Item?.PrintName ?? bi.Item?.Name ?? "Service",
-                        Qty = (int)(bi.Qty ?? 1),
-                        Rate = bi.Rate,
-                        Discount = bi.Discount,
-                        NetValue = bi.NetValue
-                    });
-                }
-            }
+            var patient = await _db.Patients
+                .FirstOrDefaultAsync(p => p.Id == patientId && !p.Retired);
+            if (patient == null) return;
 
-            return new LabInvoiceModel
-            {
-                BillId = bill.Id,
-                InvoiceNumber = bill.InvoiceNumber ?? $"INV-{bill.Id:D6}",
-                HospitalName = _appSession.LoggedSite?.PrintingName ?? _appSession.LoggedSite?.Name ?? "HMIS Hospital",
-                HospitalNo = _appSession.LoggedSite?.RegNo ?? _appSession.LoggedSite?.Code ?? "",
-                InvoiceDate = bill.CreatedAt ?? DateTime.Now,
-                PatientName = bill.Patient?.Person?.NameWithInitials ?? bill.Patient?.Person?.Name ?? "Patient",
-                PatientPhn = bill.Patient?.PatientId,
-                VisitNumber = bill.PatientEncounterId?.ToString() ?? bill.ReferenceNumber ?? "-",
-                DepartmentName = bill.Department?.Name ?? "Laboratory",
-                Lines = lines,
-                SubTotal = bill.GrantTotal,
-                Discount = bill.Discount,
-                NetTotal = bill.NetTotal,
-                Cashier = _appSession.LoggedUser?.WebUserPerson?.NameWithInitials
-                    ?? _appSession.LoggedUser?.RealUserName
-                    ?? _appSession.LoggedUser?.UserName
-                    ?? "Staff",
-                IsIPD = bill.BillType == BillType.InwardServiceBill
-            };
-        }
-
-        private byte[] BuildInvoicePdf(LabInvoiceModel inv)
-        {
-            HmisFontResolver.Install();
-            const double PW = 595.28; // A4 width
-            const double PH = 841.89; // A4 height
-            const double margin = 30;
-
-            using var ms = new MemoryStream();
-            using (var doc = new PdfDocument())
-            {
-                var page = doc.AddPage();
-                page.Width = PW;
-                page.Height = PH;
-                using (var g = XGraphics.FromPdfPage(page))
-                {
-                    DrawInvoice(g, inv, margin, margin, PW - margin * 2, PH - margin * 2);
-                }
-                doc.Save(ms, false);
-            }
-            return ms.ToArray();
-        }
-
-        private void DrawInvoice(XGraphics g, LabInvoiceModel inv, double x, double y, double w, double h)
-        {
-            var pen = new XPen(XColor.FromArgb(70, 70, 70), 1);
-            var brush = XBrushes.Black;
-            var brushGray = XBrushes.Gray;
-            var brushLight = new XSolidBrush(XColor.FromArgb(240, 240, 240));
-
-            double cx = x;
-            double cw = w;
-            double ty = y;
-
-            var fTitle = new XFont("Arial", 18, XFontStyle.Bold);
-            var fSub = new XFont("Arial", 10, XFontStyle.Bold);
-            var fNormal = new XFont("Arial", 9);
-            var fSmall = new XFont("Arial", 8);
-            var fBold = new XFont("Arial", 9, XFontStyle.Bold);
-            var fHeader = new XFont("Arial", 9, XFontStyle.Bold);
-
-            // Header - Hospital Name
-            g.DrawString(inv.HospitalName, fTitle, brush, new XRect(cx, ty, cw, 28), XStringFormats.Center);
-            ty += 26;
-            g.DrawString(inv.HospitalNo, fSmall, brushGray, new XRect(cx, ty, cw, 14), XStringFormats.Center);
-            ty += 16;
-            g.DrawString(inv.IsIPD ? "IPD LAB SERVICE INVOICE" : "LAB SERVICE INVOICE (OPD)", fSub, brush, new XRect(cx, ty, cw, 18), XStringFormats.Center);
-            ty += 20;
-
-            // Line
-            g.DrawLine(pen, cx, ty, cx + cw, ty);
-            ty += 10;
-
-            // Invoice info row
-            var colW = cw / 2;
-            ty = DrawRow(g, fSmall, "Invoice No:", inv.InvoiceNumber, cx, ty, colW);
-            ty = DrawRow(g, fSmall, "Date:", inv.InvoiceDate.ToString("dd MMM yyyy HH:mm"), cx + colW, ty - 14, colW);
-            ty += 4;
-
-            ty = DrawRow(g, fSmall, "Patient:", inv.PatientName, cx, ty, colW);
-            ty = DrawRow(g, fSmall, "PHN:", inv.PatientPhn?.ToString() ?? "-", cx + colW, ty - 14, colW);
-            ty += 4;
-
-            ty = DrawRow(g, fSmall, "Visit/Ref:", inv.VisitNumber, cx, ty, colW);
-            ty = DrawRow(g, fSmall, "Department:", inv.DepartmentName, cx + colW, ty - 14, colW);
-            ty += 4;
-
-            if (inv.IsIPD)
-            {
-                ty = DrawRow(g, fSmall, "Type:", "IPD (Added to patient account)", cx, ty, cw);
-                ty += 4;
-            }
-
-            g.DrawLine(pen, cx, ty, cx + cw, ty);
-            ty += 8;
-
-            // Table header
-            double col1 = cw * 0.50;
-            double col2 = cw * 0.10;
-            double col3 = cw * 0.15;
-            double col4 = cw * 0.12;
-            double col5 = cw * 0.13;
-
-            g.DrawRectangle(pen, brushLight, cx, ty, cw, 18);
-            g.DrawString("Description", fHeader, brush, new XRect(cx + 4, ty, col1 - 8, 18), XStringFormats.CenterLeft);
-            g.DrawString("Qty", fHeader, brush, new XRect(cx + col1, ty, col2, 18), XStringFormats.Center);
-            g.DrawString("Rate", fHeader, brush, new XRect(cx + col1 + col2, ty, col3, 18), XStringFormats.CenterRight);
-            g.DrawString("Disc", fHeader, brush, new XRect(cx + col1 + col2 + col3, ty, col4, 18), XStringFormats.CenterRight);
-            g.DrawString("Amount", fHeader, brush, new XRect(cx + col1 + col2 + col3 + col4, ty, col5, 18), XStringFormats.CenterRight);
-            ty += 20;
-            g.DrawLine(pen, cx, ty, cx + cw, ty);
-
-            // Table rows
-            foreach (var line in inv.Lines)
-            {
-                if (ty > y + h - 80)
-                {
-                    g.DrawString("... (more items)", fSmall, brushGray, new XRect(cx + 4, ty, cw, 14), XStringFormats.CenterLeft);
-                    ty += 16;
-                    break;
-                }
-
-                g.DrawString(line.ItemName, fNormal, brush, new XRect(cx + 4, ty, col1 - 8, 14), XStringFormats.CenterLeft);
-                g.DrawString(line.Qty.ToString(), fNormal, brush, new XRect(cx + col1, ty, col2, 14), XStringFormats.Center);
-                g.DrawString(line.Rate.ToString("N2"), fNormal, brush, new XRect(cx + col1 + col2, ty, col3, 14), XStringFormats.CenterRight);
-                g.DrawString(line.Discount > 0 ? line.Discount.ToString("N2") : "-", fNormal, brush, new XRect(cx + col1 + col2 + col3, ty, col4, 14), XStringFormats.CenterRight);
-                g.DrawString(line.NetValue.ToString("N2"), fBold, brush, new XRect(cx + col1 + col2 + col3 + col4, ty, col5, 14), XStringFormats.CenterRight);
-                ty += 16;
-            }
-
-            g.DrawLine(pen, cx, ty, cx + cw, ty);
-            ty += 6;
-
-            // Totals
-            double totalCol = cw * 0.7;
-            double amtCol = cw * 0.3;
-
-            ty = DrawTotalRow(g, fNormal, "Sub Total", inv.SubTotal.ToString("N2"), cx, ty, totalCol, amtCol);
-            ty = DrawTotalRow(g, fNormal, "Discount", inv.Discount.ToString("N2"), cx, ty, totalCol, amtCol);
-            ty += 2;
-            g.DrawLine(new XPen(XColor.FromArgb(100, 100, 100), 1), cx + totalCol, ty, cx + cw, ty);
-            ty += 4;
-            ty = DrawTotalRow(g, fBold, "NET TOTAL", inv.NetTotal.ToString("N2"), cx, ty, totalCol, amtCol);
-            ty += 10;
-
-            if (inv.IsIPD)
-            {
-                g.DrawString("*** IPD Patient - Amount added to account. Settle at discharge ***", fSmall, brushGray, new XRect(cx, ty, cw, 14), XStringFormats.Center);
-                ty += 16;
-            }
-            else
-            {
-                g.DrawString("*** NOT PAID - Present this invoice at Cashier for payment ***", fSmall, XBrushes.Red, new XRect(cx, ty, cw, 14), XStringFormats.Center);
-                ty += 16;
-            }
-
-            // Footer
-            ty = y + h - 50;
-            g.DrawLine(pen, cx, ty, cx + cw, ty);
-            ty += 6;
-            g.DrawString($"Generated by: {inv.Cashier}  |  {DateTime.Now:dd MMM yyyy HH:mm}", fSmall, brushGray, new XRect(cx, ty, cw, 14), XStringFormats.Center);
-            ty += 12;
-            g.DrawString("Thank you for choosing our laboratory services", fSmall, brushGray, new XRect(cx, ty, cw, 14), XStringFormats.Center);
-        }
-
-        private double DrawRow(XGraphics g, XFont f, string label, string value, double x, double y, double w)
-        {
-            g.DrawString(label, f, XBrushes.DarkGray, new XRect(x + 4, y, w * 0.35, 14), XStringFormats.CenterLeft);
-            g.DrawString(value ?? "-", f, XBrushes.Black, new XRect(x + w * 0.38, y, w * 0.6, 14), XStringFormats.CenterLeft);
-            return y + 14;
-        }
-
-        private double DrawTotalRow(XGraphics g, XFont f, string label, string value, double x, double y, double labelW, double valW)
-        {
-            g.DrawString(label, f, XBrushes.Black, new XRect(x + labelW - 120, y, 115, 16), XStringFormats.CenterRight);
-            g.DrawString(value, f, XBrushes.Black, new XRect(x + labelW, y, valW, 16), XStringFormats.CenterRight);
-            return y + 16;
-        }
-
-        private async Task LoadStateAsync()
-        {
-            await LoadLookupsAsync();
-            SelectedPatient = await GetSelectedPatientAsync();
-            DisplayCart = GetCart();
-            Cart = DisplayCart;
-            if (SelectedPatient != null)
-            {
-                ActiveEncounters = await GetActiveEncountersAsync(SelectedPatient.Id);
-                if (SelectedEncounterId.HasValue && ActiveEncounters.Any(e => e.Id == SelectedEncounterId.Value))
-                    SelectedEncounter = ActiveEncounters.First(e => e.Id == SelectedEncounterId.Value);
-                else if (ActiveEncounters.Any())
-                    SelectedEncounter = ActiveEncounters.First();
-                else
-                    SelectedEncounter = null;
-
-                UnpaidBills = await _db.Bills
-                    .Where(b => b.PatientId == SelectedPatient.Id && !b.Retired && !b.Cancelled && !b.Paid)
-                    .OrderByDescending(b => b.CreatedAt)
-                    .ToListAsync();
-            }
-            else
-            {
-                ActiveEncounters = new();
-                SelectedEncounter = null;
-                UnpaidBills = new();
-            }
-            ComputeTotals();
-            if (TempData["IndentMessage"] != null)
-                Message = TempData["IndentMessage"].ToString();
+            HttpContext.Session.SetString(PatientKey, patient.Id.ToString());
+            HttpContext.Session.Remove(RegNoKey);
+            HttpContext.Session.Remove(CartKey);
+            HttpContext.Session.Remove(LastBillKey);
         }
 
         private void ComputeTotals()
@@ -656,40 +135,341 @@ namespace HmisWeb.Pages.Lab
             if (NetTotal < 0) NetTotal = 0;
         }
 
-        private async Task SearchItemsAsync()
+        private async Task LoadLookupsAsync()
         {
-            var term = ItemSearch?.Trim();
-            var q = _db.Items.Where(i => !i.Retired && i.Billable
-                && (i.ItemType == ItemType.Investigation || i.ItemType == ItemType.Service));
+            LabDepartment = await _db.Departments.FirstOrDefaultAsync(d => !d.Retired && d.DepartmentType == DepartmentType.Laboratory);
+            if (LabDepartment == null) LabDepartment = _appSession.LoggedDepartment ?? await _db.Departments.Where(d => !d.Retired).OrderBy(d => d.Name).FirstOrDefaultAsync();
+            DeptServiceResults = await _db.DeptServices.Where(d => d.Dept == "01" && !d.Retired && d.Billable).OrderBy(d => d.Name).Take(100).ToListAsync();
+        }
 
-            if (LabDepartment != null)
-                q = q.Where(i => i.DepartmentId == LabDepartment.Id);
-
-            if (!string.IsNullOrWhiteSpace(term))
+        private async Task LoadStateAsync()
+        {
+            await LoadLookupsAsync();
+            SelectedPatient = await GetSelectedPatientAsync();
+            DisplayCart = GetCart();
+            Cart = DisplayCart;
+            LastBillId = long.TryParse(HttpContext.Session.GetString(LastBillKey), out var lb) ? lb : (long?)null;
+            if (SelectedPatient != null)
             {
-                q = q.Where(i => (i.Name != null && i.Name.Contains(term))
-                    || (i.Sname != null && i.Sname.Contains(term))
-                    || (i.PrintName != null && i.PrintName.Contains(term))
-                    || (i.Code != null && i.Code.Contains(term)));
+                await _common.EnrichLegacyNamesAsync(new[] { SelectedPatient });
+                LegacyPatient = await _common.GetPatientLegacyInfoAsync(SelectedPatient);
+                if (string.IsNullOrWhiteSpace(SelectedRegNo))
+                    SelectedRegNo = HttpContext.Session.GetString(RegNoKey);
+                if (string.IsNullOrWhiteSpace(SelectedRegNo))
+                    SelectedRegNo = LegacyPatient?.RegNo;
+                UnpaidBills = await _db.Bills
+                    .Where(b => b.PatientId == SelectedPatient.Id && !b.Retired && !b.Cancelled && !b.Paid)
+                    .OrderByDescending(b => b.CreatedAt).ToListAsync();
+            }
+            else { LegacyPatient = null; UnpaidBills = new(); }
+            ComputeTotals();
+            await LoadHistoryStateAsync();
+        }
+
+        /// <summary>
+        /// Loads previous indents (paid and unpaid) for the history card.
+        /// Supports a free-text search over indent number, invoice number,
+        /// patient registration number and patient name.
+        /// </summary>
+        private async Task LoadHistoryStateAsync()
+        {
+            HistoryCurrentPage = Math.Max(1, HistoryPage);
+            using var conn = new Microsoft.Data.SqlClient.SqlConnection(_db.Database.GetDbConnection().ConnectionString);
+            await conn.OpenAsync();
+
+            // Build WHERE from search term
+            var whereClauses = new List<string> { "1=1" };
+            var parameters = new List<Microsoft.Data.SqlClient.SqlParameter>();
+
+            if (!string.IsNullOrWhiteSpace(HistorySearch))
+            {
+                whereClauses.Add("(LABNO LIKE @search OR PCODE LIKE @search OR NAME LIKE @search OR NAME LIKE @search2)");
+                parameters.Add(new Microsoft.Data.SqlClient.SqlParameter("@search", "%" + HistorySearch.Trim() + "%"));
+                parameters.Add(new Microsoft.Data.SqlClient.SqlParameter("@search2", "%" + HistorySearch.Trim() + "%"));
             }
 
-            ItemResults = await q.OrderBy(i => i.ItemType).ThenBy(i => i.Name).Take(50).ToListAsync();
+            if (DateTime.TryParse(HistoryDateFrom, out var fd))
+            {
+                whereClauses.Add("DATE >= @from");
+                parameters.Add(new Microsoft.Data.SqlClient.SqlParameter("@from", fd.Date));
+            }
+            if (DateTime.TryParse(HistoryDateTo, out var td))
+            {
+                whereClauses.Add("DATE <= @to");
+                parameters.Add(new Microsoft.Data.SqlClient.SqlParameter("@to", td.Date.AddDays(1).AddTicks(-1)));
+            }
+
+            var whereStr = string.Join(" AND ", whereClauses);
+
+            // Count total
+            var countSql = $"SELECT COUNT(*) FROM [HMIS].[dbo].[REPORT] WHERE {whereStr}";
+            using var countCmd = new Microsoft.Data.SqlClient.SqlCommand(countSql, conn);
+            countCmd.Parameters.AddRange(parameters.ToArray());
+            HistoryTotalCount = Convert.ToInt32(await countCmd.ExecuteScalarAsync());
+
+            var skip = (HistoryCurrentPage - 1) * HistoryPageSize;
+            var sql = $@"SELECT LABNO, DATE, TIME, NAME, PCODE, NET, POSTED FROM [HMIS].[dbo].[REPORT] WHERE {whereStr} ORDER BY DATE DESC, LABNO DESC OFFSET @skip ROWS FETCH NEXT @pageSize ROWS ONLY";
+
+            using var cmd = new Microsoft.Data.SqlClient.SqlCommand(sql, conn);
+            cmd.Parameters.AddRange(parameters.ToArray());
+            cmd.Parameters.Add(new Microsoft.Data.SqlClient.SqlParameter("@skip", skip));
+            cmd.Parameters.Add(new Microsoft.Data.SqlClient.SqlParameter("@pageSize", HistoryPageSize));
+
+            // Load test counts per labno using TESTTR
+            var rows = new List<LegacyIndentHistoryItem>();
+            using var r = await cmd.ExecuteReaderAsync();
+            var labNos = new List<string>();
+            while (await r.ReadAsync())
+            {
+                var labNo = r.IsDBNull(0) ? null : r.GetString(0).Trim();
+                if (string.IsNullOrWhiteSpace(labNo)) continue;
+                labNos.Add(labNo);
+                rows.Add(new LegacyIndentHistoryItem
+                {
+                    LabNo = labNo,
+                    Id = long.TryParse(labNo, out var lid) ? lid : 0,
+                    BillDate = r.IsDBNull(1) ? (DateTime?)null : r.GetDateTime(1),
+                    CreatedAt = r.IsDBNull(1) ? (DateTime?)null : r.GetDateTime(1),
+                    PatientName = r.IsDBNull(3) ? null : r.GetString(3).Trim(),
+                    RegNo = r.IsDBNull(4) ? null : r.GetString(4).Trim(),
+                    NetTotal = r.IsDBNull(5) ? 0 : Convert.ToDouble(r.GetValue(5)),
+                    Paid = string.Equals(r.IsDBNull(6) ? null : r.GetString(6), "N", StringComparison.OrdinalIgnoreCase) == false
+                });
+            }
+
+            // Count tests per labno from TESTTR
+            if (labNos.Any())
+            {
+                var inList = string.Join(",", labNos.Select((_, i) => "@p" + i));
+                var testSql = $"SELECT LABNO, COUNT(*) FROM [HMIS].[dbo].[TESTTR] WHERE LABNO IN ({inList}) GROUP BY LABNO";
+                using var testCmd = new Microsoft.Data.SqlClient.SqlCommand(testSql, conn);
+                for (int i = 0; i < labNos.Count; i++) testCmd.Parameters.AddWithValue("@p" + i, labNos[i]);
+                using var tr = await testCmd.ExecuteReaderAsync();
+                var counts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                while (await tr.ReadAsync())
+                {
+                    var ln = tr.IsDBNull(0) ? null : tr.GetString(0).Trim();
+                    if (ln != null) counts[ln] = tr.IsDBNull(1) ? 0 : tr.GetInt32(1);
+                }
+                foreach (var item in rows)
+                {
+                    if (counts.TryGetValue(item.LabNo, out var c)) item.ItemsCount = c;
+                }
+            }
+
+            HistoryRows = rows;
+            HistoryHasPrevious = HistoryCurrentPage > 1;
+            HistoryHasNext = (HistoryCurrentPage - 1) * HistoryPageSize < HistoryTotalCount;
         }
 
-        private async Task<PatientEncounter> GetSelectedEncounterAsync(long patientId)
+        public async Task<IActionResult> OnPostSearchPatientsAsync()
         {
-            if (!SelectedEncounterId.HasValue) return null;
-            var encounters = await GetActiveEncountersAsync(patientId);
-            return encounters.FirstOrDefault(e => e.Id == SelectedEncounterId.Value);
+            await LoadStateAsync();
+            SearchResults = await _common.SearchLegacyPatientsAsync(PatientSearch);
+            return Page();
         }
 
-        private async Task<List<PatientEncounter>> GetActiveEncountersAsync(long patientId)
+        public async Task<IActionResult> OnPostSelectPatientAsync()
         {
-            return await _db.PatientEncounters
-                .Where(e => e.PatientId == patientId && !e.Retired
-                    && e.EncounterType == EncounterType.Inward && e.DateOfDischarge == null)
-                .OrderByDescending(e => e.DateOfAdmission)
-                .ToListAsync();
+            if (SelectedPatientId == null || SelectedPatientId <= 0) return RedirectToPage();
+            var patient = await _db.Patients.FirstOrDefaultAsync(p => p.Id == SelectedPatientId && !p.Retired);
+            if (patient == null) return RedirectToPage();
+            HttpContext.Session.SetString(PatientKey, patient.Id.ToString());
+            if (!string.IsNullOrWhiteSpace(SelectedRegNo))
+                HttpContext.Session.SetString(RegNoKey, SelectedRegNo.Trim());
+            else HttpContext.Session.Remove(RegNoKey);
+            return RedirectToPage("/Lab/Indent");
+        }
+
+        public async Task<IActionResult> OnPostAddItemAsync()
+        {
+            await LoadStateAsync();
+            if (SelectedItemId == null || SelectedItemId <= 0) return RedirectToPage("/Lab/Indent");
+            var svc = await _db.DeptServices.FirstOrDefaultAsync(d => d.Id == SelectedItemId && d.Dept == "01" && !d.Retired && d.Billable);
+            if (svc == null) return RedirectToPage("/Lab/Indent");
+            var cart = GetCart();
+            cart.Add(new IndentCartItem
+            {
+                Code = svc.Code,
+                ItemName = svc.Name ?? svc.Sname ?? svc.Code,
+                Qty = 1,
+                Rate = (double)(svc.Rate ?? svc.RateForeigner ?? 0),
+                Discount = 0,
+                FromDeptService = true
+            });
+            SaveCart(cart);
+            return RedirectToPage("/Lab/Indent");
+        }
+
+        /// <summary>
+        /// Loads an existing indent for viewing/editing by Bill Id.
+        /// Navigates to /lab/SampleCollection where the indent can be viewed or edited
+        /// if it's an unposted, unpaid indent.
+        /// </summary>
+        public async Task<IActionResult> OnPostViewBillAsync([FromForm] long BillId)
+        {
+            // Check if this indent can be edited (unposted, unpaid)
+            var bill = await _db.Bills.AsNoTracking()
+                .FirstOrDefaultAsync(b => b.Id == BillId && !b.Retired);
+            
+            if (bill == null)
+            {
+                ErrorMessage = "Indent not found.";
+                return RedirectToPage();
+            }
+            
+            // Determine if this indent is editable
+            // First check if it has legacy REPORT entry to see if it's posted
+            using var conn = new Microsoft.Data.SqlClient.SqlConnection(_db.Database.GetDbConnection().ConnectionString);
+            await conn.OpenAsync();
+            using var cmd = new Microsoft.Data.SqlClient.SqlCommand("SELECT TOP 1 LABNO, POSTED FROM [HMIS].[dbo].[REPORT] WHERE LABNO = @labNo AND POSTED = 'N'", conn);
+            cmd.Parameters.AddWithValue("@labNo", bill.LocalNumber ?? "");
+            using var reader = await cmd.ExecuteReaderAsync();
+            LegacyReportRow legacyReport = null;
+            if (await reader.ReadAsync())
+            {
+                legacyReport = new LegacyReportRow
+                {
+                    LABNO = reader.IsDBNull(0) ? null : reader.GetString(0).Trim(),
+                    POSTED = reader.IsDBNull(1) ? null : reader.GetString(1).Trim()
+                };
+            }
+            
+            var isEditable = !bill.Paid && legacyReport != null;
+            
+            // Navigate to SampleCollection page with billId and mode
+            // The SampleCollection page will determine if it should be view-only or editable
+            var mode = isEditable ? "edit" : "view";
+            return RedirectToPage("/Lab/SampleCollection", new { 
+                billId = BillId, 
+                mode = mode 
+            });
+        }
+        
+        private class LegacyReportRow
+        {
+            public string LABNO { get; set; }
+            public string POSTED { get; set; }
+        }
+
+        public async Task<IActionResult> OnPostSaveAsync()
+        {
+            await LoadStateAsync();
+            var patientId = GetSelectedPatientId();
+            var cart = GetCart();
+            if (patientId == null) { Message = "Please select a patient."; return Page(); }
+            if (!cart.Any()) { Message = "Add at least one service."; return Page(); }
+            var patient = await _db.Patients.Include(p => p.Person).FirstOrDefaultAsync(p => p.Id == patientId && !p.Retired);
+            if (patient == null) { Message = "Patient not found."; return Page(); }
+            double total = Math.Round(cart.Sum(c => c.Qty * c.Rate), 2);
+            double itemDiscount = Math.Round(cart.Sum(c => c.Discount), 2);
+            double netTotal = Math.Max(total - itemDiscount, 0);
+            var bill = new Bill
+            {
+                BillType = BillType.OpdBill,
+                PatientId = patient.Id,
+                PersonId = patient.PersonId,
+                CreaterId = _appSession.WebUserId,
+                CreatedAt = DateTime.Now,
+                BillDate = DateTime.Now,
+                GrantTotal = total,
+                Total = total,
+                NetTotal = netTotal,
+                Discount = itemDiscount,
+                Balance = netTotal,
+                Paid = false,
+                Comments = (Comments ?? "")
+            };
+            _db.Bills.Add(bill);
+            await _db.SaveChangesAsync();
+            int serial = 1;
+            foreach (var c in cart)
+            {
+                var gross = Math.Round(c.Qty * c.Rate, 2);
+                bill.BillItems.Add(new BillItem
+                {
+                    Qty = c.Qty, Rate = c.Rate, NetRate = c.Rate,
+                    GrossValue = gross, Discount = c.Discount > 0 ? c.Discount : Math.Round(gross - c.NetValue, 2),
+                    NetValue = Math.Round(gross - (c.Discount > 0 ? c.Discount : Math.Round(gross - c.NetValue, 2)), 2),
+                    Descreption = c.ItemName, DeptId = "01", SearialNo = serial++,
+                    ItemId = c.Code, CreatedAt = DateTime.Now, CreaterId = _appSession.WebUserId
+                });
+            }
+            await _db.SaveChangesAsync();
+
+            // ===== Legacy Labsys DBF save (master + detail) using real REPORT / TESTTR schema =====
+            var labNo = (!string.IsNullOrWhiteSpace(SelectedRegNo) ? SelectedRegNo.Trim() : (bill.Id.ToString().PadLeft(9, '0')));
+            using (var conn = new Microsoft.Data.SqlClient.SqlConnection(_db.Database.GetDbConnection().ConnectionString))
+            {
+                await conn.OpenAsync();
+                using (var cmd = new Microsoft.Data.SqlClient.SqlCommand(
+                    "INSERT INTO [HMIS].[dbo].[REPORT] (LABNO,DATE,TIME,CID,HRNO,TYPE,PCODE,CONCODE,SEX,AGE,ATYPE,NAME,BEDNO,PHONE,CONS,CONSBY,CREDITBY,CREDITNO,BALANCE,REFUND,RDATE,REMARKS,TOTAL,NET,CREDIT,POSTED,TRCVD,TPYMT,USERID,UDATE,UTIME) VALUES (@labNo,@date,@time,@cid,@hrNo,@type,@pcode,@concode,@sex,@age,@atype,@name,@bedno,@phone,@cons,@consby,@creditby,@creditno,@balance,@refund,@rdate,@remarks,@total,@net,@credit,@posted,@trcvd,@tpymt,@uid,@udate,@utime); SELECT SCOPE_IDENTITY();", conn))
+                {
+                    cmd.Parameters.AddWithValue("@labNo", labNo.Length > 9 ? labNo.Substring(0, 9) : labNo);
+                    cmd.Parameters.AddWithValue("@date", bill.BillDate != null ? Convert.ToDateTime(bill.BillDate).Date : DateTime.Now.Date);
+                    cmd.Parameters.AddWithValue("@time", DateTime.Now.ToString("HH:mm"));
+                    cmd.Parameters.AddWithValue("@cid", (patient.PersonId?.ToString() ?? "").Length > 4 ? (patient.PersonId?.ToString() ?? "").Substring(0, 4) : (patient.PersonId?.ToString() ?? ""));
+                    cmd.Parameters.AddWithValue("@hrNo", ("01").Length > 7 ? ("01").Substring(0, 7) : "01");
+                    cmd.Parameters.AddWithValue("@type", ("O").Length > 3 ? ("O").Substring(0, 3) : "O");
+                    cmd.Parameters.AddWithValue("@pcode", (patient.Code ?? "").Length > 10 ? (patient.Code ?? "").Substring(0, 10) : (patient.Code ?? ""));
+                    cmd.Parameters.AddWithValue("@concode", ("").Length > 3 ? ("").Substring(0, 3) : "");
+                    cmd.Parameters.AddWithValue("@sex", (LegacyPatient?.Sex ?? "").Length > 6 ? (LegacyPatient?.Sex ?? "").Substring(0, 6) : (LegacyPatient?.Sex ?? ""));
+                    cmd.Parameters.AddWithValue("@age", LegacyPatient != null ? (int.TryParse(LegacyPatient.Age?.ToString(), out var ageInt) ? (ageInt > 999 ? 999 : ageInt) : 0) : 0);
+                    cmd.Parameters.AddWithValue("@atype", "OPD");
+                    cmd.Parameters.AddWithValue("@name", (patient.LegacyName ?? patient.Phn ?? "").Length > 25 ? (patient.LegacyName ?? patient.Phn ?? "").Substring(0, 25) : (patient.LegacyName ?? patient.Phn ?? ""));
+                    cmd.Parameters.AddWithValue("@bedno", ("").Length > 8 ? ("").Substring(0, 8) : "");
+                    cmd.Parameters.AddWithValue("@phone", (patient.PatientPhoneNumber?.ToString() ?? patient.PatientMobileNumber?.ToString() ?? "").Length > 15 ? (patient.PatientPhoneNumber?.ToString() ?? patient.PatientMobileNumber?.ToString() ?? "").Substring(0, 15) : (patient.PatientPhoneNumber?.ToString() ?? patient.PatientMobileNumber?.ToString() ?? ""));
+                    cmd.Parameters.AddWithValue("@cons", 0m);
+                    cmd.Parameters.AddWithValue("@consby", (patient.PersonId?.ToString() ?? "").Length > 30 ? (patient.PersonId?.ToString() ?? "").Substring(0, 30) : (patient.PersonId?.ToString() ?? ""));
+                    cmd.Parameters.AddWithValue("@creditby", (_appSession.LoggedDepartment != null ? _appSession.LoggedDepartment.Id.ToString() : "").Length > 11 ? (_appSession.LoggedDepartment != null ? _appSession.LoggedDepartment.Id.ToString() : "").Substring(0, 11) : (_appSession.LoggedDepartment != null ? _appSession.LoggedDepartment.Id.ToString() : ""));
+                    cmd.Parameters.AddWithValue("@creditno", (_appSession.WebUserId?.ToString() ?? "").Length > 10 ? (_appSession.WebUserId?.ToString() ?? "").Substring(0, 10) : (_appSession.WebUserId?.ToString() ?? ""));
+                    cmd.Parameters.AddWithValue("@balance", Math.Round(netTotal, 2));
+                    cmd.Parameters.AddWithValue("@refund", 0m);
+                    cmd.Parameters.AddWithValue("@rdate", bill.BillDate != null ? Convert.ToDateTime(bill.BillDate) : DateTime.Now);
+                    cmd.Parameters.AddWithValue("@remarks", ((Comments ?? "").Trim()).Length > 500 ? (Comments ?? "").Trim().Substring(0, 500) : (Comments ?? "").Trim());
+                    cmd.Parameters.AddWithValue("@total", total > 999999 ? 999999m : (total < -999999 ? -999999m : Math.Round((decimal)total, 0)));
+                    cmd.Parameters.AddWithValue("@net", Math.Round(netTotal, 2) > 999999 ? 999999 : (Math.Round(netTotal, 2) < -999999 ? -999999 : Math.Round((decimal)netTotal, 0)));
+                    cmd.Parameters.AddWithValue("@credit", 0m);
+                    cmd.Parameters.AddWithValue("@posted", "N");
+                    cmd.Parameters.AddWithValue("@trcvd", 0m);
+                    cmd.Parameters.AddWithValue("@tpymt", 0m);
+                    cmd.Parameters.AddWithValue("@uid", (_appSession.WebUserId?.ToString() ?? "").Length > 10 ? (_appSession.WebUserId?.ToString() ?? "").Substring(0, 10) : (_appSession.WebUserId?.ToString() ?? ""));
+                    cmd.Parameters.AddWithValue("@udate", DateTime.Now.ToString("yyyy-MM-dd"));
+                    cmd.Parameters.AddWithValue("@utime", DateTime.Now.ToString("HH:mm").Length > 5 ? DateTime.Now.ToString("HH:mm").Substring(0, 5) : DateTime.Now.ToString("HH:mm"));
+                    await cmd.ExecuteScalarAsync();
+                }
+                int seq = 1;
+                foreach (var c in cart)
+                {
+                    using (var cmd2 = new Microsoft.Data.SqlClient.SqlCommand(
+                        "INSERT INTO [HMIS].[dbo].[TESTTR] (LABNO,TID,TESTNO,CHARGES,TCDATE,REMARKS,URGENT,LID,GID,TNAME,CULTURE,SRNO,REPODT,USERID,UDATE,UTIME) VALUES (@labNo,@tid,@testNo,@charges,@tcdate,@remarks,@urgent,@lid,@gid,@tname,@culture,@srno,@repodt,@uid,@udate,@utime)", conn))
+                    {
+                        cmd2.Parameters.AddWithValue("@labNo", labNo.Length > 9 ? labNo.Substring(0, 9) : labNo);
+                        cmd2.Parameters.AddWithValue("@tid", c.Code ?? "");
+                        cmd2.Parameters.AddWithValue("@testNo", seq++.ToString("D3"));
+                        cmd2.Parameters.AddWithValue("@charges", Math.Round(c.Qty * c.Rate, 2));
+                        cmd2.Parameters.AddWithValue("@tcdate", DateTime.Now.ToString("yyyy-MM-dd"));
+                        cmd2.Parameters.AddWithValue("@remarks", c.ItemName ?? "");
+                        cmd2.Parameters.AddWithValue("@urgent", " ");
+                        cmd2.Parameters.AddWithValue("@lid", "");
+                        cmd2.Parameters.AddWithValue("@gid", "");
+                        cmd2.Parameters.AddWithValue("@tname", c.ItemName ?? "");
+                        cmd2.Parameters.AddWithValue("@culture", 0);
+                        cmd2.Parameters.AddWithValue("@srno", seq - 1);
+                        cmd2.Parameters.AddWithValue("@repodt", (object)DBNull.Value);
+                        cmd2.Parameters.AddWithValue("@uid", _appSession.WebUserId?.ToString() ?? "");
+                        cmd2.Parameters.AddWithValue("@udate", DateTime.Now.ToString("yyyy-MM-dd"));
+                        cmd2.Parameters.AddWithValue("@utime", DateTime.Now.ToString("HH:mm"));
+                        await cmd2.ExecuteNonQueryAsync();
+                    }
+                }
+            }
+
+            HttpContext.Session.Remove(CartKey);
+            HttpContext.Session.SetString(LastBillKey, bill.Id.ToString());
+            LastBillId = bill.Id;
+            Success = "Indent saved successfully. Master saved in REPORT and detail saved in TESTTR.";
+            return Page();
         }
 
         private long? GetSelectedPatientId()
@@ -702,45 +482,55 @@ namespace HmisWeb.Pages.Lab
         {
             var id = GetSelectedPatientId();
             if (id == null) return null;
-            return await _db.Patients
-                .Include(p => p.Person)
-                .FirstOrDefaultAsync(p => p.Id == id && !p.Retired);
+            return await _db.Patients.Include(p => p.Person).FirstOrDefaultAsync(p => p.Id == id && !p.Retired);
         }
 
         private List<IndentCartItem> GetCart()
         {
             var raw = HttpContext.Session.GetString(CartKey);
             if (string.IsNullOrWhiteSpace(raw)) return new List<IndentCartItem>();
-            try
-            {
-                return JsonSerializer.Deserialize<List<IndentCartItem>>(raw) ?? new List<IndentCartItem>();
-            }
-            catch
-            {
-                return new List<IndentCartItem>();
-            }
+            try { return JsonSerializer.Deserialize<List<IndentCartItem>>(raw) ?? new List<IndentCartItem>(); }
+            catch { return new List<IndentCartItem>(); }
+        }
+
+        private async Task SearchItemsAsync()
+        {
+            var term = ItemSearch?.Trim();
+            var q = _db.DeptServices.Where(d => d.Dept == "01" && !d.Retired && d.Billable);
+            if (!string.IsNullOrWhiteSpace(term))
+                q = q.Where(d => (d.Name != null && d.Name.Contains(term)) || (d.Sname != null && d.Sname.Contains(term)) || (d.Code != null && d.Code.Contains(term)));
+            DeptServiceResults = await q.OrderBy(d => d.Name).Take(50).ToListAsync();
+        }
+
+        public async Task<IActionResult> OnPostSearchItemsAsync()
+        {
+            await LoadStateAsync();
+            await SearchItemsAsync();
+            OpenItemModal = true;
+            return Page();
+        }
+
+        public async Task<IActionResult> OnGetSearchItemsAsync()
+        {
+            await LoadStateAsync();
+            await SearchItemsAsync();
+            OpenItemModal = true;
+            return Page();
+        }
+
+        public async Task<IActionResult> OnPostStartNewAsync()
+        {
+            HttpContext.Session.Remove(PatientKey);
+            HttpContext.Session.Remove(RegNoKey);
+            HttpContext.Session.Remove(CartKey);
+            HttpContext.Session.Remove(LastBillKey);
+            LastBillId = null;
+            return RedirectToPage("/Lab/Indent");
         }
 
         private void SaveCart(List<IndentCartItem> cart)
         {
             HttpContext.Session.SetString(CartKey, JsonSerializer.Serialize(cart));
-        }
-
-        private async Task LoadLookupsAsync()
-        {
-            // Find laboratory department (DepartmentType == Laboratory)
-            LabDepartment = await _db.Departments
-                .Where(d => !d.Retired && d.DepartmentType == DepartmentType.Laboratory)
-                .FirstOrDefaultAsync();
-
-            // Fallback: if no lab department found, use logged department or first available
-            if (LabDepartment == null)
-            {
-                LabDepartment = _appSession.LoggedDepartment ?? await _db.Departments
-                    .Where(d => !d.Retired)
-                    .OrderBy(d => d.Name)
-                    .FirstOrDefaultAsync();
-            }
         }
 
         public class IndentCartItem
@@ -751,31 +541,9 @@ namespace HmisWeb.Pages.Lab
             public int Qty { get; set; }
             public double Rate { get; set; }
             public double Discount { get; set; }
+            public bool FromDeptService { get; set; }
             public double GrossValue => Math.Round(Qty * Rate, 2);
             public double NetValue => Math.Round(GrossValue - Discount, 2);
-        }
-
-        internal sealed class HmisFontResolver : IFontResolver
-        {
-            private static readonly string FontsDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Fonts");
-
-            public string DefaultFontName => "arial.ttf";
-
-            public FontResolverInfo ResolveTypeface(string familyName, bool isBold, bool isItalic)
-            {
-                return new FontResolverInfo(isBold ? "arialbd.ttf" : "arial.ttf", XStyleSimulations.None);
-            }
-
-            public byte[] GetFont(string faceName)
-            {
-                return System.IO.File.ReadAllBytes(Path.Combine(FontsDir, faceName));
-            }
-
-            public static void Install()
-            {
-                if (GlobalFontSettings.FontResolver == null)
-                    GlobalFontSettings.FontResolver = new HmisFontResolver();
-            }
         }
     }
 }

@@ -165,6 +165,127 @@ namespace HmisWeb.Models.Recovery
         [MaxLength(64)]
         public string RoleName { get; set; }
 
+        /// <summary>UTC stamp of the audit row.</summary>
         public DateTime CreatedAt { get; set; }
+    }
+
+    /// <summary>
+    /// RECOVERY RCPT - receipt/cheque header (one row per money received).
+    /// Ports VFP BillSys form RECPT (bs0603, rcpt/rcptf); the OPD screen
+    /// (orecpt) reuses this same pair later - no duplicate tables.
+    ///
+    /// Business rules
+    ///   * ReceiptNo minted by RecoveryReceiptService, serial
+    ///     RCP/MM/YYYY-nnnn (UNIQUE); legacy VNO was zero-padded and NOT
+    ///     numbered by the form (review R-01).
+    ///   * Method 'C' cash (auto-cleared) / 'Q' cheque - replaces the legacy
+    ///     "blank CHQNO means cash" convention and adds the cheque STATUS the
+    ///     legacy system never had: 'P' pending -> 'C' cleared / 'B' bounced.
+    ///   * TotAmt = sum of the allocation lines' RcptAmt only (the bankable
+    ///     money - legacy TOT_AMT semantic, verified 13,856/13,859 in review).
+    ///   * Rows are never physically deleted - Cancel (mandatory reason).
+    ///
+    /// Developer: Tajwer Jalal | Date: 21-Oct-2026 | Time: 10:45
+    /// </summary>
+    [Table("RECOVERY_RCPT")]
+    public class RecoveryRcpt
+    {
+        [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        public long Id { get; set; }
+
+        [MaxLength(20)]
+        public string ReceiptNo { get; set; }
+
+        [MaxLength(1)]
+        public string Method { get; set; }
+
+        public DateTime RcptDate { get; set; }
+
+        [MaxLength(8)]
+        public string CompanyCode { get; set; }
+
+        [MaxLength(32)]
+        public string ChequeNo { get; set; }
+
+        [MaxLength(80)]
+        public string Bank { get; set; }
+
+        public DateTime? ChequeDate { get; set; }
+
+        [MaxLength(40)]
+        public string RcvdBy { get; set; }
+
+        /// <summary>Sum of allocation lines' RcptAmt (bankable money).</summary>
+        public decimal TotAmt { get; set; }
+
+        /// <summary>'P' pending / 'C' cleared /'B' bounced /'X' cancelled.</summary>
+        [MaxLength(1)]
+        public string Status { get; set; }
+
+        [MaxLength(200)]
+        public string Remarks { get; set; }
+
+        [MaxLength(40)]
+        public string CreatedBy { get; set; }
+
+        public DateTime CreatedAt { get; set; }
+
+        [MaxLength(40)]
+        public string EditedBy { get; set; }
+
+        public DateTime? EditedAt { get; set; }
+
+        [Timestamp]
+        public byte[] RowVer { get; set; }
+    }
+
+    /// <summary>
+    /// RECOVERY RCPT ALLOC - one applied-money line of a receipt (legacy
+    /// RCPTDET).Credit applied to the invoice = RcptAmt + ItaxDed + OthDed
+    /// (legacy gross semantics); RcptAmt alone is what reaches the bank.
+    /// InvoiceId NULL keeps the "received but never invoiced" advance money
+    /// (legacy G-02 / 33,478 rows) which balances on the company ledger.
+    ///
+    /// Business rules
+    ///   * UNIQUE per (receipt, patient) - the legacy one-line-per-regno-per-
+    ///     voucher invariant, which holds in the data.
+    ///   * Over-allocation is refused both per allocation line (vs
+    ///     RECOVERY_INVDET.BillAmt - the G-04'885 rows' case) and per invoice
+    ///     (vs RECOVERY_INV.TotAmt).
+    ///
+    /// Developer: Tajwer Jalal | Date: 21-Oct-2026 | Time: 10:45
+    /// </summary>
+    [Table("RECOVERY_RCPT_ALLOC")]
+    public class RecoveryRcptAlloc
+    {
+        [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        public long Id { get; set; }
+
+        public long ReceiptId { get; set; }
+
+        /// <summary>NULL = money received but never invoiced (advance book).</summary>
+        public long? InvoiceId { get; set; }
+
+        [MaxLength(16)]
+        public string RegNo { get; set; }
+
+        public decimal RcptAmt { get; set; }
+
+        public decimal ItaxDed { get; set; }
+
+        public decimal OthDed { get; set; }
+
+        [MaxLength(50)]
+        public string Remarks { get; set; }
+
+        [MaxLength(40)]
+        public string CreatedBy { get; set; }
+
+        public DateTime? CreatedAt { get; set; }
+
+        /// <summary>Header navigation - lets EF cascade ReceiptId on insert.</summary>
+        public RecoveryRcpt Receipt { get; set; }
     }
 }

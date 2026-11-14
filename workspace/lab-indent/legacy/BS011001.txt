@@ -1,0 +1,1186 @@
+﻿VERSION =   3.00
+dataenvironment
+dataenvironment
+Dataenvironment
+lLeft = 17
+Top = 4
+Width = 551
+Height = 355
+InitialSelectedAlias = "ibil_mst"
+Name = "Dataenvironment"
+
+Dataenvironment
+Left = 10
+Top = 19
+Width = 95
+Height = 90
+Alias = "register"
+BufferModeOverride = 5
+Order = "irno"
+CursorSource = ..\..\master\register.dbf
+Name = "Cursor1"
+
+Dataenvironment
+Left = 130
+Top = 20
+Width = 95
+Height = 90
+Alias = "patient"
+BufferModeOverride = 5
+Order = "code"
+CursorSource = ..\..\master\patient.dbf
+Name = "Cursor2"
+
+Dataenvironment
+Left = 247
+Top = 21
+Width = 95
+Height = 90
+Alias = "company"
+BufferModeOverride = 5
+Order = "id"
+CursorSource = ..\..\master\company.dbf
+Name = "Cursor3"
+
+relation
+relation
+	Relation1
+Dataenvironment
+uParentAlias = "register"
+RelationalExpr = "pcode"
+ChildAlias = "patient"
+ChildOrder = "code"
+Name = "Relation1"
+
+relation
+relation
+	Relation3
+Dataenvironment
+qParentAlias = "register"
+RelationalExpr = "cid"
+ChildAlias = "company"
+ChildOrder = "id"
+Name = "Relation3"
+
+Dataenvironment
+Left = 249
+Top = 140
+Width = 95
+Height = 90
+Alias = "services"
+BufferModeOverride = 5
+Order = "code"
+CursorSource = ..\..\master\services.dbf
+Filter = "dept='10'"
+Name = "Cursor6"
+
+Dataenvironment
+Left = 11
+Top = 260
+Width = 95
+Height = 90
+Alias = "compchg"
+BufferModeOverride = 5
+Order = "cidscode"
+CursorSource = ..\..\master\compchg.dbf
+Name = "Cursor7"
+
+Dataenvironment
+Left = 127
+Top = 260
+Width = 95
+Height = 90
+Alias = "resochg"
+BufferModeOverride = 5
+Order = "ridscode"
+CursorSource = ..\..\master\resochg.dbf
+Name = "Cursor8"
+
+Dataenvironment
+Left = 245
+Top = 258
+Width = 95
+Height = 90
+Alias = "resource"
+BufferModeOverride = 5
+Order = "id"
+CursorSource = ..\..\master\resource.dbf
+Name = "Cursor9"
+
+Cursor10
+Dataenvironment
+Left = 372
+Top = 20
+Width = 95
+Height = 90
+Alias = "invmast"
+BufferModeOverride = 5
+Order = "itcode"
+CursorSource = ..\..\pharsys\basement\current\invmast.dbf
+Name = "Cursor10"
+
+Dataenvironment
+Left = 12
+Top = 142
+Width = 95
+Height = 90
+Alias = "ibil_mst"
+BufferModeOverride = 5
+Order = "dsnew"
+CursorSource = ..\ibil_mst.dbf
+Name = "Cursor4"
+
+Dataenvironment
+Left = 130
+Top = 144
+Width = 95
+Height = 90
+Alias = "ibil_det"
+BufferModeOverride = 5
+Order = "ds"
+CursorSource = ..\ibil_det.dbf
+Name = "Cursor5"
+
+Cursor11
+Dataenvironment
+Left = 12
+Top = 380
+Width = 95
+Height = 90
+Alias = "ipdbill"
+BufferModeOverride = 5
+Order = "hos_code"
+CursorSource = ..\ipdbill.dbf
+Name = "Cursor11"
+
+relation
+relation
+	Relation2
+Dataenvironment
+yParentAlias = "ibil_mst"
+RelationalExpr = "hos_code"
+ChildAlias = "register"
+ChildOrder = "irno"
+Name = "Relation2"
+
+baseform
+ ..\..\common\class\baseclass.vcx
+
+frmipdphar
+Top = 0
+Left = 0
+Height = 242
+Width = 570
+DoCreate = .T.
+Caption = "Pharmacy - Indoor Patient"
+WindowState = 0
+LockScreen = .T.
+findform = bs011001f
+menukey = bs0110
+childtable = ibil_det
+Name = "frmipdphar"
+
+MPROCEDURE beforenext
+local var1,var2
+var1 = 'mregno'+alltrim(str(thisform.datasessionid))
+var2 = 'mdept'+alltrim(str(thisform.datasessionid))
+
+IF !EOF()
+	Skip 1
+	IF ibil_mst.dept+str(ibil_mst.hos_code,7)<>&var2+str(&var1,7) or EOF()
+		thisform.chkbottom = .t.
+		skip -1
+	ENDIF
+ENDIF
+return .f.
+
+ENDPROC
+PROCEDURE beforebottom
+local var1,var2
+var1 = 'mregno'+alltrim(str(thisform.datasessionid))
+var2 = 'mdept'+alltrim(str(thisform.datasessionid))
+
+do while ibil_mst.dept+str(ibil_mst.hos_code,7) = &var2+str(&var1,7) and !eof()
+	skip
+enddo
+skip -1
+return .f.
+
+ENDPROC
+PROCEDURE validrec
+local var1,var2
+var1 = 'mregno'+alltrim(str(thisform.datasessionid))
+var2 = 'mdept'+alltrim(str(thisform.datasessionid))
+
+if empty(thisform.baseframe1.page1.txtslipno.value)
+	thisform.validmsg = "Please enter slip No."
+	return .f.
+endif
+if empty(thisform.baseframe1.page1.txtslipdt.value)
+	thisform.validmsg = "Please enter slip date"
+	return .f.
+endif
+replace stat with 'E' in ibil_mst
+
+oldalias = select()
+select ibil_det
+seek &var2+thisform.baseframe1.page1.txtslipno.value
+do while dept+ibil_det.slipno=&var2+thisform.baseframe1.page1.txtslipno.value and !eof()
+	if empty(code)
+		delete
+	endif
+	skip
+enddo
+thisform.baseframe1.page1.cmdcalc.click()
+if !empty(oldalias)
+	select (oldalias)
+endif
+
+ENDPROC
+PROCEDURE newrecord
+local var1,var2
+var1 = 'mregno'+alltrim(str(thisform.datasessionid))
+var2 = 'mdept'+alltrim(str(thisform.datasessionid))
+replace hos_code 	with &var1, ;
+		dept 	 	with &var2, ;
+		type 		with 'A', ;
+		stat		with 'E' in ibil_mst
+
+ENDPROC
+PROCEDURE Init
+LPARAMETER mlcregno
+local var1,var2
+var1 = 'mregno'+alltrim(str(thisform.datasessionid))
+var2 = 'mdept'+alltrim(str(thisform.datasessionid))
+public &var1,&var2
+&var1 = mlcregno
+&var2 = '10'
+DoDefault()
+
+SELECT ibil_mst
+SEEK &var2+STR(&var1,7)
+
+ENDPROC
+PROCEDURE updbuttons
+dodefault()
+local var1,var2
+var1 = 'mregno'+alltrim(str(thisform.datasessionid))
+var2 = 'mdept'+alltrim(str(thisform.datasessionid))
+
+if ibil_mst.hos_code <> &var1 or eof()
+	SELECT ibil_mst
+	SEEK &var2+STR(&var1,7)
+	if eof()
+		ctoolbar.cmdbottom.enabled = .f.
+		ctoolbar.cmdtop.enabled = .f.
+		ctoolbar.cmdnext.enabled = .f.
+		ctoolbar.cmdprev.enabled = .f.
+	endif
+	ctoolbar.cmdedit.enabled = .f.
+	ctoolbar.cmddelete.enabled = .f.
+	thisform.refresh
+endif
+
+if seek(&var1,'register') and register.billgen
+	ctoolbar.cmdadd.enabled = .f.
+	ctoolbar.cmdedit.enabled = .f.
+	ctoolbar.cmddelete.enabled = .f.
+endif
+
+
+ENDPROC
+PROCEDURE beforeprev
+local var1,var2
+var1 = 'mregno'+alltrim(str(thisform.datasessionid))
+var2 = 'mdept'+alltrim(str(thisform.datasessionid))
+
+IF !BOF()
+	Skip -1
+	IF ibil_mst.dept+str(ibil_mst.hos_code,7)<>&var2+str(&var1,7) or BOF()
+		thisform.chktop = .t.
+		skip
+	ENDIF
+ENDIF
+return .f.
+
+ENDPROC
+PROCEDURE beforetop
+local var1,var2
+var1 = 'mregno'+alltrim(str(thisform.datasessionid))
+var2 = 'mdept'+alltrim(str(thisform.datasessionid))
+
+do while ibil_mst.dept+str(ibil_mst.hos_code,7) = &var2+str(&var1,7) and !bof()
+	skip -1
+enddo
+skip
+return .f.
+
+ENDPROC
+
+mregnoCC
+=seek(&var2+str(&var1,7)+tempo.slipno,"ibil_mst")
+
+select * from ibil_mst  where ibil_mst.dept+str(ibil_mst.hos_code,7)=&var2+str(&var1,7)  into cursor tempo
+
+THISFORM
+DATASESSIONID
+DATAENVIRONMENT
+INITIALSELECTEDALIAS
+RECORDSOURCE
+UIEnable,
+IBIL_DET
+IBIL_DET
+IBIL_DET
+UNT_COST
+THISFORM
+
+BASEFRAME1
+CHILDGRID1
+Destroy,
+mregnoCC
+searchkey = &var2+thisform.baseframe1.page1.txtslipno.value
+
+SEARCHKEY
+TOTALCHG
+THISFORM
+DATASESSIONID
+IBIL_DET
+
+BASEFRAME1
+TXTNTOTAL
+JArial, 0, 8, 5, 14, 11, 14, 3, 0
+Comic Sans MS, 0, 7, 4, 13, 10, 12, 3, 0
+
+gFontSize = 8
+BorderStyle = 0
+Margin = 0
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+	baseframe
+ ..\..\common\class\baseclass.vcx
+	pageframe
+
+Baseframe1
+
+frmipdphar
+ErasePage = .T.
+Top = 0
+Left = 0
+Width = 572
+Height = 243
+TabIndex = 1
+Name = "Baseframe1"
+Page1.Name = "Page1"
+Page2.Name = "Page2"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+frmipdphar.Baseframe1.Page1
+Comment = ""
+ControlSource = "patient.code"
+Format = "!r"
+Height = 22
+InputMask = "999-99-99999"
+Left = 251
+MaxLength = 10
+ReadOnly = .T.
+TabIndex = 1
+Top = 10
+Width = 80
+ZOrderSet = 0
+editable = .F.
+Name = "txtCode"
+
+ ..\..\common\class\baseclass.vcx
+frmipdphar.Baseframe1.Page1
+xCaption = "Patient Code"
+Height = 16
+Left = 183
+Top = 16
+Width = 62
+TabIndex = 4
+ZOrderSet = 1
+Name = "lblCode"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+frmipdphar.Baseframe1.Page1
+Comment = ""
+ControlSource = "patient.name"
+Height = 22
+Left = 371
+MaxLength = 30
+ReadOnly = .T.
+TabIndex = 2
+Top = 10
+Width = 158
+ZOrderSet = 2
+editable = .F.
+Name = "txtName"
+
+ ..\..\common\class\baseclass.vcx
+frmipdphar.Baseframe1.Page1
+pCaption = "Name"
+Height = 16
+Left = 335
+Top = 16
+Width = 29
+TabIndex = 5
+ZOrderSet = 3
+Name = "lblName"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+txtRegno
+frmipdphar.Baseframe1.Page1
+Comment = ""
+ControlSource = "register.regno"
+Height = 22
+Left = 95
+MaxLength = 7
+ReadOnly = .T.
+TabIndex = 3
+Top = 11
+Width = 69
+ZOrderSet = 4
+editable = .F.
+Name = "txtRegno"
+
+ ..\..\common\class\baseclass.vcx
+lblRegno
+frmipdphar.Baseframe1.Page1
+|Caption = "Registration No."
+Height = 16
+Left = 11
+Top = 17
+Width = 78
+TabIndex = 6
+ZOrderSet = 5
+Name = "lblRegno"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+frmipdphar.Baseframe1.Page1
+Comment = ""
+ControlSource = "company.id"
+Height = 22
+Left = 251
+MaxLength = 4
+ReadOnly = .T.
+TabIndex = 8
+Top = 34
+Width = 35
+ZOrderSet = 6
+editable = .F.
+Name = "txtId"
+
+ ..\..\common\class\baseclass.vcx
+frmipdphar.Baseframe1.Page1
+uCaption = "Company ID"
+Height = 16
+Left = 186
+Top = 40
+Width = 59
+TabIndex = 11
+ZOrderSet = 7
+Name = "lblId"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+txtName2
+frmipdphar.Baseframe1.Page1
+Comment = ""
+ControlSource = "company.name"
+Height = 22
+Left = 371
+MaxLength = 25
+ReadOnly = .T.
+TabIndex = 9
+Top = 34
+Width = 158
+ZOrderSet = 8
+editable = .F.
+Name = "txtName2"
+
+ ..\..\common\class\baseclass.vcx
+lblName2
+frmipdphar.Baseframe1.Page1
+rCaption = "Name"
+Height = 16
+Left = 335
+Top = 40
+Width = 29
+TabIndex = 12
+ZOrderSet = 9
+Name = "lblName2"
+
+ ..\..\common\class\baseclass.vcx
+	lblSlipno
+frmipdphar.Baseframe1.Page1
+wCaption = "Slip No."
+Height = 16
+Left = 51
+Top = 40
+Width = 38
+TabIndex = 10
+ZOrderSet = 10
+Name = "lblSlipno"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+	txtSlipdt
+frmipdphar.Baseframe1.Page1
+Comment = ""
+ControlSource = "ibil_mst.slipdt"
+Height = 22
+Left = 95
+MaxLength = 8
+TabIndex = 13
+Top = 58
+Width = 67
+ZOrderSet = 11
+editable = .T.
+Name = "txtSlipdt"
+
+ ..\..\common\class\baseclass.vcx
+	lblSlipdt
+frmipdphar.Baseframe1.Page1
+xCaption = "Slip date"
+Height = 16
+Left = 46
+Top = 64
+Width = 43
+TabIndex = 15
+ZOrderSet = 12
+Name = "lblSlipdt"
+
+	childbtns
+ ..\..\common\class\baseclass.vcx
+commandgroup
+
+Childbtns1
+frmipdphar.Baseframe1.Page1
+Left = 494
+Top = 88
+TabIndex = 18
+ZOrderSet = 13
+childfield1 = dept
+childfield2 = slipno
+parentfield1 = dept
+parentfield2 = slipno
+Name = "Childbtns1"
+CMDADD.Top = 5
+CMDADD.Left = 5
+CMDADD.Name = "CMDADD"
+CMDDELETE.Top = 45
+CMDDELETE.Left = 5
+CMDDELETE.Name = "CMDDELETE"
+
+gPROCEDURE CMDADD.Click
+dodefault()
+replace flag with 'B', ;
+		rid with 'HM' in ibil_det
+
+ENDPROC
+
+IBIL_DET
+CMDADD.Click,
+commandbutton
+commandbutton
+frmipdphar.Baseframe1.Page1
+Top = 182
+Left = 479
+Height = 23
+Width = 77
+FontName = "Comic Sans MS"
+FontSize = 7
+Caption = "Calculate Total"
+TabIndex = 19
+ZOrderSet = 14
+Name = "cmdcalc"
+
+~PROCEDURE Click
+local searchkey, totalchg, lcalias, ;
+		var1,var2
+var1 = 'mregno'+alltrim(str(thisform.datasessionid))
+var2 = 'mdept'+alltrim(str(thisform.datasessionid))
+
+lcalias = select()
+select ibil_det
+searchkey = &var2+thisform.baseframe1.page1.txtslipno.value
+thisform.baseframe1.page1.txtntotal.value = 0
+totalchg = 0
+if seek(searchkey)
+	do while dept+slipno = searchkey and !eof()
+		if flag<>'P'
+			totalchg = totalchg + namt
+		endif
+		skip
+	enddo
+endif
+if !empty(lcalias)
+	select (lcalias)
+endif
+thisform.baseframe1.page1.txtntotal.value = totalchg
+thisform.baseframe1.page1.txtntotal.refresh
+
+ENDPROC
+
+-frmipdphar.Baseframe1.Page2.Listgrid1.Column9
+2FontSize = 8
+Caption = "Date"
+Name = "Header1"
+
+-frmipdphar.Baseframe1.Page2.Listgrid1.Column9
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+-frmipdphar.Baseframe1.Page2.Listgrid1.Column8
+2FontSize = 8
+Caption = "Bill"
+Name = "Header1"
+
+-frmipdphar.Baseframe1.Page2.Listgrid1.Column8
+-frmipdphar.Baseframe1.Page2.Listgrid1.Column7
+ctextbox
+ ..\..\common\class\baseclass.vcx
+	txtNtotal
+frmipdphar.Baseframe1.Page1
+Comment = ""
+ControlSource = "ibil_mst.ntotal"
+Format = ""
+Height = 22
+InputMask = ""
+Left = 371
+MaxLength = 0
+ReadOnly = .T.
+TabIndex = 14
+Top = 58
+Width = 75
+ZOrderSet = 15
+editable = .F.
+Name = "txtNtotal"
+
+ ..\..\common\class\baseclass.vcx
+frmipdphar.Baseframe1.Page1
+xCaption = "Net Amount"
+Height = 16
+Left = 304
+Top = 64
+Width = 58
+TabIndex = 16
+ZOrderSet = 16
+Name = "Clabel1"
+
+
+ctextvalid
+ ..\..\common\class\baseclass.vcx
+	txtSlipno
+frmipdphar.Baseframe1.Page1
+ControlSource = "ibil_mst.slipno"
+Format = "!r"
+Height = 22
+InputMask = ""
+Left = 95
+MaxLength = 9
+TabIndex = 7
+Top = 34
+Width = 75
+ZOrderSet = 17
+editable = .F.
+searchexpr = '10'+this.value
+searchtag = ds
+validalias = ibil_mst
+Name = "txtSlipno"
+
+	ccombobox
+ ..\..\common\class\baseclass.vcx
+combobox
+frmipdphar.Baseframe1.Page1
+RowSourceType = 5
+RowSource = "arrtype"
+ControlSource = "ibil_mst.type"
+Left = 187
+Top = 58
+ZOrderSet = 18
+Name = "cbotype"
+
+PROCEDURE Destroy
+release arrtype
+
+ENDPROC
+PROCEDURE Init
+public arrtype
+dimension arrtype[2,2]
+arrtype[1,1]='Accept'
+arrtype[1,2]='A'
+arrtype[2,1]='Return'
+arrtype[2,2]='R'
+
+ENDPROC
+
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+2FontSize = 8
+Caption = "Stat"
+Name = "Header1"
+
+-frmipdphar.Baseframe1.Page2.Listgrid1.Column7
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+	childgrid
+ ..\..\common\class\baseclass.vcx
+
+Childgrid1
+frmipdphar.Baseframe1.Page1
+ColumnCount = 6
+FontSize = 8
+ChildOrder = "ds"
+DeleteMark = .F.
+Height = 126
+Left = 8
+LinkMaster = "ibil_mst"
+RecordSource = "ibil_det"
+RelationalExpr = "dept+slipno"
+RowHeight = 17
+TabIndex = 17
+Top = 84
+Width = 459
+ZOrderSet = 19
+attachbtns = childbtns1
+refbtns = baseframe1.page1
+Name = "Childgrid1"
+Column1.FontSize = 8
+Column1.ControlSource = "ibil_det.code"
+Column1.CurrentControl = "Ctextlookup1"
+Column1.Width = 57
+Column1.Sparse = .F.
+Column1.Visible = .T.
+Column1.Name = "Column1"
+Column2.FontSize = 8
+Column2.ControlSource = [iif(seek(ibil_det.code,"invmast"),invmast.itname,'')]
+Column2.Enabled = .F.
+Column2.Width = 151
+Column2.ReadOnly = .T.
+Column2.Visible = .T.
+Column2.Name = "Column2"
+Column3.FontSize = 8
+Column3.ControlSource = [iif(seek(ibil_det.code,"invmast"),invmast.pk_unit,'')]
+Column3.CurrentControl = "Text1"
+Column3.Enabled = .F.
+Column3.Width = 50
+Column3.Sparse = .T.
+Column3.Visible = .T.
+Column3.Name = "Column3"
+Column4.FontSize = 8
+Column4.ControlSource = "ibil_det.qty"
+Column4.Width = 45
+Column4.Visible = .T.
+Column4.Name = "Column4"
+Column5.FontSize = 8
+Column5.ControlSource = "ibil_det.rate"
+Column5.Width = 56
+Column5.ReadOnly = .T.
+Column5.Visible = .T.
+Column5.Name = "Column5"
+Column6.FontSize = 8
+Column6.ControlSource = "ibil_det.namt"
+Column6.Width = 64
+Column6.ReadOnly = .T.
+Column6.Visible = .T.
+Column6.Name = "Column6"
+
+.frmipdphar.Baseframe1.Page1.Childgrid1.Column1
+7FontSize = 8
+Caption = "Item Code"
+Name = "Header1"
+
+.frmipdphar.Baseframe1.Page1.Childgrid1.Column1
+vFontSize = 8
+BorderStyle = 0
+Margin = 0
+Visible = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+ctextlookup
+ ..\..\common\class\baseclass.vcx
+Ctextlookup1
+.frmipdphar.Baseframe1.Page1.Childgrid1.Column1
+NLeft = 39
+MaxLength = 6
+Top = 20
+refpath = thisform.baseframe1.page1.childgrid1.column1
+rowsrc = select itname,itcode,pk_unit,rp from invmast order by itname into cursor cboser
+searchalias = invmast
+searchexpr = this.value
+emptyallowed = .T.
+noofcolumn = 4
+lstcolswidth = 190,50,30,60
+lstwidth = 350
+Name = "Ctextlookup1"
+
+PROCEDURE Valid
+if !dodefault()
+	return .f.
+endif
+replace desc with iif(seek(this.value,"invmast"),invmast.itname,'') ;
+	in ibil_det
+
+*if empty(ibil_det.rate)
+	replace rate with iif(seek(this.value,"invmast"),invmast.unt_cost,0) ;
+		in ibil_det
+*endif
+replace namt with ibil_det.qty*ibil_det.rate in ibil_det
+thisform.baseframe1.page1.childgrid1.column6.refresh
+thisform.baseframe1.page1.childgrid1.column5.refresh
+
+ENDPROC
+
+-frmipdphar.Baseframe1.Page2.Listgrid1.Column6
+4FontSize = 8
+Caption = "Ntotal"
+Name = "Header1"
+
+-frmipdphar.Baseframe1.Page2.Listgrid1.Column6
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+-frmipdphar.Baseframe1.Page2.Listgrid1.Column5
+2FontSize = 8
+Caption = "Type"
+Name = "Header1"
+
+.frmipdphar.Baseframe1.Page1.Childgrid1.Column2
+9FontSize = 8
+Caption = "Description"
+Name = "Header1"
+
+.frmipdphar.Baseframe1.Page1.Childgrid1.Column2
+FontSize = 8
+BorderStyle = 0
+Enabled = .F.
+Margin = 0
+ReadOnly = .T.
+Visible = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+.frmipdphar.Baseframe1.Page1.Childgrid1.Column3
+5FontSize = 8
+Caption = "Unit/Pk"
+Name = "Header1"
+
+.frmipdphar.Baseframe1.Page1.Childgrid1.Column3
+FontSize = 8
+BorderStyle = 0
+Enabled = .F.
+Margin = 0
+Visible = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+.frmipdphar.Baseframe1.Page1.Childgrid1.Column4
+6FontSize = 8
+Caption = "Quantity"
+Name = "Header1"
+
+.frmipdphar.Baseframe1.Page1.Childgrid1.Column4
+vFontSize = 8
+BorderStyle = 0
+Margin = 0
+Visible = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+XPROCEDURE Valid
+replace namt with this.value*ibil_det.rate ;
+	in ibil_det
+
+ENDPROC
+
+-frmipdphar.Baseframe1.Page2.Listgrid1.Column5
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+.frmipdphar.Baseframe1.Page1.Childgrid1.Column5
+2FontSize = 8
+Caption = "Rate"
+Name = "Header1"
+
+.frmipdphar.Baseframe1.Page1.Childgrid1.Column5
+FontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+Visible = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+WPROCEDURE Valid
+replace namt with this.value*ibil_det.qty ;
+	in ibil_det
+
+ENDPROC
+
+-frmipdphar.Baseframe1.Page2.Listgrid1.Column4
+4FontSize = 8
+Caption = "Slipdt"
+Name = "Header1"
+
+-frmipdphar.Baseframe1.Page2.Listgrid1.Column4
+.frmipdphar.Baseframe1.Page1.Childgrid1.Column6
+4FontSize = 8
+Caption = "Amount"
+Name = "Header1"
+
+.frmipdphar.Baseframe1.Page1.Childgrid1.Column6
+FontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+Visible = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+listgrid
+ ..\..\common\class\baseclass.vcx
+	Listgrid1
+frmipdphar.Baseframe1.Page2
+>ColumnCount = 9
+FontSize = 8
+AllowHeaderSizing = .F.
+ChildOrder = ""
+Height = 199
+Left = 6
+LinkMaster = ""
+Panel = 1
+ReadOnly = .T.
+RecordSource = ""
+RecordSourceType = 1
+RelationalExpr = ""
+RowHeight = 17
+Top = 10
+Width = 542
+Name = "Listgrid1"
+Column1.FontSize = 8
+Column1.ControlSource = ""
+Column1.Width = 64
+Column1.ReadOnly = .T.
+Column1.Name = "Column1"
+Column2.FontSize = 8
+Column2.ControlSource = ""
+Column2.Width = 36
+Column2.ReadOnly = .T.
+Column2.Name = "Column2"
+Column3.FontSize = 8
+Column3.ControlSource = ""
+Column3.Width = 50
+Column3.ReadOnly = .T.
+Column3.Name = "Column3"
+Column4.FontSize = 8
+Column4.ControlSource = ""
+Column4.Width = 50
+Column4.ReadOnly = .T.
+Column4.Name = "Column4"
+Column5.FontSize = 8
+Column5.ControlSource = ""
+Column5.Width = 36
+Column5.ReadOnly = .T.
+Column5.Name = "Column5"
+Column6.FontSize = 8
+Column6.ControlSource = ""
+Column6.Width = 50
+Column6.ReadOnly = .T.
+Column6.Name = "Column6"
+Column7.FontSize = 8
+Column7.ControlSource = ""
+Column7.Width = 36
+Column7.ReadOnly = .T.
+Column7.Name = "Column7"
+Column8.FontSize = 8
+Column8.ControlSource = ""
+Column8.Width = 36
+Column8.ReadOnly = .T.
+Column8.Name = "Column8"
+Column9.FontSize = 8
+Column9.ControlSource = ""
+Column9.Width = 56
+Column9.ReadOnly = .T.
+Column9.Name = "Column9"
+
+PROCEDURE UIEnable
+LPARAMETERS lEnable
+local var1,var2
+var1 = 'mregno'+alltrim(str(thisform.datasessionid))
+var2 = 'mdept'+alltrim(str(thisform.datasessionid))
+if !lEnable
+	=seek(&var2+str(&var1,7)+tempo.slipno,"ibil_mst")
+	select (thisform.dataenvironment.initialselectedalias)
+else
+	select * from ibil_mst ;
+		where ibil_mst.dept+str(ibil_mst.hos_code,7)=&var2+str(&var1,7) ;
+		into cursor tempo
+	this.recordsource = "tempo"
+	this.refresh
+	this.column1.width = 82
+	this.column2.width = 44
+	this.column3.width = 93
+	this.column4.width = 66
+	this.column5.width = 40
+	this.column6.width = 71
+	this.column7.width = 43
+	this.column8.width = 59
+	this.column9.width = 66
+endif
+
+ENDPROC
+
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+-frmipdphar.Baseframe1.Page2.Listgrid1.Column3
+4FontSize = 8
+Caption = "Slipno"
+Name = "Header1"
+
+-frmipdphar.Baseframe1.Page2.Listgrid1.Column3
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+-frmipdphar.Baseframe1.Page2.Listgrid1.Column2
+2FontSize = 8
+Caption = "Dept"
+Name = "Header1"
+
+-frmipdphar.Baseframe1.Page2.Listgrid1.Column2
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+-frmipdphar.Baseframe1.Page2.Listgrid1.Column1
+6FontSize = 8
+Caption = "Hos_code"
+Name = "Header1"
+
+-frmipdphar.Baseframe1.Page2.Listgrid1.Column1
+mregnoCC
+IF ibil_mst.dept+str(ibil_mst.hos_code,7)<>&var2+str(&var1,7) or EOF()
+THISFORM
+DATASESSIONID	
+CHKBOTTOM
+mregnoCC
+ibil_mst.dept+str(ibil_mst.hos_code,7) = &var2+str(&var1,7) and !eof()
+THISFORM
+DATASESSIONID
+mregnoCC
+Please enter slip No.
+Please enter slip date
+seek &var2+thisform.baseframe1.page1.txtslipno.value
+`
+dept+ibil_det.slipno=&var2+thisform.baseframe1.page1.txtslipno.value and !eof()
+THISFORM
+DATASESSIONID
+
+BASEFRAME1
+TXTSLIPNO
+VALIDMSG	
+TXTSLIPDT
+IBIL_MST
+OLDALIAS
+IBIL_DET
+mregnoCC
+replace hos_code 	with &var1,  dept 	 	with &var2,  type 		with 'A',  stat		with 'E' in ibil_mst
+
+THISFORM
+DATASESSIONID
+mregnoCC
+public &var1,&var2
+
+&var1 = mlcregno
+
+&var2 = '10'
+	
+SEEK &var2+STR(&var1,7)
+
+MLCREGNO
+THISFORM
+DATASESSIONID
+IBIL_MST
+mregnoCC
+if ibil_mst.hos_code <> &var1 or eof()
+SEEK &var2+STR(&var1,7)
+
+if seek(&var1,'register') and register.billgen
+THISFORM
+DATASESSIONID
+IBIL_MST
+CTOOLBAR	
+CMDBOTTOM
+CMDEDIT	
+CMDDELETE
+mregnoCC
+IF ibil_mst.dept+str(ibil_mst.hos_code,7)<>&var2+str(&var1,7) or BOF()
+THISFORM
+DATASESSIONID
+mregnoCC
+ibil_mst.dept+str(ibil_mst.hos_code,7) = &var2+str(&var1,7) and !bof()
+THISFORM
+DATASESSIONID
+
+beforenext,
+beforebottom4
+validrec
+newrecord
+updbuttonso
+beforeprev
+beforetop

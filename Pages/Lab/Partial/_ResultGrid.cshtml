@@ -1,0 +1,124 @@
+@model HmisWeb.Pages.Lab.TestResultEntryModel
+@*
+    ============================================================================
+    File........: Pages/Lab/Partial/_ResultGrid.cshtml
+    Purpose.....: "Test Result" sub-tab - READTR grid (reading id, description,
+                  result, unit, normal range) with the legacy grid actions.
+    Inputs......: Model.Readings (master rows merged with READTR values),
+                  Model.GroupCode (readtr.gid).
+    Outputs.....: Editable grid. lab-testresult.js posts the rows to ?handler=Save.
+    Business
+      rules.....: 1. Add/Delete line are client-side; Save persists the rows.
+                  2. "Load All Group" reloads one row per reading of the group.
+                  3. "Remove Blank" removes rows with an empty result (and the
+                     server delete handler exists for saved blanks).
+                  4. Insert in a Result cell opens the standard result choices
+                     (RESULTS or previous READTR values); none -> message.
+                  5. Double-click Normal Range copies it into Result (edit only).
+                  6. Unit shows "Untracable Unit" for a reading id that is not
+                     in the master.
+    Developer...: Tajwer Jalal
+    Date/Time...: 2026-11-02 11:25
+    ============================================================================
+*@
+@{
+    var rows = Model.Readings ?? new List<HmisWeb.Models.Lab.LabReadingRow>();
+    var gid = Model.GroupCode ?? "";
+}
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+    <div class="btn-group btn-group-sm" role="group">
+        <button type="button" class="btn btn-outline-primary" id="btnAddReading" title="Add a blank result line">
+            <i class="bi bi-plus-lg me-1"></i>Add Line
+        </button>
+        <button type="button" class="btn btn-outline-danger" id="btnDeleteReading" title="Delete the current result line">
+            <i class="bi bi-dash-lg me-1"></i>Delete Line
+        </button>
+        <button type="button" class="btn btn-outline-secondary" id="btnLoadAllGroup"
+                title="Add a blank line for every reading in this group">
+            <i class="bi bi-arrow-down-square me-1"></i>Load All Group
+        </button>
+        <button type="button" class="btn btn-outline-secondary" id="btnRemoveBlank"
+                title="Remove lines whose Result is empty">
+            <i class="bi bi-eraser me-1"></i>Remove Blank
+        </button>
+    </div>
+    <span class="small text-muted">
+        <i class="bi bi-info-circle me-1"></i>
+        Insert = result choices &middot; double-click Normal Range to copy it
+    </span>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-sm table-bordered align-middle mb-0" id="resultGrid" data-gid="@gid">
+        <thead class="table-light">
+            <tr>
+                <th style="width:80px">Reading ID</th>
+                <th>Description</th>
+                <th style="width:26%">Result</th>
+                <th style="width:110px">Unit</th>
+                <th style="width:24%">Normal Range</th>
+            </tr>
+        </thead>
+        <tbody id="resultBody">
+            @if (rows.Count == 0)
+            {
+                <tr id="resultEmptyRow">
+                    <td colspan="5" class="text-center text-muted py-3">
+                        No readings. Press <b>Add Line</b> or <b>Load All Group</b>.
+                    </td>
+                </tr>
+            }
+            else
+            {
+                for (var i = 0; i < rows.Count; i++)
+                {
+                    var row = rows[i];
+                    var listId = $"dl-{i}-{row.Code}";
+                    <tr class="reading-row" data-code="@row.Code" data-range="@row.Range">
+                        <td>
+                            <input class="form-control form-control-sm reading-code" maxlength="2"
+                                   value="@row.Code" disabled style="text-transform:uppercase" />
+                        </td>
+                        <td>
+                            <div class="reading-name">@row.Name</div>
+                            @if (!string.IsNullOrWhiteSpace(row.CategoryName))
+                            {
+                                <div class="small text-muted">@row.CategoryName</div>
+                            }
+                        </td>
+                        <td>
+                            <input class="form-control form-control-sm reading-value" maxlength="30"
+                                   value="@row.Value" disabled list="@listId"
+                                   title="Press Insert for the standard result list" />
+                        </td>
+                        <td class="reading-unit small">@row.UnitDisplay</td>
+                        <td class="reading-range small" title="Double-click to copy the range into Result">
+                            @row.Range
+                        </td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</div>
+
+@* Datalists must live outside the table body. *@
+<div class="d-none">
+    @for (var i = 0; i < rows.Count; i++)
+    {
+        var row = rows[i];
+        if (row.Suggestions.Count == 0) continue;
+        var listId = $"dl-{i}-{row.Code}";
+        <datalist id="@listId">
+            @foreach (var suggestion in row.Suggestions)
+            {
+                <option value="@suggestion"></option>
+            }
+        </datalist>
+    }
+</div>
+
+<div class="small text-muted mt-1">
+    @rows.Count line(s) loaded &middot; blank results are not saved (legacy "Remove Blank").
+</div>

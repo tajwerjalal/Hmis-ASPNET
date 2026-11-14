@@ -1,23 +1,53 @@
 @page "/departments/Index"
 @model HmisWeb.Pages.Departments.IndexModel
+@*
+    Departments - list of every department master row, including the nine
+    departments imported from the legacy dept.dbf.
+
+    Developer : [TAJWER JALAL]
+    Date      : 22-Oct-2026
+    Time      : 17:10
+    Change Log: 22-Oct-2026 - added the search / retired filters and the pager
+                on top of the legacy department import.
+*@
 @{
     ViewData["Title"] = "Departments";
 }
-
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
     <div>
-        <h4 class="mb-0">Departments</h4>
-        <div class="text-muted small">Active departments registered in the system.</div>
+        <h4 class="mb-0 fw-bold">Departments</h4>
+        <div class="text-muted small">All departments registered in the system (including the legacy departments imported from dept.dbf).</div>
     </div>
     <a asp-page="/departments/Create" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Add New</a>
 </div>
 
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label small text-secondary mb-1">Search</label>
+                <input name="Q" value="@Model.Q" class="form-control form-control-sm" placeholder="name, code or short name" />
+            </div>
+            <div class="col-md-2">
+                <div class="form-check mt-3">
+                    <input class="form-check-input" type="checkbox" name="ShowRetired" value="true" id="showRetired" @(Model.ShowRetired ? "checked" : "") />
+                    <label class="form-check-label small" for="showRetired">Include retired</label>
+                </div>
+            </div>
+            <div class="col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-sm btn-outline-primary"><i class="bi bi-search me-1"></i>Search</button>
+                <a asp-page="/departments/Index" class="btn btn-sm btn-outline-secondary">Reset</a>
+            </div>
+        </form>
+    </div>
+</div>
+
 <div class="card">
-    <div class="card-header bg-white fw-semibold">Active Departments (@Model.Departments.Count)</div>
+    <div class="card-header bg-white fw-semibold">Departments (@Model.TotalCount)</div>
     <div class="card-body p-0">
         @if (!Model.Departments.Any())
         {
-            <div class="p-4 text-center text-muted">No active departments found.</div>
+            <div class="p-4 text-center text-muted">No departments found.</div>
         }
         else
         {
@@ -36,7 +66,7 @@
                     <tbody>
                         @foreach (var d in Model.Departments)
                         {
-                            <tr>
+                            <tr class="@(d.Retired ? "table-secondary" : "")">
                                 <td class="fw-semibold">@(d.Code ?? "-")</td>
                                 <td>@d.Name</td>
                                 <td>@(d.Sname ?? "-")</td>
@@ -53,3 +83,5 @@
         }
     </div>
 </div>
+
+<partial name="_Pager" model="Model" />

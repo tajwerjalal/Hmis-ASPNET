@@ -12,6 +12,11 @@ namespace HmisWeb.Pages.Hospital
 {
     public class IndentModel : PageModel
     {
+        /// <summary>Mirror prefix of this module on the shared services master (DEPT scoped).</summary>
+
+        private const string ItemPrefix = "INV-HSP-";
+
+
         private readonly ApplicationDbContext _db;
         private readonly ICommonService _common;
         private readonly IAppSession _appSession;
@@ -178,7 +183,7 @@ namespace HmisWeb.Pages.Hospital
             var departmentId = DepartmentId ?? _appSession.LoggedDepartment?.Id;
             var item = await _db.Items.FirstOrDefaultAsync(i => i.Id == SelectedItemId.Value && !i.Retired && i.Billable
                 && (i.ItemType == ItemType.Investigation || i.ItemType == ItemType.Service)
-                && (departmentId == null || i.DepartmentId == departmentId));
+                && i.Code.StartsWith(ItemPrefix));
             if (item == null)
                 return Page();
 
@@ -410,11 +415,10 @@ namespace HmisWeb.Pages.Hospital
             var term = ItemSearch?.Trim();
             var departmentId = DepartmentId ?? _appSession.LoggedDepartment?.Id;
             var q = _db.Items.Where(i => !i.Retired && i.Billable
-                && (i.ItemType == ItemType.Investigation || i.ItemType == ItemType.Service));
+                && (i.ItemType == ItemType.Investigation || i.ItemType == ItemType.Service)
+                && i.Code.StartsWith(ItemPrefix));
 
-            if (departmentId != null)
-                q = q.Where(i => i.DepartmentId == departmentId);
-
+            
             if (!string.IsNullOrWhiteSpace(term))
             {
                 q = q.Where(i => (i.Name != null && i.Name.Contains(term))

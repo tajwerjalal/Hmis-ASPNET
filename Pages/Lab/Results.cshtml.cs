@@ -9,6 +9,11 @@ namespace HmisWeb.Pages.Lab
 {
     public class ResultsModel : PageModel
     {
+        /// <summary>Mirror prefix of the laboratory bank on the shared services master.</summary>
+
+        private const string ItemPrefix = "INV-LB-";
+
+
         private readonly ApplicationDbContext _db;
 
         public ResultsModel(ApplicationDbContext db)
@@ -38,7 +43,8 @@ namespace HmisWeb.Pages.Lab
                 .Include(bi => bi.Item)
                 .Where(bi => !bi.Retired
                     && bi.Item != null
-                    && bi.Item.ItemType == ItemType.Investigation)
+                    && bi.Item.ItemType == ItemType.Investigation
+                    && bi.Item.Code.StartsWith(ItemPrefix))
                 .AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(SearchTerm))

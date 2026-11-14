@@ -1,0 +1,155 @@
+@model HmisWeb.Pages.Lab.TestResultEntryModel
+@*
+    ============================================================================
+    File........: Pages/Lab/Partial/_CulturePane.cshtml
+    Purpose.....: "Update Culture" sub-tab of lb0110: species/growth blocks
+                  (CULTURE) and the medicine sensitivity grid (CUL_TR).
+    Inputs......: Model.Culture (growth1-3, species1-3, medicines).
+    Outputs.....: Editable culture pane; lab-testresult.js posts it to
+                  ?handler=Save together with the result rows.
+    Business
+      rules.....: 1. Species name <- ORGANISM, growth remark <- GROWTHDESCRIPTION
+                     (legacy ORGANISMS/GRREMARK when present); Insert opens the
+                     pick list for the box that has focus.
+                  2. A/B/C are the sensitivity entries for species 1/2/3 and are
+                     stored in CUL_TR.S1/S2/S3.
+                  3. Load All is capped at 500 medicines (search covers the rest).
+                  4. Remove Blank drops lines whose A/B/C are all empty; Save
+                     drops them again server-side.
+                  5. Opening this tab in edit mode creates the CULTURE row and
+                     sets TESTTR.CULTURE = 1 (handled by the page handler).
+    Developer...: Tajwer Jalal
+    Date/Time...: 2026-11-02 11:26
+    ============================================================================
+*@
+@{
+    var culture = Model.Culture ?? new HmisWeb.Models.Lab.LabCultureView();
+    var species = new[] { culture.Species1, culture.Species2, culture.Species3 };
+    var growth = new[] { culture.Growth1, culture.Growth2, culture.Growth3 };
+    var labels = new[] { "A", "B", "C" };
+}
+
+<div class="row g-2">
+    @* ================= SPECIES / GROWTH ================= *@
+    <div class="col-lg-5">
+        <div class="fw-semibold mb-2"><i class="bi bi-bacteria me-1 text-primary"></i>Species / Growth</div>
+        @for (var i = 0; i < 3; i++)
+        {
+            var index = i + 1;
+            <div class="border rounded p-2 mb-2">
+                <div class="fw-semibold small mb-1">Species @labels[i]</div>
+                <label class="form-label small mb-1">Species name (max 36)</label>
+                <div class="input-group input-group-sm mb-2">
+                    <input class="form-control culture-species" data-index="@index" maxlength="36"
+                           value="@species[i]" disabled title="Press Insert key for organisms list" />
+                    <button type="button" class="btn btn-outline-secondary btn-pick-species" data-index="@index"
+                            disabled title="Organisms list">
+                        <i class="bi bi-list-ul"></i>
+                    </button>
+                </div>
+                <label class="form-label small mb-1">Growth remark (max 60)</label>
+                <div class="input-group input-group-sm">
+                    <input class="form-control culture-growth" data-index="@index" maxlength="60"
+                           value="@growth[i]" disabled title="Press Insert key for growth remarks list" />
+                    <button type="button" class="btn btn-outline-secondary btn-pick-growth" data-index="@index"
+                            disabled title="Growth remarks list">
+                        <i class="bi bi-list-ul"></i>
+                    </button>
+                </div>
+            </div>
+        }
+    </div>
+
+    @* ================= MEDICINE SENSITIVITY ================= *@
+    <div class="col-lg-7">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+            <div class="fw-semibold"><i class="bi bi-capsule me-1 text-primary"></i>Medicine Sensitivity</div>
+            <div class="btn-group btn-group-sm">
+                <button type="button" class="btn btn-outline-primary" id="btnAddMedicine">
+                    <i class="bi bi-plus-lg me-1"></i>Add
+                </button>
+                <button type="button" class="btn btn-outline-danger" id="btnDeleteMedicine">
+                    <i class="bi bi-dash-lg me-1"></i>Delete
+                </button>
+                <button type="button" class="btn btn-outline-secondary" id="btnLoadAllMedicines"
+                        title="Add every medicine not yet on this test (max 500)">
+                    <i class="bi bi-arrow-down-square me-1"></i>Load All
+                </button>
+                <button type="button" class="btn btn-outline-secondary" id="btnRemoveBlankMedicines">
+                    <i class="bi bi-eraser me-1"></i>Remove Blank
+                </button>
+            </div>
+        </div>
+
+        <div class="position-relative mb-2">
+            <input id="medicineSearch" class="form-control form-control-sm" autocomplete="off"
+                   placeholder="Search medicine by name or code to add..." disabled />
+            <div id="medicineSuggest" class="list-group position-absolute w-100 shadow"
+                 style="display:none; z-index:1080; max-height:240px; overflow:auto;"></div>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-sm table-bordered align-middle mb-0" id="cultureTable">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width:110px">ID</th>
+                        <th>Medicine</th>
+                        <th style="width:52px" class="text-center">A</th>
+                        <th style="width:52px" class="text-center">B</th>
+                        <th style="width:52px" class="text-center">C</th>
+                    </tr>
+                </thead>
+                <tbody id="cultureBody">
+                    @if (culture.Medicines.Count == 0)
+                    {
+                        <tr id="cultureEmptyRow">
+                            <td colspan="5" class="text-center text-muted py-3">
+                                No medicine lines. Press <b>Add</b> or <b>Load All</b>.
+                            </td>
+                        </tr>
+                    }
+                    else
+                    {
+                        foreach (var medicine in culture.Medicines)
+                        {
+                            <tr class="medicine-row" data-code="@medicine.Code">
+                                <td>
+                                    <input class="form-control form-control-sm medicine-code" maxlength="20"
+                                           value="@medicine.Code" disabled />
+                                </td>
+                                <td class="medicine-name">@medicine.Name</td>
+                                <td>
+                                    <select class="form-select form-select-sm medicine-s1" disabled>
+                                        <option value="" selected="@(string.IsNullOrEmpty(medicine.S1))"></option>
+                                        <option value="S" selected="@(medicine.S1 == "S")">S</option>
+                                        <option value="I" selected="@(medicine.S1 == "I")">I</option>
+                                        <option value="R" selected="@(medicine.S1 == "R")">R</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <select class="form-select form-select-sm medicine-s2" disabled>
+                                        <option value="" selected="@(string.IsNullOrEmpty(medicine.S2))"></option>
+                                        <option value="S" selected="@(medicine.S2 == "S")">S</option>
+                                        <option value="I" selected="@(medicine.S2 == "I")">I</option>
+                                        <option value="R" selected="@(medicine.S2 == "R")">R</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    <select class="form-select form-select-sm medicine-s3" disabled>
+                                        <option value="" selected="@(string.IsNullOrEmpty(medicine.S3))"></option>
+                                        <option value="S" selected="@(medicine.S3 == "S")">S</option>
+                                        <option value="I" selected="@(medicine.S3 == "I")">I</option>
+                                        <option value="R" selected="@(medicine.S3 == "R")">R</option>
+                                    </select>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div class="small text-muted mt-1">
+            A/B/C = sensitivity for Species A/B/C (S = sensitive, I = intermediate, R = resistant).
+        </div>
+    </div>
+</div>

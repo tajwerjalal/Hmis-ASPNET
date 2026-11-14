@@ -1,0 +1,750 @@
+﻿VERSION =   3.00
+dataenvironment
+dataenvironment
+Dataenvironment
+oLeft = -16
+Top = 134
+Width = 520
+Height = 192
+InitialSelectedAlias = "services"
+Name = "Dataenvironment"
+
+Dataenvironment
+Left = 86
+Top = 17
+Width = 95
+Height = 90
+Alias = "services"
+BufferModeOverride = 5
+Order = "code"
+CursorSource = ..\..\master\services.dbf
+Name = "Cursor1"
+
+Dataenvironment
+Left = 230
+Top = 11
+Width = 95
+Height = 90
+Alias = "dept"
+BufferModeOverride = 0
+Order = "id"
+CursorSource = ..\..\master\dept.dbf
+Name = "Cursor2"
+
+Dataenvironment
+Left = 362
+Top = 12
+Width = 95
+Height = 90
+Alias = "sergrp"
+BufferModeOverride = 0
+Order = "id"
+CursorSource = ..\..\master\sergrp.dbf
+Name = "Cursor3"
+
+Dataenvironment
+Left = 513
+Top = 37
+Width = 95
+Height = 90
+Alias = "resource"
+BufferModeOverride = 0
+Order = "id"
+CursorSource = ..\..\master\resource.dbf
+Name = "Cursor4"
+
+relation
+relation
+	Relation1
+Dataenvironment
+nParentAlias = "dept"
+RelationalExpr = "id"
+ChildAlias = "sergrp"
+ChildOrder = "dptid"
+Name = "Relation1"
+
+relation
+relation
+	Relation2
+Dataenvironment
+oParentAlias = "services"
+RelationalExpr = "dept"
+ChildAlias = "dept"
+ChildOrder = "id"
+Name = "Relation2"
+
+baseform
+ ..\..\common\class\baseclass.vcx
+	Baseform1
+Top = 0
+Left = 0
+Height = 310
+Width = 487
+DoCreate = .T.
+Caption = "Services Setup"
+findform = bs0301f
+menukey = bs0310
+Name = "Baseform1"
+
+PROCEDURE Init
+dodefault()
+public array mstatus[2,2]
+dime mstatus[2,2]
+mstatus[1,1]='Active'
+mstatus[1,2]='A'
+mstatus[2,1]='Inactive'
+mstatus[2,2]='I'
+
+ENDPROC
+
+/Baseform1.Baseframe1.Page2.LISTGRID1.colconsreq
+	baseframe
+ ..\..\common\class\baseclass.vcx
+	pageframe
+
+Baseframe1
+	Baseform1
+ErasePage = .T.
+Top = 0
+Left = 0
+Width = 489
+Height = 308
+Name = "Baseframe1"
+Page1.Name = "Page1"
+Page2.Name = "Page2"
+
+ ..\..\common\class\baseclass.vcx
+Baseform1.Baseframe1.Page1
+hCaption = "Service Code"
+Height = 16
+Left = 32
+Top = 51
+Width = 67
+TabIndex = 6
+Name = "lblCode"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+Baseform1.Baseframe1.Page1
+ControlSource = "services.desc"
+Height = 22
+Left = 107
+TabIndex = 7
+Top = 72
+Width = 186
+Comment = ""
+Name = "txtDesc"
+
+ ..\..\common\class\baseclass.vcx
+Baseform1.Baseframe1.Page1
+gCaption = "Description"
+Height = 16
+Left = 43
+Top = 75
+Width = 56
+TabIndex = 8
+Name = "lblDesc"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+txtSrate
+Baseform1.Baseframe1.Page1
+ControlSource = "services.srate"
+Height = 22
+Left = 107
+TabIndex = 17
+Top = 170
+Width = 60
+Comment = ""
+Name = "txtSrate"
+
+ ..\..\common\class\baseclass.vcx
+lblSrate
+Baseform1.Baseframe1.Page1
+fCaption = "Normal"
+Height = 16
+Left = 114
+Top = 154
+Width = 35
+TabIndex = 16
+Name = "lblSrate"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+txtUrate
+Baseform1.Baseframe1.Page1
+ControlSource = "services.urate"
+Height = 22
+Left = 172
+TabIndex = 18
+Top = 170
+Width = 54
+Comment = ""
+Name = "txtUrate"
+
+ ..\..\common\class\baseclass.vcx
+lblUrate
+Baseform1.Baseframe1.Page1
+fCaption = "Urgent"
+Height = 16
+Left = 181
+Top = 153
+Width = 34
+TabIndex = 13
+Name = "lblUrate"
+
+ ..\..\common\class\baseclass.vcx
+Baseform1.Baseframe1.Page1
+fCaption = "Department"
+Height = 16
+Left = 46
+Top = 25
+Width = 57
+TabIndex = 1
+Name = "lblDept"
+
+ ..\..\common\class\baseclass.vcx
+Baseform1.Baseframe1.Page1
+jCaption = "Service Link"
+Height = 16
+Left = 38
+Top = 198
+Width = 61
+TabIndex = 26
+Name = "lblLink"
+
+ ..\..\common\class\baseclass.vcx
+Baseform1.Baseframe1.Page1
+hCaption = "Requisities"
+Height = 16
+Left = 45
+Top = 100
+Width = 54
+TabIndex = 10
+Name = "lblReq"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+	txtMaxdur
+Baseform1.Baseframe1.Page1
+ControlSource = "services.maxdur"
+Height = 22
+Left = 394
+TabIndex = 20
+Top = 170
+Width = 47
+Comment = ""
+Name = "txtMaxdur"
+
+ ..\..\common\class\baseclass.vcx
+	lblMaxdur
+Baseform1.Baseframe1.Page1
+dCaption = "Max"
+Height = 16
+Left = 406
+Top = 153
+Width = 22
+TabIndex = 15
+Name = "lblMaxdur"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+	txtMindur
+Baseform1.Baseframe1.Page1
+ControlSource = "services.mindur"
+Height = 22
+Left = 343
+TabIndex = 19
+Top = 170
+Width = 46
+Comment = ""
+Name = "txtMindur"
+
+ ..\..\common\class\baseclass.vcx
+	lblMindur
+Baseform1.Baseframe1.Page1
+dCaption = "Min"
+Height = 16
+Left = 356
+Top = 153
+Width = 18
+TabIndex = 14
+Name = "lblMindur"
+
+ ..\..\common\class\baseclass.vcx
+lblGroup
+Baseform1.Baseframe1.Page1
+cCaption = "Group"
+Height = 16
+Left = 310
+Top = 50
+Width = 32
+TabIndex = 5
+Name = "lblGroup"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+
+txtOldcode
+Baseform1.Baseframe1.Page1
+ControlSource = "services.oldcode"
+Height = 22
+Left = 203
+TabIndex = 24
+Top = 196
+Width = 40
+Comment = ""
+Name = "txtOldcode"
+
+ ..\..\common\class\baseclass.vcx
+
+lblOldcode
+Baseform1.Baseframe1.Page1
+iCaption = "Oldcode"
+Height = 16
+Left = 156
+Top = 198
+Width = 42
+TabIndex = 27
+Name = "lblOldcode"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+	txtSource
+Baseform1.Baseframe1.Page1
+ControlSource = "services.source"
+Height = 22
+Left = 107
+TabIndex = 28
+Top = 226
+Width = 81
+Comment = ""
+Name = "txtSource"
+
+ ..\..\common\class\baseclass.vcx
+	lblSource
+Baseform1.Baseframe1.Page1
+fCaption = "Source"
+Height = 16
+Left = 59
+Top = 229
+Width = 37
+TabIndex = 32
+Name = "lblSource"
+
+ctextbox
+ ..\..\common\class\baseclass.vcx
+	txtConreq
+Baseform1.Baseframe1.Page1
+ControlSource = "services.conreq"
+Height = 22
+Left = 251
+TabIndex = 30
+Top = 226
+Width = 84
+Comment = ""
+Name = "txtConreq"
+
+ ..\..\common\class\baseclass.vcx
+	lblConreq
+Baseform1.Baseframe1.Page1
+gCaption = "Conreq"
+Height = 16
+Left = 215
+Top = 226
+Width = 37
+TabIndex = 29
+Name = "lblConreq"
+
+checkbox
+checkbox
+	chkReport
+Baseform1.Baseframe1.Page1
+Top = 226
+Left = 359
+Height = 17
+Width = 55
+Caption = "Report"
+ControlSource = "services.report"
+TabIndex = 31
+Comment = ""
+Name = "chkReport"
+
+ ..\..\common\class\baseclass.vcx
+Baseform1.Baseframe1.Page1
+gCaption = "Pref Res"
+Height = 16
+Left = 298
+Top = 116
+Width = 44
+TabIndex = 12
+Name = "Clabel1"
+
+	ccombobox
+ ..\..\common\class\baseclass.vcx
+combobox
+Baseform1.Baseframe1.Page1
+RowSource = "select name,id from dept order by name into cursor cbodept"
+ControlSource = "services.dept"
+Height = 21
+Left = 108
+TabIndex = 2
+Top = 25
+Width = 146
+editable = .F.
+Name = "cbodept"
+
+PROCEDURE Valid
+*** service code generation
+
+select max(code) from services ;
+	 where dept = allt(this.value) into array tmpary
+** code generation	 
+if _tally =0
+	xcode = allt(this.value) + '001'
+else
+	xv = allt(str(int(val(right(allt(tmpary(1)),3))) + 1))
+	xcode = allt(this.value) + padl(xv,3,'0')	
+Endif
+this.parent.txtcode.value=xcode
+this.parent.txtcode.refresh
+*select name,id from sergrp where dept=allt(this.value) order by name into cursor cbogroup
+ENDPROC
+
+services
+SERVICES
+	ccombobox
+ ..\..\common\class\baseclass.vcx
+combobox
+Baseform1.Baseframe1.Page1
+RowSource = "select name,id from resource order by name into cursor cbopres"
+ControlSource = "services.pres"
+Height = 21
+Left = 343
+TabIndex = 11
+Top = 111
+Width = 134
+Name = "cbopres"
+
+
+ctextvalid
+ ..\..\common\class\baseclass.vcx
+Baseform1.Baseframe1.Page1
+ControlSource = "services.code"
+Height = 22
+Left = 107
+MaxLength = 5
+ReadOnly = .T.
+TabIndex = 3
+Top = 47
+Width = 61
+editable = .F.
+searchexpr = this.value
+searchtag = code
+validalias = services
+Name = "txtcode"
+
+ceditbox
+ ..\..\common\class\baseclass.vcx
+Baseform1.Baseframe1.Page1
+Height = 53
+Left = 107
+MaxLength = 60
+TabIndex = 9
+Top = 94
+Width = 187
+ControlSource = "services.req"
+Name = "edtreq"
+
+ ..\..\common\class\baseclass.vcx
+Baseform1.Baseframe1.Page1
+LCaption = "Charges"
+Left = 56
+Top = 173
+TabIndex = 21
+Name = "Clabel3"
+
+ ..\..\common\class\baseclass.vcx
+Baseform1.Baseframe1.Page1
+NCaption = "Duration"
+Left = 300
+Top = 173
+TabIndex = 22
+Name = "Clabel4"
+
+	ccombobox
+ ..\..\common\class\baseclass.vcx
+combobox
+cbogroup
+Baseform1.Baseframe1.Page1
+RowSourceType = 3
+RowSource = "select name,id from sergrp where dept=this.parent.cbodept.value order by name into cursor cbogroup"
+ControlSource = "services.group"
+Height = 21
+Left = 342
+TabIndex = 4
+Tag = ""
+Top = 47
+Width = 135
+ReadOnly = .F.
+Name = "cbogroup"
+
+PROCEDURE When
+dodefault()
+if empty(allt(this.parent.cbodept.value))
+return .f.
+endif
+this.requery
+this.refresh
+ENDPROC
+
+BArial, 0, 8, 5, 14, 11, 12, 3, 0
+Arial, 0, 9, 5, 15, 12, 13, 3, 0
+
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+(Caption = "Cons.Req"
+Name = "Header1"
+
+ctextlookup
+ ..\..\common\class\baseclass.vcx
+Baseform1.Baseframe1.Page1
+ControlSource = "services.link"
+Height = 22
+Left = 107
+MaxLength = 5
+TabIndex = 23
+Top = 193
+Width = 46
+refpath = thisform.baseframe1.page1
+rowsrc = select desc,code from services where dept = this.parent.cbodept.value and (code !=this.parent.txtcode.value  or link != this.parent.txtcode.value ) into cursor txtlinklook
+searchalias = services
+searchexpr = this.value
+emptyallowed = .T.
+Name = "txtlink"
+
+checkbox
+checkbox
+	chkchange
+Baseform1.Baseframe1.Page1
+Top = 197
+Left = 270
+Height = 18
+Width = 85
+FontSize = 8
+Alignment = 1
+Caption = "Changeable"
+ControlSource = "services.change"
+SpecialEffect = 1
+TabIndex = 25
+Name = "chkchange"
+
+	ccombobox
+ ..\..\common\class\baseclass.vcx
+combobox
+	cbostatus
+Baseform1.Baseframe1.Page1
+RowSourceType = 5
+RowSource = "mstatus"
+ControlSource = "services.active"
+Height = 22
+Left = 106
+TabIndex = 33
+Top = 250
+Width = 84
+Name = "cbostatus"
+
+ ..\..\common\class\baseclass.vcx
+Baseform1.Baseframe1.Page1
+dCaption = "Status"
+Height = 16
+Left = 58
+Top = 252
+Width = 33
+TabIndex = 34
+Name = "Clabel2"
+
+listgrid
+ ..\..\common\class\baseclass.vcx
+	LISTGRID1
+Baseform1.Baseframe1.Page2
+ColumnCount = 11
+Height = 244
+Left = 4
+Panel = 1
+ReadOnly = .T.
+RecordSource = "services"
+Top = 5
+Width = 477
+Name = "LISTGRID1"
+Column1.ControlSource = "dept.name"
+Column1.Width = 123
+Column1.ReadOnly = .T.
+Column1.Name = "coldept"
+Column2.ControlSource = "sergrp.name"
+Column2.Width = 153
+Column2.ReadOnly = .T.
+Column2.Name = "colgroup"
+Column3.ControlSource = "services.code"
+Column3.ReadOnly = .T.
+Column3.Name = "colsercode"
+Column4.ControlSource = "services.desc"
+Column4.Width = 150
+Column4.ReadOnly = .T.
+Column4.Name = "coldesc"
+Column5.ControlSource = "services.req"
+Column5.Width = 137
+Column5.ReadOnly = .T.
+Column5.Name = "colreq"
+Column6.ControlSource = "services.pres"
+Column6.Width = 164
+Column6.ReadOnly = .T.
+Column6.Name = "colpres"
+Column7.ControlSource = "services.srate"
+Column7.ReadOnly = .T.
+Column7.Name = "colsrate"
+Column8.ControlSource = "services.urate"
+Column8.ReadOnly = .T.
+Column8.Name = "ccolurate"
+Column9.ControlSource = "services.mindur"
+Column9.ReadOnly = .T.
+Column9.Name = "colmindur"
+Column10.ControlSource = "services.maxdur"
+Column10.ReadOnly = .T.
+Column10.Name = "maxdur"
+Column11.ColumnOrder = 11
+Column11.ControlSource = "services.conreq"
+Column11.ReadOnly = .T.
+Column11.Name = "colconsreq"
+
+,Baseform1.Baseframe1.Page2.LISTGRID1.coldept
+9Alignment = 2
+Caption = "Department"
+Name = "Header1"
+
+,Baseform1.Baseframe1.Page2.LISTGRID1.coldept
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+-Baseform1.Baseframe1.Page2.LISTGRID1.colgroup
+4Alignment = 2
+Caption = "Group"
+Name = "Header1"
+
+-Baseform1.Baseframe1.Page2.LISTGRID1.colgroup
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+/Baseform1.Baseframe1.Page2.LISTGRID1.colsercode
+,Caption = "Service Code"
+Name = "Header1"
+
+/Baseform1.Baseframe1.Page2.LISTGRID1.colsercode
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+,Baseform1.Baseframe1.Page2.LISTGRID1.coldesc
++Caption = "Description"
+Name = "Header1"
+
+,Baseform1.Baseframe1.Page2.LISTGRID1.coldesc
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
++Baseform1.Baseframe1.Page2.LISTGRID1.colreq
++Caption = "Requisities"
+Name = "Header1"
+
++Baseform1.Baseframe1.Page2.LISTGRID1.colreq
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+,Baseform1.Baseframe1.Page2.LISTGRID1.colpres
+-Caption = "Pref.Resource"
+Name = "Header1"
+
+,Baseform1.Baseframe1.Page2.LISTGRID1.colpres
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+-Baseform1.Baseframe1.Page2.LISTGRID1.colsrate
+5Alignment = 2
+Caption = "S.Rate"
+Name = "Header1"
+
+-Baseform1.Baseframe1.Page2.LISTGRID1.colsrate
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+.Baseform1.Baseframe1.Page2.LISTGRID1.ccolurate
+6Alignment = 2
+Caption = "Ur.Rate"
+Name = "Header1"
+
+.Baseform1.Baseframe1.Page2.LISTGRID1.ccolurate
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+.Baseform1.Baseframe1.Page2.LISTGRID1.colmindur
+-Caption = "Min. Duration"
+Name = "Header1"
+
+.Baseform1.Baseframe1.Page2.LISTGRID1.colmindur
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
++Baseform1.Baseframe1.Page2.LISTGRID1.maxdur
+-Caption = "Max.Duratoion"
+Name = "Header1"
+
++Baseform1.Baseframe1.Page2.LISTGRID1.maxdur
+iBorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+/Baseform1.Baseframe1.Page2.LISTGRID1.colconsreq
+Inactive

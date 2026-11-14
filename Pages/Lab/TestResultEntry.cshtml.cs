@@ -1,358 +1,235 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.EntityFrameworkCore;
-using HmisWeb.Data;
-using HmisWeb.Data.Enums;
-using HmisWeb.Models;
+using HmisWeb.Models.Lab;
 using HmisWeb.Services;
+using HmisWeb.Services.Lab;
 
 namespace HmisWeb.Pages.Lab
 {
+    /*
+     * ============================================================================
+     * File........: Pages/Lab/TestResultEntry.cshtml.cs
+     * Purpose.....: Thin PageModel for the LB0110 "Test Result Entry" screen.
+     *               Exposes the List tab, the Entry tab and the named AJAX
+     *               handlers used by the partial views.
+     * Inputs......: Query string (labNo/tid/testNo, list filters) and JSON/form
+     *               payloads from wwwroot/js/lab-testresult.js.
+     * Outputs.....: Razor page + partial HTML (_ListGrid, _EntryPane,
+     *               _ResultGrid, _CulturePane) and JSON pick lists / save result.
+     * Business
+     *   rules.....: 1. A 9 digit scan in the search box opens the indent directly.
+     *               2. All data access is delegated to LabResultService and
+     *                  CultureService; this class contains no SQL.
+     *               3. Every POST is protected by the Razor Pages antiforgery
+     *                  token (the page renders @Html.AntiForgeryToken()).
+     *               4. Authorization: the Lab module currently relies on the
+     *                  application's session/auth middleware (Program.cs). The
+     *                  [Authorize] attribute is intentionally not applied here
+     *                  because the other Lab pages are not protected either;
+     *                  add it to the whole module together, not to one page.
+     * Developer...: Tajwer Jalal
+     * Date/Time...: 2026-11-02 11:20
+     * ============================================================================
+     */
     public class TestResultEntryModel : PageModel
     {
-        private readonly ApplicationDbContext _db;
-        private readonly ICommonService _common;
+        private readonly LabResultService _lab;
+        private readonly CultureService _culture;
         private readonly IAppSession _appSession;
 
-        public TestResultEntryModel(ApplicationDbContext db, ICommonService common, IAppSession appSession)
+        public TestResultEntryModel(LabResultService lab, CultureService culture, IAppSession appSession)
         {
-            _db = db;
-            _common = common;
+            _lab = lab;
+            _culture = culture;
             _appSession = appSession;
         }
 
-        private const string PatientKey = "LabTestResultPatientId";
+        // ---------------- query state ----------------
+        [BindProperty(SupportsGet = true)] public string LabNo { get; set; }
+        [BindProperty(SupportsGet = true)] public string Tid { get; set; }
+        [BindProperty(SupportsGet = true)] public string TestNo { get; set; }
 
-        [BindProperty]
-        public string PatientSearch { get; set; }
+        [BindProperty(SupportsGet = true)] public string Search { get; set; }
+        [BindProperty(SupportsGet = true)] public string LabNoFilter { get; set; }
+        [BindProperty(SupportsGet = true)] public string Hrno { get; set; }
+        [BindProperty(SupportsGet = true)] public string Name { get; set; }
+        [BindProperty(SupportsGet = true)] public bool PendingOnly { get; set; }
+        [BindProperty(SupportsGet = true)] public int PageNumber { get; set; } = 1;
+        [BindProperty(SupportsGet = true)] public int PageSize { get; set; } = 25;
 
-        [BindProperty]
-        public string NewName { get; set; }
-
-        [BindProperty]
-        public string NewNameWithInitials { get; set; }
-
-        [BindProperty]
-        public string NewNic { get; set; }
-
-        [BindProperty]
-        public string NewMobile { get; set; }
-
-        [BindProperty]
-        public string NewPhone { get; set; }
-
-        [BindProperty]
-        public Sex? NewSex { get; set; }
-
-        [BindProperty]
-        public long? SelectedPatientId { get; set; }
-
-        [BindProperty(SupportsGet = true)]
-        public long? PatientId { get; set; }
-
-        [BindProperty]
-        public List<TestResultInput> TestResults { get; set; } = new();
-
-        [BindProperty]
-        public long? SelectedEncounterId { get; set; }
-
-        public Patient SelectedPatient { get; set; }
-        public List<Patient> PatientResults { get; set; } = new();
-        public List<InvestigationOrder> PendingTests { get; set; } = new();
-        public List<InvestigationOrder> PendingIndents { get; set; } = new(); // Sample collected, report pending
-        public List<PatientEncounter> ActiveEncounters { get; set; } = new();
-        public PatientEncounter SelectedEncounter { get; set; }
-        public string Message { get; set; }
-        public string ErrorMessage { get; set; }
+        // ---------------- view data ----------------
+        public string ActiveTab { get; set; } = "list";
+        public LabIndentPage List { get; set; } = new();
+        public LabEntryView Entry { get; set; }
+        public List<LabReadingRow> Readings { get; set; } = new();
+        public LabCultureView Culture { get; set; } = new();
+        public string GroupCode { get; set; } = "";
         public string Success { get; set; }
+        public string ErrorMessage { get; set; }
 
-        public async Task OnGetAsync()
+        // =====================================================================
+        // PAGE
+        // =====================================================================
+
+        public async Task<IActionResult> OnGetAsync()
         {
-            // If PatientId is provided via route, auto-select that patient
-            if (PatientId.HasValue)
+            try
             {
-                var patient = await _db.Patients
-                    .Include(p => p.Person)
-                    .FirstOrDefaultAsync(p => p.Id == PatientId.Value && !p.Retired);
-                if (patient != null)
+                // Scanner fast path: "230000001" opens the entry screen directly.
+                var scan = (Search ?? "").Trim();
+                if (scan.Length >= 6 && scan.All(char.IsDigit) && await _lab.IndentExistsAsync(scan))
+                    return RedirectToPage("/Lab/TestResultEntry", new { labNo = scan });
+
+                if (!string.IsNullOrWhiteSpace(LabNo))
                 {
-                    HttpContext.Session.SetString(PatientKey, patient.Id.ToString());
+                    Entry = await _lab.GetEntryAsync(LabNo.Trim(), Tid, TestNo);
+                    GroupCode = Entry?.GroupCode ?? "";
+                    Readings = Entry?.Readings ?? new List<LabReadingRow>();
+                    Culture = Entry?.Culture ?? new LabCultureView();
+                    ActiveTab = "entry";
+                    if (!string.IsNullOrWhiteSpace(Entry?.Error)) ErrorMessage = Entry.Error;
+                    return Page();
                 }
+
+                // Single "search" box compatibility: digits -> Labno, text -> Name.
+                if (!string.IsNullOrWhiteSpace(scan))
+                {
+                    if (scan.All(char.IsDigit)) LabNoFilter = scan;
+                    else Name = scan;
+                }
+
+                List = await _lab.GetIndentPageAsync(LabNoFilter, Hrno, Name, PendingOnly, PageNumber, PageSize);
+                ActiveTab = "list";
             }
-
-            await LoadStateAsync();
-            if (TempData["TestResultSuccess"] != null)
-                Success = TempData["TestResultSuccess"].ToString();
-            if (TempData["TestResultMessage"] != null)
-                Message = TempData["TestResultMessage"].ToString();
-        }
-
-        public async Task<IActionResult> OnPostSearchPatientsAsync()
-        {
-            await LoadStateAsync();
-            
-            if (!string.IsNullOrWhiteSpace(PatientSearch))
+            catch (Exception ex)
             {
-                // Search patients with pending investigation orders awaiting result entry
-                var term = PatientSearch.Trim().ToLower();
-                bool isNumeric = long.TryParse(term, out var searchId);
-                
-                var patientIdsWithPendingResults = await _db.InvestigationOrders
-                    .Where(o => !o.Retired && o.Ordered && o.SampleCollected && !o.Completed)
-                    .Select(o => o.PatientId)
-                    .Distinct()
-                    .ToListAsync();
-
-                var query = _db.Patients
-                    .Include(p => p.Person)
-                    .Where(p => !p.Retired && patientIdsWithPendingResults.Contains(p.Id));
-
-                if (isNumeric)
-                {
-                    query = query.Where(p => p.Id == searchId || p.PatientId == searchId || 
-                        (p.Person != null && (p.Person.Mobile != null && p.Person.Mobile.Contains(term)) ||
-                        (p.Person.Nic != null && p.Person.Nic.Contains(term))));
-                }
-                else
-                {
-                    query = query.Where(p => p.Person != null && 
-                        ((p.Person.Name != null && p.Person.Name.ToLower().Contains(term)) ||
-                        (p.Person.NameWithInitials != null && p.Person.NameWithInitials.ToLower().Contains(term)) ||
-                        (p.Person.Mobile != null && p.Person.Mobile.Contains(term)) ||
-                        (p.Person.Nic != null && p.Person.Nic.ToLower().Contains(term))));
-                }
-
-                var patients = await query.Take(50).ToListAsync();
-                
-                // Add pending test count to each patient
-                foreach (var p in patients)
-                {
-                    p.PendingTestCount = await _db.InvestigationOrders
-                        .CountAsync(o => o.PatientId == p.Id && !o.Retired && o.Ordered && o.SampleCollected && !o.Completed);
-                }
-
-                PatientResults = patients;
+                ErrorMessage = "Error loading the lab work list: " + ex.Message;
+                ActiveTab = string.IsNullOrWhiteSpace(LabNo) ? "list" : "entry";
             }
-            else
-            {
-                PatientResults = new();
-            }
-            
             return Page();
         }
 
-        public async Task<IActionResult> OnPostSelectPatientAsync()
+        // =====================================================================
+        // AJAX - LIST / ENTRY
+        // =====================================================================
+
+        /// <summary>Partial for the List tab (search + paging without a full reload).</summary>
+        public async Task<IActionResult> OnGetListAsync()
         {
-            if (SelectedPatientId == null)
-                return RedirectToPage();
-
-            var patient = await _db.Patients
-                .Include(p => p.Person)
-                .FirstOrDefaultAsync(p => p.Id == SelectedPatientId.Value && !p.Retired);
-            if (patient == null)
-                return RedirectToPage();
-
-            HttpContext.Session.SetString(PatientKey, patient.Id.ToString());
-            return RedirectToPage("/Lab/TestResultEntry");
+            List = await _lab.GetIndentPageAsync(LabNoFilter, Hrno, Name, PendingOnly, PageNumber, PageSize);
+            return Partial("Partial/_ListGrid", this);
         }
 
-        public IActionResult OnPostStartNewAsync()
+        /// <summary>Partial for the Entry tab (header + tests + sub-tabs).</summary>
+        public async Task<IActionResult> OnGetEntryAsync(string labNo, string tid, string testNo)
         {
-            HttpContext.Session.Remove(PatientKey);
-            return RedirectToPage("/Lab/TestResultEntry");
+            Entry = await _lab.GetEntryAsync(labNo, tid, testNo);
+            GroupCode = Entry?.GroupCode ?? "";
+            Readings = Entry?.Readings ?? new List<LabReadingRow>();
+            Culture = Entry?.Culture ?? new LabCultureView();
+            if (!string.IsNullOrWhiteSpace(Entry?.Error)) ErrorMessage = Entry.Error;
+            return Partial("Partial/_EntryPane", this);
         }
 
-        public async Task<IActionResult> OnPostSelectIndentAsync(long indentId)
+        /// <summary>Partial for the Test Result sub-tab.</summary>
+        public async Task<IActionResult> OnGetReadingsAsync(string labNo, string tid, string testNo, string gid)
         {
-            var order = await _db.InvestigationOrders
-                .Include(o => o.Patient)
-                .FirstOrDefaultAsync(o => o.Id == indentId && !o.Retired);
-            
-            if (order != null)
+            Readings = await _lab.GetReadingsAsync(labNo, tid, testNo, includeAllMaster: true);
+            GroupCode = gid ?? "";
+            return Partial("Partial/_ResultGrid", this);
+        }
+
+        /// <summary>Partial for the Update Culture sub-tab (creates the row in edit mode).</summary>
+        public async Task<IActionResult> OnGetCultureAsync(string labNo, string tid, string testNo, string gid, bool edit)
+        {
+            Culture = await _culture.GetAsync(labNo, tid, testNo, ensure: edit);
+            GroupCode = gid ?? "";
+            return Partial("Partial/_CulturePane", this);
+        }
+
+        // =====================================================================
+        // AJAX - PICK LISTS
+        // =====================================================================
+
+        public async Task<IActionResult> OnGetResultChoicesAsync(string gid, string readId)
+            => new JsonResult(await _lab.GetResultChoicesAsync(gid, readId));
+
+        public async Task<IActionResult> OnGetRemarksAsync(string tid)
+            => new JsonResult(await _lab.GetRemarksAsync(tid));
+
+        public async Task<IActionResult> OnGetOrganismsAsync()
+            => new JsonResult(await _culture.GetOrganismsAsync());
+
+        public async Task<IActionResult> OnGetGrowthRemarksAsync()
+            => new JsonResult(await _culture.GetGrowthRemarksAsync());
+
+        public async Task<IActionResult> OnGetMedicinesAsync(string term)
+            => new JsonResult(await _culture.GetMedicinesAsync(term, 30));
+
+        /// <summary>All medicines not yet on the test (capped at 500 in CultureService).</summary>
+        public async Task<IActionResult> OnGetAllMedicinesAsync(string labNo, string tid, string testNo)
+            => new JsonResult(await _culture.GetAllMedicinesAsync(labNo, tid, testNo));
+
+        // =====================================================================
+        // AJAX - GRID ACTIONS
+        // =====================================================================
+
+        public async Task<IActionResult> OnPostLoadAllGroupAsync(string labNo, string tid, string testNo, string gid)
+        {
+            Readings = await _lab.LoadAllGroupAsync(labNo, tid, testNo);
+            GroupCode = gid ?? "";
+            return Partial("Partial/_ResultGrid", this);
+        }
+
+        public async Task<IActionResult> OnPostRemoveBlankAsync(string labNo, string tid, string testNo, string gid)
+        {
+            Readings = await _lab.RemoveBlankAsync(labNo, tid, testNo);
+            GroupCode = gid ?? "";
+            return Partial("Partial/_ResultGrid", this);
+        }
+
+        public async Task<IActionResult> OnPostEnsureCultureAsync(string labNo, string tid, string testNo, string gid)
+        {
+            Culture = await _culture.GetAsync(labNo, tid, testNo, ensure: true);
+            GroupCode = gid ?? "";
+            return Partial("Partial/_CulturePane", this);
+        }
+
+        // =====================================================================
+        // AJAX - SAVE
+        // =====================================================================
+
+        /// <summary>
+        /// Saves the whole test (REPORT.ATYPE, TESTTR, READTR, CULTURE, CUL_TR)
+        /// and returns the URL of the next pending test.
+        /// </summary>
+        public async Task<IActionResult> OnPostSaveAsync([FromBody] LabSaveRequest request)
+        {
+            try
             {
-                HttpContext.Session.SetString(PatientKey, order.PatientId.ToString());
+                var user = _appSession.LoggedUser?.UserName ?? "WEB";
+                var result = await _lab.SaveAsync(request, user);
+                return new JsonResult(result);
             }
-            return RedirectToPage("/Lab/TestResultEntry");
-        }
-
-        public async Task<IActionResult> OnPostCreatePatientAsync()
-        {
-            if (string.IsNullOrWhiteSpace(NewName))
+            catch (LabConcurrencyException ex)
             {
-                ErrorMessage = "Patient name is required.";
-                return Page();
+                Response.StatusCode = 409;
+                return new JsonResult(new LabSaveResult { Success = false, Message = ex.Message });
             }
-
-            var person = new Person
+            catch (Exception ex)
             {
-                Name = NewName.Trim(),
-                NameWithInitials = string.IsNullOrWhiteSpace(NewNameWithInitials) ? NewName.Trim() : NewNameWithInitials.Trim(),
-                Nic = NewNic?.Trim() ?? "",
-                Mobile = NewMobile?.Trim() ?? "",
-                Phone = NewPhone?.Trim() ?? "",
-                Sex = NewSex,
-                CreatedAt = DateTime.Now,
-                CreaterId = _appSession.WebUserId
-            };
-            _db.Persons.Add(person);
-            await _db.SaveChangesAsync();
-
-            long? maxPatientId = await _db.Patients.MaxAsync(p => (long?)p.PatientId);
-            var patient = new Patient
-            {
-                PersonId = person.Id,
-                PatientId = (maxPatientId ?? 0) + 1,
-                CreatedAt = DateTime.Now,
-                CreaterId = _appSession.WebUserId,
-                CreatedInstitutionId = _appSession.LoggedSite?.Id
-            };
-            _db.Patients.Add(patient);
-            await _db.SaveChangesAsync();
-
-            HttpContext.Session.SetString(PatientKey, patient.Id.ToString());
-            return RedirectToPage("/Lab/TestResultEntry");
-        }
-
-        public async Task<IActionResult> OnPostSaveResultsAsync()
-        {
-            await LoadStateAsync();
-
-            var patientId = GetSelectedPatientId();
-            if (patientId == null)
-            {
-                ErrorMessage = "Please select a patient first.";
-                return Page();
+                Response.StatusCode = 500;
+                return new JsonResult(new LabSaveResult
+                {
+                    Success = false,
+                    Message = "Error saving results: " + ex.Message
+                });
             }
-
-            if (TestResults == null || !TestResults.Any())
-            {
-                ErrorMessage = "No test results to save.";
-                return Page();
-            }
-
-            var now = DateTime.Now;
-            var userId = _appSession.WebUserId;
-
-            foreach (var input in TestResults.Where(x => x.OrderId > 0))
-            {
-                var order = await _db.InvestigationOrders
-                    .FirstOrDefaultAsync(o => o.Id == input.OrderId && !o.Retired);
-                if (order == null) continue;
-
-                order.Result = input.Result ?? "";
-                order.ResultNotes = input.ResultNotes ?? "";
-                order.Completed = input.Completed;
-                order.CompletedAt = input.Completed ? now : null;
-            }
-
-            await _db.SaveChangesAsync();
-
-            TempData["TestResultSuccess"] = "Test results saved successfully.";
-            return RedirectToPage("/Lab/TestResultEntry");
-        }
-
-        private async Task LoadStateAsync()
-        {
-            SelectedPatient = await GetSelectedPatientAsync();
-            
-            // Always load pending indents (sample collected, report not generated)
-            await LoadPendingIndentsAsync();
-
-            if (SelectedPatient != null)
-            {
-                ActiveEncounters = await GetActiveEncountersAsync(SelectedPatient.Id);
-                if (SelectedEncounterId.HasValue && ActiveEncounters.Any(e => e.Id == SelectedEncounterId.Value))
-                    SelectedEncounter = ActiveEncounters.First(e => e.Id == SelectedEncounterId.Value);
-                else if (ActiveEncounters.Any())
-                    SelectedEncounter = ActiveEncounters.First();
-                else
-                    SelectedEncounter = null;
-
-                await LoadPendingTestsAsync();
-            }
-            else
-            {
-                ActiveEncounters = new();
-                SelectedEncounter = null;
-                PendingTests = new();
-            }
-        }
-
-        private async Task LoadPendingIndentsAsync()
-        {
-            // All investigation orders where sample is collected but report not generated
-            PendingIndents = await _db.InvestigationOrders
-                .Include(o => o.Item)
-                .Include(o => o.Patient).ThenInclude(p => p.Person)
-                .Include(o => o.PatientEncounter)
-                .Where(o => !o.Retired && o.Ordered && o.SampleCollected && !o.Completed)
-                .OrderByDescending(o => o.SampleCollectedAt)
-                .ToListAsync();
-        }
-
-        private async Task LoadPendingTestsAsync()
-        {
-            var patientId = GetSelectedPatientId();
-            if (patientId == null)
-            {
-                PendingTests = new();
-                return;
-            }
-
-            var query = _db.InvestigationOrders
-                .Include(o => o.Item)
-                .Where(o => o.PatientId == patientId && !o.Retired && !o.Completed);
-
-            if (SelectedEncounterId.HasValue)
-                query = query.Where(o => o.PatientEncounterId == SelectedEncounterId.Value);
-
-            PendingTests = await query.OrderBy(o => o.CreatedAt).ToListAsync();
-
-            // Initialize TestResults with pending tests
-            TestResults = PendingTests.Select(o => new TestResultInput
-            {
-                OrderId = o.Id,
-                InvestigationName = o.InvestigationName,
-                ItemName = o.Item?.Name ?? "",
-                Result = o.Result,
-                ResultNotes = o.ResultNotes,
-                Completed = o.Completed
-            }).ToList();
-        }
-
-        private long? GetSelectedPatientId()
-        {
-            var val = HttpContext.Session.GetString(PatientKey);
-            return long.TryParse(val, out var id) ? id : null;
-        }
-
-        private async Task<Patient> GetSelectedPatientAsync()
-        {
-            var id = GetSelectedPatientId();
-            if (id == null) return null;
-            return await _db.Patients
-                .Include(p => p.Person)
-                .FirstOrDefaultAsync(p => p.Id == id.Value && !p.Retired);
-        }
-
-        private async Task<List<PatientEncounter>> GetActiveEncountersAsync(long patientId)
-        {
-            return await _db.PatientEncounters
-                .Where(e => e.PatientId == patientId && !e.Retired
-                    && e.EncounterType == EncounterType.Inward && e.DateOfDischarge == null)
-                .OrderByDescending(e => e.DateOfAdmission)
-                .ToListAsync();
-        }
-
-        public class TestResultInput
-        {
-            public long OrderId { get; set; }
-            public string InvestigationName { get; set; }
-            public string ItemName { get; set; }
-            public string Result { get; set; }
-            public string ResultNotes { get; set; }
-            public bool Completed { get; set; }
         }
     }
 }

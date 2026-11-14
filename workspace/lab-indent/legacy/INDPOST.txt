@@ -1,0 +1,665 @@
+﻿VERSION =   3.00
+dataenvironment
+dataenvironment
+Dataenvironment
+lLeft = 28
+Top = 97
+Width = 520
+Height = 200
+InitialSelectedAlias = "collect"
+Name = "Dataenvironment"
+
+Dataenvironment
+Left = 51
+Top = -5
+Width = 95
+Height = 90
+Alias = "collect"
+BufferModeOverride = 5
+Order = "indentno"
+Database = ..\us.dbc
+CursorSource = "collect"
+Name = "Cursor1"
+
+Dataenvironment
+Left = 213
+Top = 37
+Width = 95
+Height = 90
+Alias = "trans"
+BufferModeOverride = 0
+Order = "indent"
+Database = ..\us.dbc
+CursorSource = "trans"
+Name = "Cursor2"
+
+Dataenvironment
+Left = 321
+Top = 20
+Width = 95
+Height = 90
+Alias = "concomm"
+BufferModeOverride = 0
+Order = "key"
+CursorSource = ..\..\master\concomm.dbf
+Name = "Cursor3"
+
+Dataenvironment
+Left = 51
+Top = 116
+Width = 144
+Height = 98
+Alias = "register"
+BufferModeOverride = 0
+Order = "trno"
+CursorSource = ..\..\master\register.dbf
+Name = "Cursor4"
+
+baseform
+ ..\..\common\class\baseclass.vcx
+
+frmopdpost
+Top = 0
+Left = 0
+Height = 250
+Width = 615
+DoCreate = .T.
+Caption = "Indent Posting"
+WindowType = 1
+ctoolbar = 
+menukey = lb0425
+Name = "frmopdpost"
+
+PROCEDURE Destroy
+release tmpdate
+select tmppost
+use
+erase tmppost.dbf
+dodefault()
+
+ENDPROC
+PROCEDURE Init
+dodefault()
+public tmpdate
+tmpdate =date()
+thisform.txtdate.valid
+thisform.txtdate.setfocus
+
+ENDPROC
+
+THISFORM
+InteractiveChange,
+kArial, 0, 8, 5, 14, 11, 12, 3, 0
+Comic Sans MS, 0, 7, 5, 13, 11, 11, 2, 0
+Arial, 0, 9, 5, 15, 12, 13, 3, 0
+
+
+frmopdpost
+optiongroup
+postcancelbtn
+ ..\..\common\class\baseclass.vcx
+commandgroup
+Postcancelbtn1
+
+frmopdpost
+Left = 192
+Top = 199
+Name = "Postcancelbtn1"
+cmdok.Top = 5
+cmdok.Left = 5
+cmdok.Name = "cmdok"
+cmdcancel.Top = 5
+cmdcancel.Left = 65
+cmdcancel.Name = "cmdcancel"
+
+tPROCEDURE cmdok.Click
+msgtype = 0
+select 0
+use ..\billsys\obil_mst
+set order to ds
+=CURSORSETPROP("Buffering", 5, "obil_mst")
+select 0
+use ..\billsys\obil_det
+=CURSORSETPROP("Buffering", 5, "obil_det")
+
+select 0
+use ..\billsys\ibil_mst
+set order to ds
+=CURSORSETPROP("Buffering", 5, "ibil_mst")
+select 0
+use ..\billsys\ibil_det
+=CURSORSETPROP("Buffering", 5, "ibil_det")
+
+select tmppost
+set relation to (left(type,1)+str(regno,7)) into register
+go top
+do while !eof()
+
+	if posted = ' ' OR REGISTER.BILLGEN
+		skip
+		loop
+	endif
+	select collect
+	seek tmppost.indentno
+	if type='OPD'
+		** Do not post if indent # already exists in billing
+		if seek(gcdept+tmppost.indentno,"obil_mst")
+			select tmppost
+			skip
+			msgtype = 2
+			loop
+		endi
+		msgtype = iif(msgtype <> 2,1,2)
+		**updating records in obil_mst.dbf from collect.dbf
+		append blank in obil_mst
+		replace ;
+			dept   	 with gcdept, ;
+			slipno 	 with collect.indentno, ; 
+			hos_code with collect.regno, ;
+			slipdt 	 with collect.date, ;
+			type	 with 'A', ;
+			ntotal	 with collect.total,;
+			stat	 with 'P' in obil_mst
+			
+		**updating records in obil_det.dbf from trans.dbf
+		select trans
+		seek collect.indentno
+		do while indentno = collect.indentno and !eof()
+			if empty(sid)
+				skip
+				loop
+			Endif
+			append blank in obil_det
+			replace ;
+				dept 	with gcdept, ;
+				slipno	with trans.indentno, ;
+				code 	with trans.sid, ;
+				qty		with 1, ;
+				rate	with trans.charges, ;			
+				namt	with trans.charges, ;
+				rid		with trans.rid, ;
+				flag	with 'B', ;
+				concode with trans.concode, ;
+				conpay  with iif(empty(trans.concode),0, ;
+							iif(!seek(collect.cid+trans.concode+trans.sid,"concomm"),0, ;
+								trans.charges-round((trans.charges*(concomm.hmcper/100)),2) )), ;
+				desc	with trans.sname in obil_det
+			
+			select trans
+			skip
+		Enddo
+	else
+		** Do not post if indent # already exists in billing
+		if seek(gcdept+tmppost.indentno,"ibil_mst")
+			select tmppost
+			skip
+			msgtype = 2
+			loop
+		endi
+		msgtype = iif(msgtype <> 2,1,2)
+		**updating records in ibil_mst.dbf from collect.dbf
+		append blank in ibil_mst
+		replace ;
+			dept   	 with gcdept, ;
+			slipno 	 with collect.indentno, ; 
+			hos_code with collect.regno, ;
+			slipdt 	 with collect.date, ;
+			type	 with 'A', ;
+			ntotal	 with collect.total,;
+			stat	 with 'P' in ibil_mst
+			
+		**updating records in ibil_det.dbf from trans.dbf
+		select trans
+		seek collect.indentno
+		do while indentno = collect.indentno and !eof()
+			if empty(sid)
+				skip
+				loop
+			Endif
+			append blank in ibil_det
+			replace ;
+				dept 	with gcdept, ;
+				slipno	with trans.indentno, ;
+				code 	with trans.sid, ;
+				qty		with 1, ;
+				rate	with trans.charges, ;			
+				namt	with trans.charges, ;
+				rid		with trans.rid, ;
+				flag	with 'B', ;
+				concode with trans.concode, ;
+				conpay  with iif(empty(trans.concode),0, ;
+							iif(!seek(collect.cid+trans.concode+trans.sid,"concomm"),0, ;
+								trans.charges-round((trans.charges*(concomm.hmcper/100)),2) )), ;
+				desc	with trans.sname in ibil_det
+			
+			select trans
+			skip
+		Enddo
+	endif
+
+	select collect
+	replace posted with 'P'
+		
+	select tmppost
+	skip
+Enddo
+select collect
+=tableupdate(1,.t.)
+
+select obil_mst
+=tableupdate(1,.t.)
+use
+
+select obil_det
+=tableupdate(1,.t.)
+use
+
+select ibil_mst
+=tableupdate(1,.t.)
+use
+
+select ibil_det
+=tableupdate(1,.t.)
+use
+do case 
+case msgtype = 1
+	wait wind nowait "Record Successfully Posted"
+case msgtype = 2
+	wait wind nowait "Some indents may not have been posted"
+endcase
+
+thisform.release
+
+ENDPROC
+
+THISFORM	
+LISTGRID1
+SETFOCUS
+THISFORM	
+LISTGRID1
+SETFOCUS
+THISFORM	
+LISTGRID1
+THISFORM	
+LISTGRID1
+INDENTNO
+THISFORM
+OPTTYPE	
+LISTGRID1
+RECORDSOURCE
+READONLY
+>PROCEDURE InteractiveChange
+thisform.txtdate.valid
+ENDPROC
+
+optiongroup
+
+frmopdpost
+
+cmduncheck
+commandbutton
+
+frmopdpost
+FontSize = 8
+Alignment = 3
+Value = 
+Format = "k"
+Height = 23
+Left = 108
+TabIndex = 7
+Top = 8
+Width = 71
+Comment = ""
+Name = "txtDate"
+
+iPROCEDURE Valid
+select collect
+tmpdate = this.value
+if used("tmppost")
+	use in tmppost
+endif
+set safety off
+if !empty(tmpdate)
+	select date,indentno,name,regno,total,type,posted from collect ;
+	where date=tmpdate and empty(posted) and ;
+		left(type,1) $ iif(thisform.opttype.value=3,'OI', ;
+					iif(thisform.opttype.value=2,'O','I')) ;
+		and !empty(regno) order by date,indentno into table tmppost
+else
+	select date,indentno,name,regno,total,type,posted from collect ;
+	where empty(posted) and ;
+		left(type,1) $ iif(thisform.opttype.value=3,'OI', ;
+					iif(thisform.opttype.value=2,'O','I')) ;
+		and !empty(regno) order by date,indentno into table tmppost
+endif
+set safety on
+thisform.listgrid1.recordsource = "tmppost"
+thisform.listgrid1.column1.width=57
+thisform.listgrid1.column2.width=77
+thisform.listgrid1.column3.width=134
+thisform.listgrid1.column4.width=63
+thisform.listgrid1.column5.width=54
+thisform.listgrid1.column6.width=29
+thisform.listgrid1.column7.width=46
+thisform.listgrid1.readonly=.t.
+thisform.listgrid1.refresh
+
+ENDPROC
+PROCEDURE Init
+this.value = date()-1
+
+
+ENDPROC
+
+tmppost.dbf
+THISFORM
+SETFOCUS
+Destroy,
+qButtonCount = 3
+Value = 3
+Height = 33
+Left = 225
+SpecialEffect = 0
+Top = 2
+Width = 216
+Name = "opttype"
+Option1.FontSize = 8
+Option1.Caption = "IPD"
+Option1.Value = 0
+Option1.Height = 17
+Option1.Left = 12
+Option1.Top = 8
+Option1.Width = 61
+Option1.Name = "Option1"
+Option2.FontSize = 8
+Option2.Caption = "OPD"
+Option2.Height = 17
+Option2.Left = 72
+Option2.Top = 8
+Option2.Width = 61
+Option2.Name = "Option2"
+Option3.FontSize = 8
+Option3.Caption = "Both"
+Option3.Value = 1
+Option3.Height = 17
+Option3.Left = 144
+Option3.Top = 8
+Option3.Width = 61
+Option3.Comment = "1"
+Option3.Name = "Option3"
+
+~PROCEDURE Click
+select tmppost
+replace posted with ' '
+thisform.listgrid1.refresh
+thisform.listgrid1.setfocus
+
+ENDPROC
+
+
+frmopdpost
+AutoSize = .T.
+FontBold = .F.
+FontSize = 8
+BackStyle = 0
+Caption = "US Indent Date"
+Left = 15
+Top = 13
+TabIndex = 6
+Name = "lblDate"
+
+listgrid
+ ..\..\common\class\baseclass.vcx
+	Listgrid1
+
+frmopdpost
+)ColumnCount = 7
+AllowHeaderSizing = .F.
+AllowRowSizing = .F.
+Height = 152
+Left = 8
+Panel = 1
+ReadOnly = .F.
+RecordSource = ""
+Top = 38
+Width = 498
+Name = "Listgrid1"
+Column1.FontSize = 8
+Column1.ControlSource = ""
+Column1.Width = 57
+Column1.ReadOnly = .F.
+Column1.Name = "Column1"
+Column2.FontSize = 8
+Column2.ControlSource = ""
+Column2.Width = 77
+Column2.ReadOnly = .F.
+Column2.Name = "Column2"
+Column3.FontSize = 8
+Column3.ControlSource = ""
+Column3.Width = 134
+Column3.ReadOnly = .F.
+Column3.Name = "Column3"
+Column4.FontSize = 8
+Column4.ControlSource = ""
+Column4.Width = 63
+Column4.ReadOnly = .F.
+Column4.Name = "Column4"
+Column5.ColumnOrder = 5
+Column5.ControlSource = ""
+Column5.Width = 54
+Column5.ReadOnly = .F.
+Column5.Name = "Column5"
+Column6.FontSize = 8
+Column6.ColumnOrder = 7
+Column6.ControlSource = ""
+Column6.Width = 46
+Column6.ReadOnly = .T.
+Column6.Sparse = .F.
+Column6.Name = "Column6"
+Column7.FontSize = 8
+Column7.ColumnOrder = 6
+Column7.Width = 29
+Column7.ReadOnly = .F.
+Column7.Name = "Column7"
+
+frmopdpost.Listgrid1.Column1
+2FontSize = 8
+Caption = "Date"
+Name = "Header1"
+
+frmopdpost.Listgrid1.Column1
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .F.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+frmopdpost.Listgrid1.Column2
+<FontSize = 8
+Caption = "Lab Indent No."
+Name = "Header1"
+
+frmopdpost.Listgrid1.Column2
+FontSize = 8
+BorderStyle = 0
+Format = ""
+InputMask = ""
+Margin = 0
+ReadOnly = .F.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+frmopdpost.Listgrid1.Column3
+:FontSize = 8
+Caption = "Patient Name"
+Name = "Header1"
+
+frmopdpost.Listgrid1.Column3
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .F.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+frmopdpost.Listgrid1.Column4
+6FontSize = 8
+Caption = "Reg. No."
+Name = "Header1"
+
+frmopdpost.Listgrid1.Column4
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .F.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+frmopdpost.Listgrid1.Column5
+3FontSize = 8
+Caption = "Total"
+Name = "Header1"
+
+frmopdpost.Listgrid1.Column5
+}BorderStyle = 0
+Margin = 0
+ReadOnly = .F.
+PasswordChar = "X"
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+frmopdpost.Listgrid1.Column6
+2FontSize = 8
+Caption = "Post"
+Name = "Header1"
+
+frmopdpost.Listgrid1.Column6
+wFontSize = 8
+BorderStyle = 0
+Margin = 0
+ReadOnly = .T.
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+frmopdpost.Listgrid1.Column7
+2FontSize = 8
+Caption = "Type"
+Name = "Header1"
+
+frmopdpost.Listgrid1.Column7
+gFontSize = 8
+BorderStyle = 0
+Margin = 0
+ForeColor = 0,0,0
+BackColor = 255,255,255
+Name = "Text1"
+
+commandbutton
+commandbutton
+cmdcheckall
+
+frmopdpost
+`Top = 120
+Left = 516
+Height = 24
+Width = 84
+Caption = "\<Select All"
+Name = "cmdcheckall"
+
+PROCEDURE Click
+select tmppost
+go top
+do while !eof()
+	replace posted with 'X'
+	skip
+enddo
+go top
+thisform.listgrid1.refresh
+
+ENDPROC
+
+]Top = 84
+Left = 516
+Height = 24
+Width = 84
+Caption = "De-Se\<lect"
+Name = "cmduncheck"
+
+commandbutton
+~PROCEDURE Click
+select tmppost
+replace posted with 'X'
+thisform.listgrid1.refresh
+thisform.listgrid1.setfocus
+
+ENDPROC
+
+
+frmopdpost
+cmdcheck
+commandbutton
+commandbutton
+cmduncheckall
+
+frmopdpost
+eTop = 144
+Left = 516
+Height = 24
+Width = 84
+Caption = "\<De-Select All"
+Name = "cmduncheckall"
+
+PROCEDURE Click
+select tmppost
+go top
+do while !eof()
+	replace posted with ' '
+	skip
+enddo
+
+go top
+thisform.listgrid1.refresh
+
+ENDPROC
+
+XTop = 60
+Left = 516
+Height = 24
+Width = 84
+Caption = "S\<elect"
+Name = "cmdcheck"
+
+commandbutton
+commandbutton
+..\billsys\obil_mst
+Buffering
+obil_mst
+..\billsys\obil_det
+Buffering
+obil_det
+..\billsys\ibil_mst
+Buffering
+ibil_mst
+..\billsys\ibil_det
+Buffering
+ibil_det
+obil_mst
+ibil_mst
+Record Successfully Posted
+Some indents may not have been posted
+REGISTER
+INDENTNO
+OBIL_MST
+HOS_CODE
+OBIL_DET
+IBIL_MST
+IBIL_DET
+THISFORM
+cmdok.Click,

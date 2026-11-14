@@ -15,6 +15,11 @@ namespace HmisWeb.Pages.Lab
     /// <summary>Resource wise Test Charges Report - VFP Labsys report lb0260.</summary>
     public class ResourceTestChargesReportModel : PageModel
     {
+        /// <summary>Mirror prefix of the laboratory bank on the shared services master.</summary>
+
+        private const string ItemPrefix = "INV-LB-";
+
+
         private readonly ApplicationDbContext _db;
         public ResourceTestChargesReportModel(ApplicationDbContext db) { _db = db; }
 
@@ -40,7 +45,8 @@ namespace HmisWeb.Pages.Lab
         private async Task LoadAsync()
         {
             var q = _db.ResourceServiceRates.Include(r => r.Resource).Include(r => r.Item)
-                .Where(r => !r.Retired && (r.Item.ItemType == ItemType.Investigation || r.Item.ItemType == ItemType.Service));
+                .Where(r => !r.Retired && (r.Item.ItemType == ItemType.Investigation || r.Item.ItemType == ItemType.Service)
+                && r.Item.Code.StartsWith(ItemPrefix));
             if (ResourceId.HasValue && ResourceId.Value > 0) q = q.Where(r => r.ResourceId == ResourceId.Value);
             Items = await q.OrderBy(r => r.Resource.Name).ThenBy(r => r.Item.Name).ToListAsync();
             ResourceList = await _db.Resources.Where(r => !r.Retired).OrderBy(r => r.Name)

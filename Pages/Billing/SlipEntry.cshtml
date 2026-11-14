@@ -68,7 +68,7 @@
                     {
                         <tr>
                             <td class="fw-semibold">@(isInward ? e.BhtNo : (e.ReferenceNo ?? e.Id.ToString()))</td>
-                            <td>@(e.Patient?.Person?.NameWithInitials ?? e.Patient?.Person?.Name)</td>
+                            <td>@HmisWeb.Services.PatientDisplayName.Of(e.Patient)</td>
                             <td>@e.Patient?.Phn</td>
                             <td>@e.Patient?.Person?.Nic</td>
                             <td>@((e.DateOfAdmission ?? e.EncounterDate ?? e.CreatedAt)?.ToString("yyyy-MM-dd"))</td>
@@ -105,7 +105,7 @@ else
         <div class="card-body py-2 d-flex flex-wrap align-items-center gap-3">
             <div><span class="text-secondary small">@(isInward ? "BHT No." : "Reg. No."):</span> <span class="fw-semibold">@(isInward ? Model.Encounter.BhtNo : (Model.Encounter.ReferenceNo ?? Model.Encounter.Id.ToString()))</span></div>
             <div><span class="text-secondary small">Patient Code:</span> <span class="fw-semibold">@(Model.Encounter.Patient?.Code ?? Model.Encounter.Patient?.Phn)</span></div>
-            <div><span class="text-secondary small">Name:</span> <span class="fw-semibold">@(Model.Encounter.Patient?.Person?.NameWithInitials ?? Model.Encounter.Patient?.Person?.Name)</span></div>
+            <div><span class="text-secondary small">Name:</span> <span class="fw-semibold">@HmisWeb.Services.PatientDisplayName.Of(Model.Encounter.Patient)</span></div>
             @if (!string.IsNullOrEmpty(Model.Encounter.CreditCompany?.Name))
             {
                 <div><span class="text-secondary small">Company:</span> <span class="fw-semibold">@Model.Encounter.CreditCompany.Name</span></div>

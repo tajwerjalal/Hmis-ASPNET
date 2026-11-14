@@ -24,7 +24,7 @@
                 <div class="card-body">
                     <table class="table table-sm mb-0">
                         <tbody>
-                            <tr><th class="w-25">Name</th><td>@(Model.Patient.Person?.NameWithInitials ?? Model.Patient.Person?.Name ?? "-")</td></tr>
+                            <tr><th class="w-25">Name</th><td>@HmisWeb.Services.PatientDisplayName.Of(Model.Patient)</td></tr>
                             <tr><th>Full Name</th><td>@(Model.Patient.Person?.Name ?? "-")</td></tr>
                             <tr><th>Age</th><td>@(Model.Patient.Person?.GetAgeString() ?? "-")</td></tr>
                             <tr><th>Date of Birth</th><td>@(Model.Patient.Person?.Dob?.ToString("dd MMM yyyy") ?? "-")</td></tr>

@@ -12,7 +12,35 @@
 
 @if (!string.IsNullOrEmpty(Model.Success))
 {
-    <div class="alert alert-success py-2"><i class="bi bi-check-circle me-1"></i>@Model.Success</div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            if (typeof swal !== 'undefined') {
+                swal.fire({ title: 'Indent Saved', text: '@Html.Raw(Model.Success)', icon: 'success', confirmButtonText: 'OK', customClass: { popup: 'hmis-swal' } });
+            } else if (typeof Swal !== 'undefined') {
+                Swal.fire({ title: 'Indent Saved', text: '@Html.Raw(Model.Success)', icon: 'success', confirmButtonText: 'OK', customClass: { popup: 'hmis-swal' } });
+            }
+        });
+    </script>
+    <div class="alert alert-success py-2 d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-check-circle me-1"></i>@Model.Success</span>
+        @if (TempData["IndentPrintUrl"] != null)
+        {
+            <a href="@TempData["IndentPrintUrl"]" target="_blank" class="btn btn-sm btn-outline-light text-success border-success"><i class="bi bi-printer me-1"></i>Print slip for cashier</a>
+        }
+    </div>
+}
+@if (TempData["IndentPrintUrl"] != null && TempData["IndentIsIPD"]?.ToString() == "0")
+{
+    <script>
+        (function () {
+            var printUrl = '@TempData["IndentPrintUrl"]';
+            var cashierUrl = '/Cashier/Receipt?Id=@TempData["IndentBillId"]&Tab=unpaid';
+            window.open(printUrl, '_blank', 'width=900,height=1200');
+            setTimeout(function () {
+                window.location.href = cashierUrl;
+            }, 800);
+        })();
+    </script>
 }
 @if (!string.IsNullOrEmpty(Model.Message))
 {
@@ -25,7 +53,7 @@
         <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
             <span><i class="bi bi-file-earmark-text me-1"></i>Lab Service Invoice - Ready for Cashier</span>
             <div class="d-flex gap-2">
-                <a asp-page-handler="PrintInvoice" asp-route-billId="@Model.Invoice.BillId" class="btn btn-light btn-sm" target="_blank">
+                <a href="/Lab/Invoice?billId=@Model.Invoice.BillId&format=thermal&print=1" class="btn btn-light btn-sm" target="_blank">
                     <i class="bi bi-printer me-1"></i>Print Invoice
                 </a>
                 <a asp-page="/Cashier/Receipt" class="btn btn-warning btn-sm">
@@ -101,12 +129,14 @@
     </div>
 }
 
+<partial name="_LabIndentHistory" model="Model" />
+
 @if (Model.SelectedPatient == null)
 {
     <div class="d-flex justify-content-between align-items-center mb-2 gap-2">
         <h6 class="mb-0 fw-semibold"><i class="bi bi-search me-1"></i>Find Patient</h6>
         <div class="d-flex gap-2">
-            <a href="javascript:void(0)" onclick="toggleNewPatient(true)" class="btn btn-sm btn-outline-success"><i class="bi bi-person-plus me-1"></i>Add New Patient</a>
+            <a href="@Url.Page("/Opd/Registration", new { returnUrl = "/lab/Indent", newPatient = true })" class="btn btn-sm btn-outline-success"><i class="bi bi-person-plus me-1"></i>Add New Patient</a>
             <form method="post" asp-page-handler="StartNew">
                 @Html.AntiForgeryToken()
                 <button type="submit" class="btn btn-sm btn-outline-secondary" title="Start a fresh indent / give an empty list"><i class="bi bi-file-earmark-plus me-1"></i>New Indent</button>
@@ -119,7 +149,7 @@
         <div class="card-body">
             <div class="row g-2 align-items-end">
                 <div class="col-md-8">
-                    <input asp-for="PatientSearch" class="form-control" placeholder="PHN, Patient/Mobile/NIC, Name (complete search)..." autofocus />
+                    <input asp-for="PatientSearch" class="form-control" placeholder="Reg No, name, PHN / patient code, phone (1, 2 or 3)..." autofocus />
                 </div>
                 <div class="col-md-4">
                     <button type="submit" class="btn btn-primary w-100"><i class="bi bi-search me-1"></i>Search</button>
@@ -158,24 +188,25 @@
         </div>
     </div>
 
-    @if (Model.PatientResults.Any())
+    @if (Model.SearchResults.Any())
     {
         <div class="card mb-3"><div class="card-body p-0">
             <table class="table table-hover mb-0 align-middle"><thead class="table-light"><tr>
-                <th>Patient ID</th><th>PHN</th><th>Name</th><th>Sex</th><th>Mobile</th><th>NIC</th><th></th>
+                <th>Reg No</th><th>Reg date</th><th>Type</th><th>Name</th><th>Age / Sex</th><th>Phone</th><th></th>
             </tr></thead><tbody>
-            @foreach (var p in Model.PatientResults)
+            @foreach (var p in Model.SearchResults)
             {
                 <tr>
-                    <td>@p.Id</td>
-                    <td>@(p.Phn ?? "-")</td>
-                    <td>@(p.Person?.NameWithInitials ?? p.Person?.Name ?? "Unnamed")</td>
-                    <td>@(p.Person?.Sex?.ToString() ?? "-")</td>
-                    <td>@(p.Person?.Mobile ?? "-")</td>
-                    <td>@(p.Person?.Nic ?? "-")</td>
+                    <td class="fw-semibold">@(p.RegNo ?? "-")</td>
+                    <td>@(p.RDate?.ToString("dd MMM yyyy") ?? "-") @p.RTime</td>
+                    <td>@(p.TypeText ?? "-")</td>
+                    <td>@(p.Name ?? "-")</td>
+                    <td>@(p.Age ?? "-") / @(p.Sex ?? "-")</td>
+                    <td>@(string.IsNullOrWhiteSpace(p.Phone) ? "-" : p.Phone)</td>
                     <td class="text-end">
                         <form method="post" asp-page-handler="SelectPatient">
-                            <input type="hidden" name="SelectedPatientId" value="@p.Id" />
+                            <input type="hidden" name="SelectedPatientId" value="@p.PatientAppId" />
+                            <input type="hidden" name="SelectedRegNo" value="@p.RegNo" />
                             @Html.AntiForgeryToken()
                             <button type="submit" class="btn btn-sm btn-outline-primary">Select</button>
                         </form>
@@ -185,11 +216,11 @@
         </div></div>
     }
 
-    @if (!Model.PatientResults.Any() && !string.IsNullOrEmpty(Model.PatientSearch))
+    @if (!Model.SearchResults.Any() && !string.IsNullOrEmpty(Model.PatientSearch))
     {
         <div class="alert alert-info py-2">
             <i class="bi bi-info-circle me-1"></i>No patient found for "<b>@Model.PatientSearch</b>".
-            <a href="javascript:void(0)" onclick="toggleNewPatient(true)" class="fw-semibold text-decoration-underline">Add a new walk-in patient?</a>
+            <a href="@Url.Page("/Opd/Registration", new { returnUrl = "/lab/Indent", newPatient = true })" class="fw-semibold text-decoration-underline">Add a new walk-in patient?</a>
         </div>
     }
 }
@@ -237,8 +268,8 @@ else
                     <div class="row g-3 align-items-center">
                         <div class="col-md-5">
                             <div class="text-secondary small fw-bold text-uppercase">Patient</div>
-                            <div class="fw-semibold fs-5">@(Model.SelectedPatient.Person?.NameWithInitials ?? "Unnamed")</div>
-                            <small class="text-secondary">PHN: @(Model.SelectedPatient.Phn ?? "-")</small>
+                            <div class="fw-semibold fs-5">@HmisWeb.Services.PatientDisplayName.Of(Model.SelectedPatient)</div>
+                            <small class="text-secondary">Reg No: @(string.IsNullOrWhiteSpace(Model.SelectedRegNo) ? "-" : Model.SelectedRegNo)@(!string.IsNullOrWhiteSpace(Model.SelectedPatient.Phn) ? $" · PHN: {Model.SelectedPatient.Phn}" : "")</small>
                         </div>
                         <div class="col-md-7 text-end">
                             <div class="d-flex gap-2 justify-content-end">
@@ -256,6 +287,7 @@ else
                             </div>
                         </div>
                     </div>
+                    <partial name="_LegacyPatientInfo" model="Model.LegacyPatient" />
                     @if (Model.ActiveEncounters.Any())
                     {
                         <hr class="my-2" />
@@ -289,39 +321,11 @@ else
 
             <div class="card mb-3">
                 <div class="card-header bg-white fw-semibold"><i class="bi bi-search me-1 text-primary"></i>Add Lab Services</div>
-                <div class="card-body">
-                    <form method="post" asp-page-handler="SearchItems" class="input-group">
-                        @Html.AntiForgeryToken()
-                        @* Department is auto-selected to Laboratory *@
-                        <span class="form-control-plaintext text-secondary small d-flex align-items-center" style="max-width:220px;">
-                            <i class="bi bi-flask me-1"></i> Laboratory
-                        </span>
-                        <input type="hidden" name="DepartmentId" value="@Model.LabDepartment?.Id" />
-                        <input asp-for="ItemSearch" class="form-control" placeholder="Search investigations or services..." />
-                        <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i></button>
-                    </form>
-                    @if (Model.ItemResults.Any())
-                    {
-                        <div class="mt-2">
-                            @foreach (var item in Model.ItemResults)
-                            {
-                                <form method="post" asp-page-handler="AddItem" class="mb-1">
-                                    <input type="hidden" name="ItemSearch" value="@Model.ItemSearch" />
-                                    <input type="hidden" name="SelectedItemId" value="@item.Id" />
-                                    <input type="hidden" name="DepartmentId" value="@Model.LabDepartment?.Id" />
-                                    @Html.AntiForgeryToken()
-                                    <div class="d-flex justify-content-between align-items-center p-1 border-bottom">
-                                        <div>
-                                            <span class="badge bg-@(item.ItemType==ItemType.Investigation?"info":"success") text-white me-1" style="font-size:.65rem;">@(item.ItemType==ItemType.Investigation?"INV":"SVC")</span>
-                                            <span class="fw-semibold small">@item.Name</span>
-                                            <small class="text-secondary ms-1">@((item.Total ?? 0).ToString("N2"))</small>
-                                        </div>
-                                        <button type="submit" class="btn btn-sm btn-outline-success"><i class="bi bi-plus-lg"></i></button>
-                                    </div>
-                                </form>
-                            }
-                        </div>
-                    }
+                <div class="card-body text-center py-4">
+                    <button type="button" class="btn btn-primary px-4" data-bs-toggle="modal" data-bs-target="#itemModal">
+                        <i class="bi bi-plus-lg me-1"></i>Add Test / Service
+                    </button>
+                    <span class="text-secondary small ms-2">Opens a search popup to add investigations / services.</span>
                 </div>
             </div>
 
@@ -424,8 +428,13 @@ else
                         </div>
 
                         <button type="submit" class="btn btn-success w-100 px-4 mt-3"
-                                disabled="@(!Model.DisplayCart.Any())">
-                            <i class="bi bi-save me-1"></i>Save Lab Indent
+                                disabled="@(!Model.DisplayCart.Any())" title="Save the indent as an UNPAID OPD bill (payment slip to cashier)">
+                            <i class="fa-solid fa-floppy-disk"></i> Save
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary w-100 px-4 mt-3"
+                                disabled="@(!Model.HasSavedIndent)" title="@(Model.HasSavedIndent ? "Open the cashier payment slip for the saved indent (UNPAID)." : "Save the indent first to print the payment slip.")"
+                                onclick="window.open('/Lab/Invoice?billId=@(Model.LastBillId ?? 0)&format=thermal&print=1', '_blank');">
+                            <i class="fa-solid fa-print me-1"></i> Print
                         </button>
                         @if (!Model.DisplayCart.Any())
                         {
@@ -438,11 +447,90 @@ else
     </div>
 }
 
+<!-- ADD TEST / SERVICE MODAL -->
+<div class="modal fade" id="itemModal" tabindex="-1" aria-labelledby="itemModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-white">
+                <h5 class="modal-title fw-semibold" id="itemModalLabel">Add Lab Test / Service</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                @* Search form *@
+                <form method="get" asp-page-handler="SearchItems" class="mb-3">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="DepartmentId" value="@Model.LabDepartment?.Id" />
+                    <div class="input-group">
+                        <span class="input-group-text bg-white"><i class="bi bi-search text-secondary"></i></span>
+                        <input asp-for="ItemSearch" class="form-control" placeholder="Search investigations or services..." />
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i></button>
+                    </div>
+                </form>
+
+                @if (Model.DeptServiceResults.Any())
+                {
+                    <div class="table-responsive" style="max-height: 380px; overflow-y: auto;">
+                        <table class="table table-sm table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Test / Service</th>
+                                    <th class="text-end" style="width:130px;">Rate</th>
+                                    <th style="width:120px;"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var svc in Model.DeptServiceResults)
+                                {
+                                    <tr>
+                                        <td>
+                                            <span class="badge bg-info text-white me-1" style="font-size:.65rem;">LAB</span>
+                                            <span class="fw-semibold small">@svc.Name</span>
+                                            <small class="text-secondary ms-1 d-block">Code: @svc.Code</small>
+                                        </td>
+                                        <td class="text-end small">@((svc.Rate ?? 0).ToString("N2"))</td>
+                                        <td class="text-end">
+                                            <form method="post" asp-page-handler="AddItem" class="d-inline">
+                                                <input type="hidden" name="ItemSearch" value="@Model.ItemSearch" />
+                                                <input type="hidden" name="SelectedItemId" value="@svc.Id" />
+                                                @Html.AntiForgeryToken()
+                                                <button type="submit" class="btn btn-sm btn-outline-success"><i class="bi bi-plus-lg"></i> Add</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                @if (Model.OpenItemModal && !Model.DeptServiceResults.Any() && !string.IsNullOrEmpty(Model.ItemSearch))
+                {
+                    <div class="text-center text-secondary py-3">No matching lab tests / services found.</div>
+                }
+                @if (!Model.OpenItemModal && !Model.DeptServiceResults.Any())
+                {
+                    <div class="text-center text-secondary py-3">Click <strong>Add Test / Service</strong> to browse laboratory tests.</div>
+                }
+            </div>
+            <div class="modal-footer border-0 bg-white">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <script>
         function toggleNewPatient(open) {
             var el = document.getElementById('newPatientSection');
             if (el) { el.style.display = open ? '' : 'none'; }
+        }
+
+        @if (Model.OpenItemModal)
+        {
+            <text>
+                var itemModal = new bootstrap.Modal(document.getElementById('itemModal'));
+                itemModal.show();
+            </text>
         }
     </script>
 }

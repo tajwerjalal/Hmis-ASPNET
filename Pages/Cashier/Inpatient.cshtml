@@ -104,7 +104,7 @@
                 <div class="row g-3 mb-3">
                     <div class="col-md-6">
                         <div class="text-secondary small fw-bold text-uppercase">Patient</div>
-                        <div class="fw-semibold fs-5">@(Model.Encounter.Patient?.Person?.NameWithInitials ?? "Unnamed")</div>
+                        <div class="fw-semibold fs-5">@HmisWeb.Services.PatientDisplayName.Of(Model.Encounter.Patient)</div>
                         <small class="text-secondary">PHN: @(Model.Encounter.Patient?.Phn ?? "-") &middot; BHT: @(Model.Encounter.BhtNo ?? "-")</small>
                     </div>
                     <div class="col-md-2">
@@ -196,7 +196,7 @@
                                 data-bs-toggle="modal" data-bs-target="#payModalInp"
                                 data-encounter-id="@Model.Encounter.Id"
                                 data-bht="@(Model.Encounter.BhtNo ?? "#" + Model.Encounter.Id)"
-                                data-patient="@(Model.Encounter.Patient?.Person?.NameWithInitials ?? "Unnamed")"
+                                data-patient="@HmisWeb.Services.PatientDisplayName.Of(Model.Encounter.Patient)"
                                 data-phn="@(Model.Encounter.Patient?.Phn ?? "-")"
                                 data-department="@(Model.Encounter.Department?.Name ?? "-")"
                                 data-amount="@Model.BalanceDue.ToString("0.00")">

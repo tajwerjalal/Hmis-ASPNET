@@ -10,7 +10,7 @@ using HmisWeb.Services;
 
 namespace HmisWeb.Pages.Us
 {
-    public class ServicesModel : PageModel
+    public class ServicesModel : HmisWeb.Pages.Shared.PagedPageModel
     {
         private readonly ApplicationDbContext _db;
         private readonly IAppSession _appSession;
@@ -113,9 +113,11 @@ namespace HmisWeb.Pages.Us
                 );
             }
 
-            Services = await query
+            TotalCount = await query.CountAsync();
+            ClampPaging();
+            Services = await ApplyPaging(query
                 .OrderBy(s => s.Code)
-                .ThenBy(s => s.Name)
+                .ThenBy(s => s.Name))
                 .ToListAsync();
         }
     }

@@ -1,43 +1,104 @@
-@model HmisWeb.Pages.Shared.PagerModel
+@model HmisWeb.Pages.Shared.IPagedGrid
 @{
-    var path = ViewContext.RouteData.Values["page"]?.ToString();
+    // Rebuild the current query string minus the paging parameters, so the
+    // pager keeps every filter of the page it sits on (search, status,
+    // department, layout mode, ...). The canonical key is "PageNumber"
+    // ("page" cannot be used - it is the reserved Razor Pages route value),
+    // and the legacy "Pg" key is emitted too so the older billing screens
+    // keep their behaviour.
     var q = Context.Request.Query
-        .Where(kv => !string.Equals(kv.Key, "pg", System.StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(kv.Value.ToString()))
-        .ToDictionary(kv => kv.Key, kv => kv.Value.ToString());
-    Dictionary<string, string> Link(int p)
+        .Where(kv => !string.Equals(kv.Key, "pagenumber", StringComparison.OrdinalIgnoreCase)
+                  && !string.Equals(kv.Key, "pg", StringComparison.OrdinalIgnoreCase)
+                  && !string.Equals(kv.Key, "pagesize", StringComparison.OrdinalIgnoreCase))
+        .Select(kv => Uri.EscapeDataString(kv.Key) + "=" + Uri.EscapeDataString(kv.Value.ToString()))
+        .ToList();
+
+    Func<int, int, string> link = (page, size) =>
     {
-        var d = new Dictionary<string, string>(q);
-        d["pg"] = p.ToString();
-        return d;
-    }
-    var windowStart = System.Math.Max(1, Model.PageIndex - 3);
-    var windowEnd = System.Math.Min(Model.TotalPages, windowStart + 6);
-    windowStart = System.Math.Max(1, windowEnd - 6);
-    var from = Model.TotalCount == 0 ? 0 : ((Model.PageIndex - 1) * Model.PageSize) + 1;
-    var to = System.Math.Min(Model.PageIndex * Model.PageSize, Model.TotalCount);
+        var parts = q.ToList();
+        var no = Math.Max(1, page);        // a disabled Prev link must not emit page 0
+        parts.Add("PageNumber=" + no);
+        parts.Add("Pg=" + no);
+        parts.Add("PageSize=" + size);
+        return "?" + string.Join("&", parts);
+    };
+
+    var window = 2;                       // pages shown around the current one
+    var current = Model.Page;
+    var start = Math.Max(1, current - window);
+    var end = Math.Min(Model.TotalPages, current + window);
 }
+
 @if (Model.TotalCount > 0)
 {
-    <div class="d-flex flex-wrap justify-content-between align-items-center px-3 py-2 border-top bg-white">
-        <div class="text-secondary small">Showing @from&ndash;@to of @Model.TotalCount</div>
-        @if (Model.TotalPages > 1)
-        {
-            <nav aria-label="pagination">
-                <ul class="pagination pagination-sm mb-0">
-                    <li class="page-item @(Model.PageIndex <= 1 ? "disabled" : "")">
-                        <a class="page-link" asp-page="@path" asp-all-route-data="Link(Model.PageIndex - 1)">&laquo;</a>
-                    </li>
-                    @for (var p = windowStart; p <= windowEnd; p++)
+    <div class="card mt-2">
+        <div class="card-body py-2 d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div class="text-secondary small">
+                Showing <strong>@Model.FirstRow</strong>&ndash;<strong>@Model.LastRow</strong>
+                of <strong>@Model.TotalCount</strong> row(s) &middot; page @current of @Model.TotalPages
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <form method="get" class="d-flex align-items-center gap-2">
+                    @foreach (var kv in Context.Request.Query)
                     {
-                        <li class="page-item @(p == Model.PageIndex ? "active" : "")">
-                            <a class="page-link" asp-page="@path" asp-all-route-data="Link(p)">@p</a>
-                        </li>
+                        if (!string.Equals(kv.Key, "pagenumber", StringComparison.OrdinalIgnoreCase)
+                            && !string.Equals(kv.Key, "pg", StringComparison.OrdinalIgnoreCase)
+                            && !string.Equals(kv.Key, "pagesize", StringComparison.OrdinalIgnoreCase))
+                        {
+                            <input type="hidden" name="@kv.Key" value="@kv.Value" />
+                        }
                     }
-                    <li class="page-item @(Model.PageIndex >= Model.TotalPages ? "disabled" : "")">
-                        <a class="page-link" asp-page="@path" asp-all-route-data="Link(Model.PageIndex + 1)">&raquo;</a>
-                    </li>
-                </ul>
-            </nav>
-        }
+                    <input type="hidden" name="PageNumber" value="@current" />
+                    <input type="hidden" name="Pg" value="@current" />
+                    <label class="text-secondary small mb-0">Rows</label>
+                    <select name="PageSize" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit();">
+                        @foreach (var size in new[] { 25, 50, 100, 200 })
+                        {
+                            if (Model.PageSize == size)
+                            {
+                                <option value="@size" selected>@size</option>
+                            }
+                            else
+                            {
+                                <option value="@size">@size</option>
+                            }
+                        }
+                    </select>
+                </form>
+                <nav aria-label="Page navigation">
+                    <ul class="pagination pagination-sm mb-0">
+                        <li class="page-item @(Model.HasPrevious ? "" : "disabled")">
+                            <a class="page-link" href="@link(current - 1, Model.PageSize)">Prev</a>
+                        </li>
+                        @if (start > 1)
+                        {
+                            <li class="page-item"><a class="page-link" href="@link(1, Model.PageSize)">1</a></li>
+                            @if (start > 2)
+                            {
+                                <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+                            }
+                        }
+                        @for (var p = start; p <= end; p++)
+                        {
+                            var pageNo = p;
+                            <li class="page-item @(pageNo == current ? "active" : "")">
+                                <a class="page-link" href="@link(pageNo, Model.PageSize)">@pageNo</a>
+                            </li>
+                        }
+                        @if (end < Model.TotalPages)
+                        {
+                            @if (end < Model.TotalPages - 1)
+                            {
+                                <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+                            }
+                            <li class="page-item"><a class="page-link" href="@link(Model.TotalPages, Model.PageSize)">@Model.TotalPages</a></li>
+                        }
+                        <li class="page-item @(Model.HasNext ? "" : "disabled")">
+                            <a class="page-link" href="@link(current + 1, Model.PageSize)">Next</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
     </div>
 }

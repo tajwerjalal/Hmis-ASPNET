@@ -12,7 +12,7 @@ namespace HmisWeb.Pages.Cashier
     /// and moves all un-posted receipts/payments of the counter's company+line into
     /// the posted history (CHIST/CHISTDET), stamping a day-end voucher number.
     /// </summary>
-    public class DayEndPostingModel : PageModel
+    public class DayEndPostingModel : CashierPageModel
     {
         private readonly ApplicationDbContext _db;
         private readonly IAppSession _session;
@@ -31,8 +31,7 @@ namespace HmisWeb.Pages.Cashier
         {
             var dept = _session.LoggedDepartment;
             if (dept == null) { ErrorMessage = "No department selected."; return; }
-            var session = await _db.CashCounterSessions
-                .FirstOrDefaultAsync(s => s.CCode == (dept.Code ?? "") && s.LCode == dept.Id && s.Status == "A");
+            var session = await CashierPageModel.FindOpenCounterAsync(_db, HttpContext, _session.LoggedUser?.UserName, dept.Id);
             if (session == null) ErrorMessage = "No active counter for this department.";
         }
 
@@ -41,13 +40,13 @@ namespace HmisWeb.Pages.Cashier
             ErrorMessage = ""; Success = "";
             var dept = _session.LoggedDepartment;
             if (dept == null) { ErrorMessage = "No department selected."; return Page(); }
+            var userName = _session.LoggedUser?.UserName ?? "";
             var ccode = dept.Code ?? "";
-            var lcode = dept.Id;
+            var lcode = (int)dept.Id;
 
-            // Idempotency: counter already closed?
-            var counter = await _db.CashCounterSessions
-                .FirstOrDefaultAsync(s => s.CCode == ccode && s.LCode == lcode);
-            if (counter == null) { ErrorMessage = "Counter session not found."; return Page(); }
+            // The open-counter guard has already run; resolve the same counter row.
+            var counter = await CashierPageModel.FindOpenCounterAsync(_db, HttpContext, userName, dept.Id);
+            if (counter == null) { ErrorMessage = "No open counter found for this user."; return Page(); }
             if (counter.Status == "C")
             {
                 ErrorMessage = "Your default counter has already been closed.";
@@ -176,6 +175,7 @@ namespace HmisWeb.Pages.Cashier
             }
 
             await _db.SaveChangesAsync();
+            HttpContext.Session.Remove(CashierPageModel.CounterSessionKey);
 
             Success = "Day-end posted. Voucher No: " + vouNo + ". Receipts: " + receipts.Count +
                       ", Payments: " + payments.Count + ".";

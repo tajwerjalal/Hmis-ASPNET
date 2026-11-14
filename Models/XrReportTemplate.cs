@@ -43,7 +43,7 @@ namespace HmisWeb.Models
         public long? EditerId { get; set; }
         public DateTime? EditedAt { get; set; }
 
-        public virtual XrService? XrService { get; set; }
+        public virtual DeptService? XrService { get; set; }
         public virtual WebUser? Creater { get; set; }
         public virtual WebUser? Editer { get; set; }
     }

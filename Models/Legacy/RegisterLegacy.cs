@@ -132,7 +132,17 @@ namespace HmisWeb.Models.Legacy
         [MaxLength(8)]
         public string UTime { get; set; }
 
-        // ---- added by migration 01 (nullable, legacy imports untouched) ----
+        [Column("CUSERID")]
+        [MaxLength(15)]
+        public string CUserId { get; set; }
+
+        [Column("CDATE")]
+        [MaxLength(100)]
+        public string CDate { get; set; }
+
+        [Column("CTIME")]
+        [MaxLength(5)]
+        public string CTime { get; set; }
 
         /// <summary>0 Admitted | 1 Discharged | 2 Bill Updating | 3 Bill Generated | 4 Settled.</summary>
         public byte? BillStatus { get; set; }

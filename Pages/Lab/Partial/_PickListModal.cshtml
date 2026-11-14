@@ -1,0 +1,32 @@
+@*
+    ============================================================================
+    File........: Pages/Lab/Partial/_PickListModal.cshtml
+    Purpose.....: Generic Bootstrap modal used by every Insert-key pick list
+                  (remarks, result choices, organisms, growth remarks and the
+                  medicine search).
+    Inputs......: Filled at runtime by lab-testresult.js (title, items, target
+                  input, error message).
+    Outputs.....: Clicking an item writes the selected text into the input that
+                  opened the modal.
+    Business
+      rules.....: 1. When a list is empty the modal shows the legacy error text
+                     ("No Remarks Available", "No default results available").
+                  2. The modal is reused; the target input is tracked in JS.
+    Developer...: Tajwer Jalal
+    Date/Time...: 2026-11-02 11:27
+    ============================================================================
+*@
+<div class="modal fade" id="pickListModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header py-2">
+                <h6 class="modal-title" id="pickListTitle">Select</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="pickListMessage" class="alert alert-danger py-2 small" style="display:none"></div>
+                <div class="list-group list-group-flush" id="pickListItems"></div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -18,8 +18,13 @@ namespace HmisWeb.Pages.Lab
     /// Mirrors VFP Labsys form <c>lb0340</c>; stored in <see cref="CompanyServiceRate"/>,
     /// scoped here to laboratory tests.
     /// </summary>
-    public class CompanyTestChargesSetupModel : PageModel
+    public class CompanyTestChargesSetupModel : Pages.Shared.PagedPageModel
     {
+        /// <summary>Mirror prefix of the laboratory bank on the shared services master.</summary>
+
+        private const string ItemPrefix = "INV-LB-";
+
+
         private readonly ApplicationDbContext _db;
         private readonly IAppSession _session;
 
@@ -72,25 +77,76 @@ namespace HmisWeb.Pages.Lab
             }
             else
             {
-                var existing = await _db.CompanyServiceRates.FirstOrDefaultAsync(r => !r.Retired && r.CompanyId == Input.CompanyId && r.ItemId == Input.ItemId);
+                // The legacy key of a company charge is company code + service
+                // code + department. It is the key the rate card and billing
+                // read, and the filtered unique index allows only one live row
+                // per key - so resolve it before adding anything (a row written
+                // with empty codes is invisible everywhere and blocks the next
+                // insert).
+                var companyCode = await _db.Institutions
+                    .Where(i => i.Id == Input.CompanyId.Value)
+                    .Select(i => i.Code)
+                    .FirstOrDefaultAsync();
+
+                var itemCode = await _db.Items
+                    .Where(i => i.Id == Input.ItemId.Value)
+                    .Select(i => i.Code)
+                    .FirstOrDefaultAsync();
+
+                var serviceCode = !string.IsNullOrWhiteSpace(itemCode)
+                                  && itemCode.StartsWith(ItemPrefix, StringComparison.OrdinalIgnoreCase)
+                    ? itemCode.Substring(ItemPrefix.Length).Trim()
+                    : null;
+
+                if (string.IsNullOrWhiteSpace(companyCode) || string.IsNullOrWhiteSpace(serviceCode))
+                {
+                    TempData["CtcError"] = "The selected company or test has no legacy code, so the charge cannot be stored.";
+                    return RedirectToPage(new { CompanyId });
+                }
+
+                var existing = await _db.CompanyServiceRates.FirstOrDefaultAsync(r => !r.Retired
+                    && r.CompanyCode == companyCode
+                    && r.ServiceCode == serviceCode
+                    && (r.DEPT ?? "") == DeptServiceScopes.LabDept);
+
                 if (existing != null)
                 {
-                    existing.Rate = Input.Rate; existing.StaffRate = Input.StaffRate; existing.UnitRate = Input.UnitRate;
-                    existing.DiscountPercent = Input.DiscountPercent; existing.EditerId = _session.WebUserId; existing.EditedAt = now;
+                    existing.CompanyId = Input.CompanyId; existing.ItemId = Input.ItemId;
+                    existing.Rate = Input.Rate; existing.StaffRate = Input.StaffRate;
+                    existing.UnitRate = Input.UnitRate; existing.DiscountPercent = Input.DiscountPercent;
+                    existing.EditerId = _session.WebUserId; existing.EditedAt = now;
                     TempData["CtcSuccess"] = "Existing charge updated.";
                 }
                 else
                 {
                     _db.CompanyServiceRates.Add(new CompanyServiceRate
                     {
-                        CompanyId = Input.CompanyId, ItemId = Input.ItemId, Rate = Input.Rate,
-                        StaffRate = Input.StaffRate, UnitRate = Input.UnitRate, DiscountPercent = Input.DiscountPercent,
-                        CreaterId = _session.WebUserId, CreatedAt = now
+                        CompanyId = Input.CompanyId,
+                        ItemId = Input.ItemId,
+                        CompanyCode = companyCode,
+                        ServiceCode = serviceCode,
+                        DEPT = DeptServiceScopes.LabDept,
+                        Rate = Input.Rate,
+                        StaffRate = Input.StaffRate,
+                        UnitRate = Input.UnitRate,
+                        DiscountPercent = Input.DiscountPercent,
+                        CreaterId = _session.WebUserId,
+                        CreatedAt = now,
+                        Retired = false
                     });
                     TempData["CtcSuccess"] = "Company test charge added.";
                 }
             }
-            await _db.SaveChangesAsync();
+
+            try
+            {
+                await _db.SaveChangesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                // one live rate per company + test + department
+                TempData["CtcError"] = "That company already has a live charge for this test.";
+            }
             return RedirectToPage(new { CompanyId });
         }
 
@@ -112,18 +168,29 @@ namespace HmisWeb.Pages.Lab
                 .Select(i => new SelectListItem { Value = i.Id.ToString(), Text = i.Name }).ToListAsync();
 
             TestList = await _db.Items
-                .Where(i => !i.Retired && (i.ItemType == ItemType.Investigation || i.ItemType == ItemType.Service))
+                .Where(i => !i.Retired && (i.ItemType == ItemType.Investigation || i.ItemType == ItemType.Service)
+                && i.Code.StartsWith(ItemPrefix))
                 .OrderBy(i => i.Name)
                 .Select(i => new SelectListItem { Value = i.Id.ToString(), Text = (i.Code ?? "") + " - " + i.Name }).ToListAsync();
 
             var q = _db.CompanyServiceRates
                 .Include(r => r.Company)
                 .Include(r => r.Item)
-                .Where(r => !r.Retired && (r.Item.ItemType == ItemType.Investigation || r.Item.ItemType == ItemType.Service));
+                .Where(r => !r.Retired && (r.Item.ItemType == ItemType.Investigation || r.Item.ItemType == ItemType.Service)
+                && r.Item.Code.StartsWith(ItemPrefix));
 
             if (CompanyId.HasValue && CompanyId.Value > 0) q = q.Where(r => r.CompanyId == CompanyId.Value);
 
-            Items = await q.OrderBy(r => r.Company.Name).ThenBy(r => r.Item.Name).ToListAsync();
+            // the grid is paged: a company can carry hundreds of laboratory
+            // tests and the whole list was rendered in one page before
+            TotalCount = await q.CountAsync();
+            ClampPaging();
+
+            Items = await ApplyPaging(q
+                .OrderBy(r => r.Company.Name)
+                .ThenBy(r => r.Item.Name)
+                .ThenBy(r => r.Id))
+                .ToListAsync();
         }
 
         private bool TryGetId(string key, out long id)
@@ -135,12 +202,12 @@ namespace HmisWeb.Pages.Lab
         public class InputModel
         {
             public long Id { get; set; }
-            public long CompanyId { get; set; }
-            public long ItemId { get; set; }
-            public double Rate { get; set; }
-            public double? StaffRate { get; set; }
-            public double? UnitRate { get; set; }
-            public double? DiscountPercent { get; set; }
+            public long? CompanyId { get; set; }
+            public long? ItemId { get; set; }
+            public decimal Rate { get; set; }
+            public decimal? StaffRate { get; set; }
+            public decimal? UnitRate { get; set; }
+            public decimal? DiscountPercent { get; set; }
             public bool ShowForm { get; set; }
         }
     }

@@ -11,7 +11,7 @@ using HmisWeb.Services;
 
 namespace HmisWeb.Pages.Cashier
 {
-    public class InpatientModel : PageModel
+    public class InpatientModel : CashierPageModel
     {
         private readonly ApplicationDbContext _db;
         private readonly IAppSession _appSession;

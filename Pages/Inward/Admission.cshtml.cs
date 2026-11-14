@@ -9,6 +9,21 @@ using HmisWeb.Data.Enums;
 
 namespace HmisWeb.Pages.Inward
 {
+    /// <summary>
+    /// Inward Admission - IPD registration (legacy ipdreg.scx).
+    ///
+    /// The stay is registered against [BED_POS] / [WARD] (the empty [ROOM]
+    /// master is no longer used), the first bed assignment is written to
+    /// [BEDTRANSFER] and the current stay to [PATIENTROOM]. The panel-company
+    /// data of the legacy register (employee, relation, card, reference, bed
+    /// entitlement) is stored on [PATIENTENCOUNTER].
+    ///
+    /// Developer : [TAJWER JALAL]
+    /// Date      : 22-Oct-2026
+    /// Time      : 17:40
+    /// Change Log: 22-Oct-2026 - bed handling moved to BED_POS, company /
+    ///             employee / diagnosis fields added.
+    /// </summary>
     public class AdmissionModel : PageModel
     {
         private readonly ApplicationDbContext _db;
@@ -35,7 +50,31 @@ namespace HmisWeb.Pages.Inward
         public string TimeOfAdmission { get; set; }
 
         [BindProperty]
-        public long? RoomId { get; set; }
+        public long? BedId { get; set; }
+
+        [BindProperty]
+        public string Diagnosis { get; set; }
+
+        [BindProperty]
+        public string Caste { get; set; }
+
+        [BindProperty]
+        public string EmployeeCode { get; set; }
+
+        [BindProperty]
+        public string EmployeeName { get; set; }
+
+        [BindProperty]
+        public string EmployeeRelation { get; set; }
+
+        [BindProperty]
+        public DateTime? RefValid { get; set; }
+
+        [BindProperty]
+        public string CardNo { get; set; }
+
+        [BindProperty]
+        public string BedEntitlement { get; set; }
 
         [BindProperty]
         public string Comments { get; set; }
@@ -108,7 +147,19 @@ namespace HmisWeb.Pages.Inward
 
         public List<Patient> SearchResults { get; set; } = new();
         public Patient SelectedPatient { get; set; }
-        public List<Room> Rooms { get; set; } = new();
+
+        /// <summary>
+        /// Legacy PATIENT/REGISTER values for the selected patient. Code is the
+        /// permanent PCODE / MRNo and RegNo is the latest visit registration.
+        /// </summary>
+        public HmisWeb.Models.Legacy.PatientLegacyInfo LegacyPatient { get; set; }
+
+        private string UserLabel => _appSession.LoggedUser?.UserName
+            ?? _appSession.LoggedUser?.RealUserName
+            ?? _appSession.WebUserId?.ToString()
+            ?? "system";
+        public List<SelectListItem> WardList { get; set; } = new();
+        public List<SelectListItem> BedList { get; set; } = new();
 
         public List<SelectListItem> DoctorList { get; set; } = new();
         public List<SelectListItem> CreditCompanyList { get; set; } = new();
@@ -118,12 +169,14 @@ namespace HmisWeb.Pages.Inward
 
         public string Message { get; set; }
 
-        public async Task OnGetAsync(long? patientId, string searchTerm)
+        public async Task OnGetAsync(long? patientId, long? selectPatientId, string searchTerm)
         {
             SearchTerm = searchTerm;
-            SelectedPatientId = patientId;
+            // The patient registration form returns selectPatientId, while the
+            // admission search links use patientId. Accept both.
+            SelectedPatientId = selectPatientId ?? patientId;
             DateOfAdmission = DateTime.Today;
-            await LoadAsync(patientId, searchTerm);
+            await LoadAsync(SelectedPatientId, searchTerm);
         }
 
         public async Task<IActionResult> OnPostSearchAsync()
@@ -149,8 +202,71 @@ namespace HmisWeb.Pages.Inward
             var site = _appSession.LoggedSite;
             var dept = _appSession.LoggedDepartment ?? await _db.Departments.OrderBy(d => d.Id).FirstOrDefaultAsync();
 
-            var admissionDateTime = CombineDateAndTime(DateOfAdmission, TimeOfAdmission);
-            var bht = string.IsNullOrWhiteSpace(BhtNo) ? await GenerateBhtAsync() : BhtNo.Trim();
+            // the patient is not re-loaded by the binder, so fetch it here for
+            // the bed occupancy marker (PCODE) and the name checks
+            SelectedPatient = await _db.Patients
+                .Include(p => p.Person)
+                .FirstOrDefaultAsync(p => p.Id == SelectedPatientId.Value && !p.Retired);
+
+            if (SelectedPatient == null)
+            {
+                ModelState.AddModelError("SelectedPatientId", "Please select a patient.");
+                await LoadAsync(null, SearchTerm);
+                return Page();
+            }
+
+            var admissionDateTime = CombineDateAndTime(DateOfAdmission, TimeOfAdmission) ?? now;
+            var bed = BedId.HasValue
+                ? await _db.BedPositions.FirstOrDefaultAsync(b => b.Id == BedId.Value && !b.Retired)
+                : null;
+
+            var guardianCategoryName = GuardianRelationshipToPatientId.HasValue
+                ? await _db.Categories
+                    .Where(c => c.Id == GuardianRelationshipToPatientId.Value)
+                    .Select(c => c.Name)
+                    .FirstOrDefaultAsync()
+                : null;
+            // Legacy REGISTER.GRELATION stores a single-character relation code
+            // (ipdreg.scx cbogrelation: Son/S, Daughter/D, Wife/W, Mother/M,
+            // Father/F, Husband/B, Self/s, Nephew/N, Uncle/U). Keep the modern
+            // Category link for the encounter, but persist the legacy code so
+            // IpdBillReportService.RelationWord keeps working.
+            var guardianRelation = MapGuardianRelationToLegacyCode(guardianCategoryName);
+
+            // Keep legacy PATIENT.CASTE in step (ipdreg.scx txtcast). Only
+            // overwrite when a value is supplied so an existing caste is preserved.
+            if (!string.IsNullOrWhiteSpace(Caste))
+                SelectedPatient.Caste = Caste.Trim();
+
+            // REGISTER.REGNO is the visit identity (and the IPD BHT). PCODE stays
+            // the patient's permanent code. The legacy admission fields are
+            // written to REGISTER, not to a separate patient table.
+            await _commonService.SyncPatientLegacyAsync(SelectedPatient, userId);
+            var regNo = await _commonService.CreateRegisterVisitAsync(new RegisterVisitRequest
+            {
+                Type = "I",
+                PCode = SelectedPatient.Code,
+                PatientAppId = SelectedPatient.Id,
+                VisitDate = admissionDateTime.Date,
+                VisitTime = admissionDateTime.ToString("HH:mm"),
+                Diagnosis = Diagnosis,
+                CompanyId = CreditCompanyId,
+                ConsultantId = ReferringConsultantId ?? OpdDoctorId,
+                EmployeeCode = EmployeeCode,
+                EmployeeRelation = EmployeeRelation,
+                ReferenceNo = ReferenceNo,
+                RefValid = RefValid,
+                CardNo = CardNo,
+                GuardianName = GuardianName,
+                GuardianRelation = guardianRelation,
+                BedNo = bed?.BedCode,
+                BedEntitlement = BedEntitlement,
+                CUserId = UserLabel,
+                UserId = UserLabel,
+                CStat = (Claimable || CreditCompanyId.HasValue) ? "A" : null
+            });
+
+            var bht = regNo.ToString();
 
             var encounter = new PatientEncounter
             {
@@ -181,6 +297,13 @@ namespace HmisWeb.Pages.Inward
                 Saturation = Saturation,
                 Pfr = Pfr,
                 EncounterComments = Comments,
+                Diagnosis = string.IsNullOrWhiteSpace(Diagnosis) ? null : Diagnosis.Trim(),
+                EmployeeCode = string.IsNullOrWhiteSpace(EmployeeCode) ? null : EmployeeCode.Trim(),
+                EmployeeName = string.IsNullOrWhiteSpace(EmployeeName) ? null : EmployeeName.Trim(),
+                EmployeeRelation = string.IsNullOrWhiteSpace(EmployeeRelation) ? null : EmployeeRelation.Trim(),
+                RefValid = RefValid,
+                CardNo = string.IsNullOrWhiteSpace(CardNo) ? null : CardNo.Trim(),
+                BedEntitlement = string.IsNullOrWhiteSpace(BedEntitlement) ? null : BedEntitlement.Trim(),
                 InstitutionId = site?.Id ?? dept?.InstitutionId,
                 DepartmentId = dept?.Id,
                 CreaterId = userId,
@@ -217,18 +340,54 @@ namespace HmisWeb.Pages.Inward
             _db.Admissions.Add(admission);
             await _db.SaveChangesAsync();
 
-            if (RoomId != null)
+            if (BedId.HasValue)
             {
-                var patientRoom = new PatientRoom
+                if (bed != null)
                 {
-                    RoomId = RoomId.Value,
-                    PatientEncounterId = encounter.Id,
-                    AdmissionId = admission.Id,
-                    FromTime = now,
-                    CreaterId = userId,
-                    CreatedAt = now
-                };
-                _db.PatientRooms.Add(patientRoom);
+                    bed.Status = "Occupied";
+                    // PAT_CD in the legacy bed master is the permanent PCODE.
+                    bed.PatientCode = SelectedPatient?.Code ?? SelectedPatientId?.ToString();
+                    var nowStamp = DateTime.Now;
+                    bed.UserId = _appSession.LoggedUser?.UserName ?? "SYSTEM";
+                    bed.UDate = nowStamp.Date;
+                    bed.UTime = nowStamp.ToString("HH:mm");
+
+                    var ward = await _db.Wards.FirstOrDefaultAsync(w => w.Code == bed.WardCode && !w.Retired);
+
+                    var patientRoom = new PatientRoom
+                    {
+                        BedPositionId = bed.Id,
+                        WardId = ward?.Id,
+                        PatientEncounterId = encounter.Id,
+                        AdmissionId = admission.Id,
+                        FromTime = admissionDateTime,
+                        CreaterId = userId,
+                        CreatedAt = now,
+                        Retired = false
+                    };
+                    _db.PatientRooms.Add(patientRoom);
+
+                    // initial bed assignment history
+                    var initialTransfer = new BedTransfer
+                    {
+                        Type = "I",
+                        RegNo = bht,
+                        PatientEncounterId = encounter.Id,
+                        AdmissionId = admission.Id,
+                        FromBedPositionId = null,
+                        ToBedPositionId = bed.Id,
+                        FromBedCode = null,
+                        ToBedCode = bed.BedCode,
+                        TransferDate = admissionDateTime,
+                        CreaterId = userId,
+                        CreatedAt = now,
+                        Retired = false,
+                        UserId = _appSession.LoggedUser?.UserName ?? "SYSTEM",
+                        UDate = now.Date,
+                        UTime = now.ToString("HH:mm")
+                    };
+                    _db.BedTransfers.Add(initialTransfer);
+                }
             }
 
             await _db.SaveChangesAsync();
@@ -237,11 +396,40 @@ namespace HmisWeb.Pages.Inward
             return RedirectToPage("/Inward/PatientList");
         }
 
+        private static string MapGuardianRelationToLegacyCode(string categoryName)
+        {
+            if (string.IsNullOrWhiteSpace(categoryName)) return null;
+            var key = categoryName.Trim().ToLowerInvariant();
+            return key switch
+            {
+                "son" => "S",
+                "daughter" => "D",
+                "wife" => "W",
+                "mother" => "M",
+                "father" => "F",
+                "husband" => "B",
+                "self" => "s",
+                "nephew" => "N",
+                "uncle" => "U",
+                _ => categoryName.Trim().Length <= 1 ? categoryName.Trim() : null
+            };
+        }
+
         private async Task LoadAsync(long? patientId, string searchTerm)
         {
             await LoadLookupsAsync();
 
-            Rooms = await _db.Rooms.Where(r => !r.Retired).OrderBy(r => r.Name).ToListAsync();
+            WardList = await _db.Wards.AsNoTracking()
+                .Where(w => !w.Retired)
+                .OrderBy(w => w.Code)
+                .Select(w => new SelectListItem { Value = w.Code, Text = $"{w.Code} - {w.Name}" })
+                .ToListAsync();
+
+            BedList = await _db.BedPositions.AsNoTracking()
+                .Where(b => !b.Retired && b.Status == "Vacant")
+                .OrderBy(b => b.WardCode).ThenBy(b => b.BedCode)
+                .Select(b => new SelectListItem { Value = b.Id.ToString(), Text = $"{b.BedCode} ({b.WardCode})" })
+                .ToListAsync();
 
             if (!string.IsNullOrWhiteSpace(searchTerm))
             {
@@ -254,6 +442,9 @@ namespace HmisWeb.Pages.Inward
                 SelectedPatient = await _db.Patients
                     .Include(p => p.Person)
                     .FirstOrDefaultAsync(p => p.Id == patientId && !p.Retired);
+
+                if (SelectedPatient != null)
+                    LegacyPatient = await _commonService.GetPatientLegacyInfoAsync(SelectedPatient);
             }
 
             if (TempData["Success"] != null)

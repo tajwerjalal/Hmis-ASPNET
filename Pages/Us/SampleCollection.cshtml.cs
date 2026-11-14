@@ -107,6 +107,12 @@ namespace HmisWeb.Pages.Us
             return RedirectToPage("/Us/SampleCollection");
         }
 
+        public async Task<IActionResult> OnPostSelectEncounterAsync()
+        {
+            await LoadStateAsync();
+            return Page();
+        }
+
         public async Task<IActionResult> OnPostCreatePatientAsync()
         {
             if (string.IsNullOrWhiteSpace(NewName))

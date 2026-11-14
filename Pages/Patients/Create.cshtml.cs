@@ -13,12 +13,19 @@ namespace HmisWeb.Pages.Patients
     {
         private readonly ApplicationDbContext _db;
         private readonly IAppSession _appSession;
+        private readonly ICommonService _common;
 
-        public CreateModel(ApplicationDbContext db, IAppSession appSession)
+        public CreateModel(ApplicationDbContext db, IAppSession appSession, ICommonService common)
         {
             _db = db;
             _appSession = appSession;
+            _common = common;
         }
+
+        private string UserLabel => _appSession.LoggedUser?.UserName
+            ?? _appSession.LoggedUser?.RealUserName
+            ?? _appSession.WebUserId?.ToString()
+            ?? "system";
 
         [BindProperty]
         public long? Id { get; set; }
@@ -83,8 +90,24 @@ namespace HmisWeb.Pages.Patients
         [BindProperty]
         public string Phn { get; set; }
 
+        /// <summary>
+        /// Latest visit registration details (from REGISTER) for the patient being
+        /// edited. Displayed read-only so the patient master screen mirrors the
+        /// legacy opdreg.scx registration block (Reg No / Reg Date / Reg Time).
+        /// </summary>
+        public string LatestRegNo { get; set; }
+        public DateTime? LatestRegDate { get; set; }
+        public string LatestRegTime { get; set; }
+
         [BindProperty]
         public long? PatientId { get; set; }
+
+        /// <summary>
+        /// Optional local URL to return to after a new patient is saved. Used by
+        /// the lab screens so the new patient is selected on the lab indent form.
+        /// </summary>
+        [BindProperty(SupportsGet = true)]
+        public string ReturnUrl { get; set; }
 
         public bool IsEdit => Id != null;
         public string ErrorMessage { get; set; }
@@ -130,6 +153,21 @@ namespace HmisWeb.Pages.Patients
             Foreigner = patient.Person?.Foreigner ?? false;
             Phn = patient.Phn;
             PatientId = patient.PatientId;
+
+            if (!string.IsNullOrWhiteSpace(patient.Code))
+            {
+                var latest = await _db.LegacyRegisters
+                    .AsNoTracking()
+                    .Where(r => r.PCode == patient.Code)
+                    .OrderByDescending(r => r.RegNo)
+                    .FirstOrDefaultAsync();
+                if (latest != null)
+                {
+                    LatestRegNo = latest.RegNo;
+                    LatestRegDate = latest.RDate;
+                    LatestRegTime = latest.RTime;
+                }
+            }
         }
 
         public async Task<IActionResult> OnPostAsync()
@@ -158,33 +196,62 @@ namespace HmisWeb.Pages.Patients
                 patient.EditedAt = now;
                 patient.EditerId = _appSession.WebUserId;
 
-                await _db.SaveChangesAsync();
+                // Keep the legacy PATIENT columns (NAME/SEX/AGE/ADDRESS/...) in
+                // step with PERSON. This also issues a PCODE for imported patients
+                // that do not have one yet.
+                await _common.SyncPatientLegacyAsync(patient, _appSession.WebUserId, overwrite: true);
                 return RedirectToPage("/patients/Details", new { id = patient.Id });
             }
 
             var person = new Person { CreatedAt = now, CreaterId = _appSession.WebUserId };
             ApplyPerson(person, now);
-            _db.Persons.Add(person);
-            await _db.SaveChangesAsync();
 
-            long? phnId = PatientId;
-            if (phnId == null || phnId <= 0)
-            {
-                long? maxId = await _db.Patients.MaxAsync(p => (long?)p.PatientId);
-                phnId = (maxId ?? 0) + 1;
-            }
+            var isInwardReturn = !string.IsNullOrWhiteSpace(ReturnUrl)
+                && ReturnUrl.Contains("/inward", StringComparison.OrdinalIgnoreCase);
+            var isOpdReturn = !string.IsNullOrWhiteSpace(ReturnUrl)
+                && ReturnUrl.Contains("/opd", StringComparison.OrdinalIgnoreCase);
 
             var newPatient = new Patient
             {
-                PersonId = person.Id,
                 Phn = Phn,
-                PatientId = phnId,
+                PatientId = this.PatientId,
+                AType = "Y",
                 CreatedAt = now,
                 CreaterId = _appSession.WebUserId,
                 CreatedInstitutionId = _appSession.LoggedSite?.Id
             };
-            _db.Patients.Add(newPatient);
-            await _db.SaveChangesAsync();
+
+            // Issues the permanent PATIENT.CODE (PCODE / MRNo) and fills the
+            // legacy patient columns used by opdreg.scx / ipdreg.scx.
+            newPatient = await _common.CreatePatientWithLegacyCodeAsync(
+                person, newPatient, now, _appSession.WebUserId);
+
+            // Coming from the lab/department screens: return with the new patient
+            // selected so the indent form is ready. That visit also needs a
+            // REGISTER row; OPD registration and IPD admission create their own.
+            if (!string.IsNullOrWhiteSpace(ReturnUrl) && Url.IsLocalUrl(ReturnUrl))
+            {
+                long? visitRegNo = null;
+                if (!isInwardReturn && !isOpdReturn)
+                {
+                    visitRegNo = await _common.CreateRegisterVisitAsync(new RegisterVisitRequest
+                    {
+                        Type = "O",
+                        PCode = newPatient.Code,
+                        PatientAppId = newPatient.Id,
+                        VisitDate = now.Date,
+                        VisitTime = now.ToString("HH:mm"),
+                        CUserId = UserLabel,
+                        UserId = UserLabel
+                    });
+                }
+
+                TempData["LabSampleNotice"] = visitRegNo.HasValue
+                    ? $"Patient '{PersonName.Trim()}' added and selected. Patient Code {newPatient.Code}, Reg No {visitRegNo}."
+                    : $"Patient '{PersonName.Trim()}' added and selected. Patient Code {newPatient.Code}.";
+                var separator = ReturnUrl.Contains('?') ? "&" : "?";
+                return Redirect($"{ReturnUrl}{separator}selectPatientId={newPatient.Id}");
+            }
 
             return RedirectToPage("/patients/Details", new { id = newPatient.Id });
         }
@@ -242,6 +309,21 @@ namespace HmisWeb.Pages.Patients
             Foreigner = patient.Person?.Foreigner ?? false;
             Phn = patient.Phn;
             PatientId = patient.PatientId;
+
+            if (!string.IsNullOrWhiteSpace(patient.Code))
+            {
+                var latest = await _db.LegacyRegisters
+                    .AsNoTracking()
+                    .Where(r => r.PCode == patient.Code)
+                    .OrderByDescending(r => r.RegNo)
+                    .FirstOrDefaultAsync();
+                if (latest != null)
+                {
+                    LatestRegNo = latest.RegNo;
+                    LatestRegDate = latest.RDate;
+                    LatestRegTime = latest.RTime;
+                }
+            }
         }
 
         private async Task LoadLookupsAsync()

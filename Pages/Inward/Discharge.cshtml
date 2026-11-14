@@ -1,5 +1,18 @@
 @page
 @model HmisWeb.Pages.Inward.DischargeModel
+@*
+    Patient Discharge - legacy discharge.scx.
+
+    The screen now saves the discharge status, frees the bed in [BED_POS],
+    closes the open [PATIENTROOM] stay and writes the discharge date back to
+    [ADMISSION].
+
+    Developer : [TAJWER JALAL]
+    Date      : 22-Oct-2026
+    Time      : 18:20
+    Change Log: 22-Oct-2026 - discharge status added, bed release and admission
+                close added.
+*@
 @{
     ViewData["Title"] = "Patient Discharge";
 }
@@ -21,7 +34,7 @@
             <div class="row g-3 mb-3">
                 <div class="col-md-6">
                     <div class="text-secondary small fw-bold text-uppercase">Patient</div>
-                    <div class="fw-semibold fs-5">@(Model.Encounter.Patient?.Person?.NameWithInitials ?? "Unnamed")</div>
+                    <div class="fw-semibold fs-5">@HmisWeb.Services.PatientDisplayName.Of(Model.Encounter.Patient)</div>
                     <small class="text-secondary">PHN: @(Model.Encounter.Patient?.Phn ?? "-") &middot; BHT: @(Model.Encounter.BhtNo ?? "-")</small>
                 </div>
                 <div class="col-md-2">
@@ -33,8 +46,8 @@
                     <div class="fw-semibold">@(Model.Encounter.Department?.Name ?? "-")</div>
                 </div>
                 <div class="col-md-2">
-                    <div class="text-secondary small fw-bold text-uppercase">Room</div>
-                    <div class="fw-semibold">@(Model.ActiveRoom?.Room?.Name ?? "-")</div>
+                    <div class="text-secondary small fw-bold text-uppercase">Bed</div>
+                    <div class="fw-semibold">@(Model.ActiveRoom?.BedPosition?.BedCode ?? "-")</div>
                 </div>
             </div>
 
@@ -77,6 +90,16 @@
                         <div class="col-md-4">
                             <label asp-for="TimeOfDischarge" class="form-label">Time of Discharge</label>
                             <input asp-for="TimeOfDischarge" type="time" class="form-control" />
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="DischargeStatus" class="form-label">Discharge status</label>
+                            <select asp-for="DischargeStatus" class="form-select">
+                                <option value="">-- Select --</option>
+                                @foreach (var s in Model.DischargeStatusList)
+                                {
+                                    <option value="@s.Value">@s.Text</option>
+                                }
+                            </select>
                         </div>
                         <div class="col-md-4">
                             <label asp-for="PaymentMethod" class="form-label">Settlement Method</label>

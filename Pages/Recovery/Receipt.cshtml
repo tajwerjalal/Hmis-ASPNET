@@ -1,0 +1,922 @@
+@page "/Recovery/Receipt"
+@model HmisWeb.Pages.Recovery.ReceiptModel
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Xsrf
+@{
+    // RECEIPTS / CHEQUES (IPD) (/Recovery/Receipt)
+    // Phase 4 sprint 2 - ports VFP BillSys RECPT (bs0603) onto
+    // RECOVERY_RCPT / RECOVERY_RCPT_ALLOC with a cheque lifecycle the legacy
+    // screen never had (pending / cleared / bounced). See Receipt.cshtml.cs
+    // for business rules and review references (R-01, G-02, G-04).
+    //
+    // Developer: Tajwer Jalal | Date: 21-Oct-2026 | Time: 11:50
+    ViewData["Title"] = "Recovery - Receipts / Cheques";
+    var token = Xsrf.GetAndStoreTokens(ViewContext.HttpContext).RequestToken;
+}
+
+<meta name="RequestVerificationToken" content="@token" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert2/11.10.1/sweetalert2.all.min.js"></script>
+
+<h4 class="mb-3"><i class="fa-solid fa-money-check-dollar me-2"></i>Recovery - Receipts / Cheques (IPD)</h4>
+
+@if (Model.Success != null)
+{
+    <div class="alert alert-success py-2"><i class="fa-solid fa-circle-check"></i> @Model.Success</div>
+}
+@if (Model.Error != null)
+{
+    <div class="alert alert-danger py-2"><i class="fa-solid fa-circle-exclamation"></i> @Model.Error</div>
+}
+
+<div class="card mb-3">
+    <div class="card-header bg-white d-flex align-items-center justify-content-between">
+        <strong><i class="fa-solid fa-list me-2"></i>Receipts (@Model.SearchResult.TotalRows)</strong>
+        <span>
+            @if (Model.CanEdit)
+            {
+                <button type="button" class="btn btn-sm btn-primary" id="btnAddNew">
+                    <i class="fa-solid fa-plus me-1"></i>Add New Receipt
+                </button>
+            }
+            else
+            {
+                <span class="text-muted small"><i class="fa-solid fa-lock"></i> read-only (RECOVERY_RECEIPT_EDIT required)</span>
+            }
+        </span>
+    </div>
+    <div class="card-body py-2">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small mb-0">Company</label>
+                <select name="Company" class="form-select form-select-sm">
+                    <option value="">All companies</option>
+                    @foreach (var c in Model.Companies)
+                    {
+                        var sel = Model.Company == c.Id;
+                        <option value="@c.Id" selected="@sel">@c.Id - @c.Name@(c.Status == "N" ? " (inactive)" : "")</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-0">Method</label>
+                <select name="Method" class="form-select form-select-sm">
+                    <option value="">All</option>
+                    @{ var mC = Model.Method == "C"; var mQ = Model.Method == "Q"; }
+                    <option value="C" selected="@mC">Cash</option>
+                    <option value="Q" selected="@mQ">Cheque</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small mb-0">Status</label>
+                <select name="Status" class="form-select form-select-sm">
+                    <option value="">All</option>
+                    <option value="P" selected="@(Model.Status == "P")">Pending</option>
+                    <option value="C" selected="@(Model.Status == "C")">Cleared</option>
+                    <option value="B" selected="@(Model.Status == "B")">Bounced</option>
+                    <option value="X" selected="@(Model.Status == "X")">Cancelled</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small mb-0">Search</label>
+                <input name="Term" class="form-control form-control-sm" value="@Model.Term"
+                       placeholder="Receipt no / cheque no / company / remarks" />
+            </div>
+            <div class="col-md-1">
+                <button class="btn btn-sm btn-outline-primary w-100" type="submit"><i class="fa-solid fa-filter"></i></button>
+            </div>
+        </form>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm table-striped table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Receipt No</th>
+                        <th>Company</th>
+                        <th>Date</th>
+                        <th>Method</th>
+                        <th>Cheque</th>
+                        <th>Received by</th>
+                        <th class="text-center">Lines</th>
+                        <th class="text-end">Total (Rs.)</th>
+                        <th>Status</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.SearchResult.Rows.Count == 0)
+                    {
+                        <tr><td colspan="10" class="text-center text-muted py-4">
+                            No receipts matched the filters @if (Model.CanEdit)
+                            {<span> - press <strong>Add New Receipt</strong> to record one</span>}.
+                        </td></tr>
+                    }
+                    @foreach (var r in Model.SearchResult.Rows)
+                    {
+                        <tr data-id="@r.Id" class="rcpt-row" style="cursor:pointer">
+                            <td><code>@r.ReceiptNo</code></td>
+                            <td>@r.CompanyCode <span class="text-muted">- @r.CompanyName</span></td>
+                            <td>@r.RcptDate.ToString("dd/MM/yyyy")</td>
+                            <td>
+                                @if (r.Method == "Q")
+                                {
+                                    <span class="badge text-bg-info">Cheque</span>
+                                }
+                                else
+                                {
+                                    <span class="badge text-bg-light border">Cash</span>
+                                }
+                            </td>
+                            <td>
+                                @if (r.Method == "Q")
+                                {
+                                    @(r.ChequeNo ?? "-")<small class="text-muted"> @(r.Bank ?? "")</small>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">-</span>
+                                }
+                            </td>
+                            <td>@(string.IsNullOrWhiteSpace(r.RcvdBy) ? "-" : r.RcvdBy)</td>
+                            <td class="text-center">@r.LineCount</td>
+                            <td class="text-end">@r.TotAmt.ToString("N2")</td>
+                            <td>
+                                @if (r.Status == "P")
+                                {
+                                    <span class="badge text-bg-warning">Pending</span>
+                                }
+                                else if (r.Status == "C")
+                                {
+                                    <span class="badge text-bg-success">Cleared</span>
+                                }
+                                else if (r.Status == "B")
+                                {
+                                    <span class="badge text-bg-danger">Bounced</span>
+                                }
+                                else
+                                {
+                                    <span class="badge text-bg-secondary">Cancelled</span>
+                                }
+                            </td>
+                            <td class="text-end">
+                                @if (r.Status != "X" && Model.CanEdit)
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-danger"
+                                            data-del-id="@r.Id" data-doc="@r.ReceiptNo" title="Cancel receipt">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card-body py-2 d-flex justify-content-between align-items-center border-top">
+        <span class="text-muted small">
+            Showing @Model.SearchResult.FirstRowOnPage-@Model.SearchResult.LastRowOnPage of
+            @Model.SearchResult.TotalRows
+        </span>
+        <nav>
+            <ul class="pagination pagination-sm mb-0">
+                @{ var p = Model.SearchResult; }
+                <li class="page-item @(p.PageIndex <= 1 ? "disabled" : "")">
+                    <a class="page-link" asp-page="/Recovery/Receipt"
+                       asp-route-PageIndex="@(p.PageIndex - 1)"
+                       asp-route-Company="@Model.Company" asp-route-Method="@Model.Method"
+                       asp-route-Status="@Model.Status"
+                       asp-route-Term="@Model.Term">&laquo;</a>
+                </li>
+                <li class="page-item disabled"><span class="page-link">@p.PageIndex / @p.TotalPages</span></li>
+                <li class="page-item @(p.PageIndex >= p.TotalPages ? "disabled" : "")">
+                    <a class="page-link" asp-page="/Recovery/Receipt"
+                       asp-route-PageIndex="@(p.PageIndex + 1)"
+                       asp-route-Company="@Model.Company" asp-route-Method="@Model.Method"
+                       asp-route-Status="@Model.Status"
+                       asp-route-Term="@Model.Term">&raquo;</a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+</div>
+
+@* ==================== ENTRY POPUP (add receipt) ==================== *@
+<div class="modal fade" id="rcptModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="rcptModalTitle"><i class="fa-solid fa-plus me-2"></i>Add New Receipt</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-2 mb-2">
+                    <div class="col-md-4">
+                        <label class="form-label small mb-0">Company *</label>
+                        <select id="ed_Company" class="form-select form-select-sm"></select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small mb-0">Receipt date *</label>
+                        <input id="ed_RcptDate" type="date" class="form-control form-control-sm" />
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-check form-check-inline pt-2">
+                            <input id="ed_MethodC" name="ed_Method" type="radio" class="form-check-input" value="C" checked />
+                            <label class="form-check-label small" for="ed_MethodC">Cash</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input id="ed_MethodQ" name="ed_Method" type="radio" class="form-check-input" value="Q" />
+                            <label class="form-check-label small" for="ed_MethodQ">Cheque</label>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small mb-0">Received by</label>
+                        <input id="ed_RcvdBy" class="form-control form-control-sm" maxlength="40" />
+                    </div>
+                </div>
+                <div class="row g-2 mb-2" id="chequeFields" style="display:none">
+                    <div class="col-md-3">
+                        <label class="form-label small mb-0">Cheque no *</label>
+                        <input id="ed_ChequeNo" class="form-control form-control-sm" maxlength="32" />
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label small mb-0">Bank *</label>
+                        <input id="ed_Bank" class="form-control form-control-sm" maxlength="80" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small mb-0">Cheque date *</label>
+                        <input id="ed_ChequeDate" type="date" class="form-control form-control-sm" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small mb-0">Status</label>
+                        <input class="form-control form-control-sm bg-light text-center" readonly
+                               value="pending clearance" />
+                    </div>
+                </div>
+                <div class="row g-2 mb-1">
+                    <div class="col-md-12">
+                        <label class="form-label small mb-0">Remarks</label>
+                        <input id="ed_Remarks" class="form-control form-control-sm" maxlength="200" />
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mt-2 mb-1">
+                    <strong class="small"><i class="fa-solid fa-receipt me-1"></i>Allocation lines</strong>
+                    <span>
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="btnLineAdd">
+                            <i class="fa-solid fa-file-invoice-dollar me-1"></i>Add Allocation
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="btnLineAdvance">
+                            <i class="fa-solid fa-user-plus me-1"></i>Add Advance
+                        </button>
+                    </span>
+                </div>
+                <div class="table-responsive border rounded">
+                    <table class="table table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Invoice</th>
+                                <th style="width:105px">Reg No</th>
+                                <th>Patient</th>
+                                <th style="width:130px">Received (Rs.)</th>
+                                <th style="width:120px">I.Tax ded.</th>
+                                <th style="width:115px">Other ded.</th>
+                                <th style="width:150px">Line remark</th>
+                                <th style="width:48px"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="lineRows"></tbody>
+                    </table>
+                </div>
+                <div class="d-flex justify-content-end mt-1 gap-3">
+                    <span class="small">Banked: <strong id="rcptTotal">0.00</strong></span>
+                    <span class="small text-muted">Credited (incl. ded.): <strong id="rcptCredited">0.00</strong></span>
+                </div>
+                <div class="small text-muted mt-1">
+                    Empty I.Tax deduction defaults to the legacy rcptamt/95*&nbsp;5 (5&nbsp;%) gross-up.
+                    Lines without an invoice are advance money (received but not yet invoiced - the
+                    legacy G-02 book).
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Close</button>
+                <button class="btn btn-primary" id="btnSaveRcpt" type="button">
+                    <i class="fa-solid fa-floppy-disk me-1"></i>Save Receipt
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* ==================== INVOICE CANDIDATES POPUP ==================== *@
+<div class="modal fade" id="invModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fa-solid fa-file-invoice me-2"></i>Open Invoices of the Company</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <label class="form-label small mb-1">Company (from the receipt)</label>
+                <input id="invCompany" class="form-control form-control-sm bg-light mb-2" readonly />
+                <div class="table-responsive border rounded" style="max-height:420px">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Invoice</th><th>Date</th><th>Reg No</th><th>Patient</th>
+                                <th class="text-end">Bill (Rs.)</th><th class="text-end">Applied (Rs.)</th>
+                                <th class="text-end">Remaining (Rs.)</th><th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="invRows">
+                            <tr><td colspan="8" class="text-center text-muted py-3">Pick a company first.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="small text-muted mt-1">Over-allocation is refused - a line cannot take more than it was billed.</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* ==================== ADVANCE PATIENT SEARCH POPUP ==================== *@
+<div class="modal fade" id="patModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fa-solid fa-user-plus me-2"></i>Billed Inpatient (Advance Money)</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <label class="form-label small mb-1">Company (from the receipt)</label>
+                <input id="patCompany" class="form-control form-control-sm bg-light mb-2" readonly />
+                <div class="input-group input-group-sm mb-2">
+                    <input id="patTerm" class="form-control" placeholder="Reg no / patient code" />
+                    <button class="btn btn-outline-primary" id="btnPatSearch" type="button"><i class="fa-solid fa-search"></i></button>
+                </div>
+                <div class="table-responsive border rounded" style="max-height:320px">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead class="table-light">
+                            <tr><th>Reg No</th><th>Patient</th><th>Last bill</th><th class="text-end">Billed value (Rs.)</th><th></th></tr>
+                        </thead>
+                        <tbody id="patRows"><tr><td colspan="5" class="text-center text-muted py-3">Search for a patient of the company.</td></tr></tbody>
+                    </table>
+                </div>
+                <div class="small text-muted mt-1">
+                    Advance money is kept against the patient with NO invoice (the legacy
+                    "received but never invoiced" book, review G-02). It stays unallocated until
+                    the patient is invoiced.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* ==================== DETAIL POPUP (row click) ==================== *@
+<div class="modal fade" id="detModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="detTitle">Receipt</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="detBlocks"></div>
+                <table class="table table-sm mb-2">
+                    <thead class="table-light">
+                        <tr><th>Invoice</th><th>Reg No</th><th>Patient</th>
+                            <th class="text-end">Received</th><th class="text-end">I.Tax</th>
+                            <th class="text-end">Other</th><th class="text-end">Credited</th><th>Remark</th></tr>
+                    </thead>
+                    <tbody id="detLines"></tbody>
+                </table>
+                <h6 class="small text-muted">Audit trail</h6>
+                <div class="table-responsive border rounded">
+                    <table class="table table-sm mb-0">
+                        <thead class="table-light">
+                            <tr><th>When</th><th>Action</th><th>Field / line</th><th>Old &rarr; New</th><th>Reason</th><th>User</th></tr>
+                        </thead>
+                        <tbody id="detAudit"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer" id="detActions"></div>
+        </div>
+    </div>
+</div>
+
+@* ==================== CANCEL / BOUNCE REASON POPUP ==================== *@
+<div class="modal fade" id="cxlModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger bg-opacity-25">
+                <h5 class="modal-title" id="cxlTitle"><i class="fa-solid fa-trash me-2"></i>Cancel Receipt</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning py-2 small" id="cxlWarn"></div>
+                <input id="cxlId" type="hidden" />
+                <input id="cxlMode" type="hidden" />
+                <label class="form-label small mb-0">Reason (min 5 characters) *</label>
+                <textarea id="cxlReason" class="form-control form-control-sm" rows="3" maxlength="300"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Close</button>
+                <button class="btn btn-danger" id="btnCxlConfirm" type="button">
+                    <i class="fa-solid fa-trash me-1"></i>Confirm
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    'use strict';
+
+    var tokenMeta = document.querySelector('meta[name="RequestVerificationToken"]');
+    var TOKEN = tokenMeta ? tokenMeta.content : '';
+    var COMPANIES = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+        Model.Companies.Select(c => new { id = c.Id, name = c.Name, status = c.Status })));
+    var CANEDIT = @Html.Raw(Model.CanEdit ? "true" : "false");
+
+    function hdr() { return { 'RequestVerificationToken': TOKEN, 'Content-Type': 'application/json' }; }
+
+    function SwalInfo(title, text, icon, cb) {
+        if (window.Swal) {
+            window.Swal.fire({ title: title, text: text || '', icon: icon || 'info',
+                customClass: { popup: 'hmis-swal' } }).then(function () { if (cb) cb(); });
+        } else { alert(title + (text ? '\n' + text : '')); if (cb) cb(); }
+    }
+    function SwalConfirm(title, text, cb) {
+        if (window.Swal) {
+            window.Swal.fire({ title: title, text: text || '', icon: 'warning',
+                showCancelButton: true, confirmButtonText: 'Yes, continue',
+                confirmButtonColor: '#dc3545', reverseButtons: true,
+                customClass: { popup: 'hmis-swal' } }).then(function (r) {
+                    if (r.isConfirmed) cb();
+                });
+        } else if (window.confirm(title + '\n' + (text || ''))) { cb(); }
+    }
+
+    function fillCompany(selectEl, includeInactive) {
+        selectEl.innerHTML = '';
+        COMPANIES.forEach(function (c) {
+            if (c.status === 'N' && !includeInactive) return;
+            var o = document.createElement('option');
+            o.value = c.id; o.textContent = c.id + ' - ' + c.name;
+            selectEl.appendChild(o);
+        });
+    }
+
+    function modal(el) {
+        var api = (typeof bootstrap !== 'undefined' && bootstrap.Modal) ? new bootstrap.Modal(el) : null;
+        function open() { api ? api.show() : el.classList.add('show') && (el.style.display = 'block'); }
+        function close() { api ? api.hide() : (el.style.display = 'none', el.classList.remove('show')); }
+        return { open: open, close: close };
+    }
+
+    var rcptM = null, invM = null, detM = null, cxlM = null, patM = null;
+    var lines = [];              // { invoiceId, docNo, regNo, patientName, rcptAmt, itax, othDed, remarks }
+    var patients = {};           // regNo -> name from the candidate payload
+
+    function chequeMode() { return document.getElementById('ed_MethodQ').checked; }
+
+    function renderLines() {
+        var tb = document.getElementById('lineRows');
+        tb.innerHTML = '';
+        lines.forEach(function (l, idx) {
+            var tr = document.createElement('tr');
+            tr.innerHTML = '<td>' + (l.invoiceId ? '<code>' + esc(l.docNo) + '</code>' :
+                '<span class="badge text-bg-secondary">advance</span>') + '</td>'
+                + '<td><code>' + esc(l.regNo) + '</code></td>'
+                + '<td>' + esc(l.patientName) + '</td>'
+                + '<td><input class="form-control form-control-sm text-end line-amt" '
+                + 'data-i="' + idx + '" value="' + esc(Number(l.rcptAmt).toFixed(2)) + '"></td>'
+                + '<td><input class="form-control form-control-sm text-end line-itax" '
+                + 'data-i="' + idx + '" placeholder="auto 5%" value="'
+                + (l.itax === '' ? '' : esc(Number(l.itax).toFixed(2))) + '"></td>'
+                + '<td><input class="form-control form-control-sm text-end line-oth" '
+                + 'data-i="' + idx + '" value="' + esc(Number(l.othDed).toFixed(2)) + '"></td>'
+                + '<td><input class="form-control form-control-sm line-rem" '
+                + 'data-i="' + idx + '" value="' + esc(l.remarks || '') + '"></td>'
+                + '<td class="text-end">'
+                + '<button type="button" class="btn btn-sm border-0 text-danger" data-del-line="' + idx + '">'
+                + '<i class="fa-solid fa-trash"></i></button></td>';
+            tb.appendChild(tr);
+        });
+        if (lines.length === 0) {
+            tb.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">'
+                + 'No allocation lines - press Add Allocation to pick open invoices '
+                + '(legacy: rcptdet rows per patient).</td></tr>';
+        }
+        var banked = lines.reduce(function (s, l) { return s + l.rcptAmt; }, 0);
+        var credited = lines.reduce(function (s, l) {
+            var it = l.itax === '' ? Math.round(l.rcptAmt / 95 * 5 * 100) / 100 : l.itax;
+            return s + l.rcptAmt + it + l.othDed; }, 0);
+        document.getElementById('rcptTotal').textContent = banked.toFixed(2);
+        document.getElementById('rcptCredited').textContent = credited.toFixed(2);
+    }
+
+    document.addEventListener('input', function (e) {
+        var idx = e.target.dataset ? parseInt(e.target.dataset.i, 10) : NaN;
+        if (isNaN(idx) || !lines[idx]) return;
+        if (e.target.classList.contains('line-amt')) {
+            var v = parseFloat(e.target.value);
+            lines[idx].rcptAmt = isNaN(v) ? 0 : v;
+        }
+        if (e.target.classList.contains('line-itax')) {
+            lines[idx].itax = e.target.value.trim() === '' ? '' : (parseFloat(e.target.value) || 0);
+        }
+        if (e.target.classList.contains('line-oth')) {
+            var v2 = parseFloat(e.target.value);
+            lines[idx].othDed = isNaN(v2) ? 0 : v2;
+        }
+        if (e.target.classList.contains('line-rem')) lines[idx].remarks = e.target.value;
+        var banked = lines.reduce(function (s, l) { return s + (Number(l.rcptAmt) || 0); }, 0);
+        var credited = lines.reduce(function (s, l) {
+            var it = l.itax === '' ? Math.round((Number(l.rcptAmt) || 0) / 95 * 5 * 100) / 100
+                : (Number(l.itax) || 0);
+            return s + (Number(l.rcptAmt) || 0) + it + (Number(l.othDed) || 0); }, 0);
+        document.getElementById('rcptTotal').textContent = banked.toFixed(2);
+        document.getElementById('rcptCredited').textContent = credited.toFixed(2);
+    });
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('[data-del-line]');
+        if (!btn) return;
+        e.preventDefault(); e.stopPropagation();
+        SwalConfirm('Remove this allocation line?', '', function () {
+            lines.splice(parseInt(btn.dataset.delLine, 10), 1);
+            renderLines();
+        });
+    });
+
+    // ---------------- popup open (add new) ----------------
+    document.getElementById('btnAddNew') && document.getElementById('btnAddNew').addEventListener('click', function () {
+        document.getElementById('rcptModalTitle').innerHTML =
+            '<i class="fa-solid fa-plus me-2"></i>Add New Receipt';
+        document.getElementById('ed_Company').value = '@Model.Company' || '';
+        document.getElementById('ed_RcptDate').value = new Date().toISOString().substr(0, 10);
+        document.getElementById('ed_MethodC').checked = true;
+        document.getElementById('ed_MethodQ').checked = false;
+        document.getElementById('ed_ChequeNo').value = '';
+        document.getElementById('ed_Bank').value = '';
+        document.getElementById('ed_ChequeDate').value = new Date().toISOString().substr(0, 10);
+        document.getElementById('ed_RcvdBy').value = '';
+        document.getElementById('ed_Remarks').value = '';
+        document.getElementById('chequeFields').style.display = 'none';
+        lines = [];
+        renderLines();
+        rcptM.open();
+    });
+    document.addEventListener('change', function (e) {
+        if (e.target.id === 'ed_MethodC' || e.target.id === 'ed_MethodQ')
+            document.getElementById('chequeFields').style.display = chequeMode() ? '' : 'none';
+    });
+
+    // ---------------- invoice candidates popup ----------------
+    function loadCandidates() {
+        var company = document.getElementById('ed_Company').value;
+        if (!company) { SwalInfo('Pick a company first', 'The allocation lookup is company-keyed - receipts are raised against a panel company, like the legacy screen.', 'warning'); return; }
+        document.getElementById('invCompany').value = company;
+        var tb = document.getElementById('invRows');
+        tb.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">Loading open invoices...</td></tr>';
+        fetch('?handler=OpenInvoices&company=' + encodeURIComponent(company),
+            { headers: { 'RequestVerificationToken': TOKEN } })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                patients = d.patients || {};
+                var tb = document.getElementById('invRows');
+                tb.innerHTML = '';
+                var any = false;
+                (d.invoices || []).forEach(function (inv) {
+                    inv.lines.forEach(function (l) {
+                        any = true;
+                        var tr = document.createElement('tr');
+                        tr.style.cursor = 'pointer';
+                        tr.innerHTML = '<td><code>' + esc(inv.docNo) + '</code></td>'
+                            + '<td>' + (inv.invoiceDate || '').substr(0, 10) + '</td>'
+                            + '<td><code>' + esc(l.regNo) + '</code></td>'
+                            + '<td>' + esc(patients[l.regNo] || '-') + '</td>'
+                            + '<td class="text-end">' + Number(l.billAmt).toFixed(2) + '</td>'
+                            + '<td class="text-end text-muted">' + Number(l.applied).toFixed(2) + '</td>'
+                            + '<td class="text-end text-primary">' + Number(l.remaining).toFixed(2) + '</td>'
+                            + '<td class="text-end"><span class="badge text-bg-primary">Add</span></td>';
+                        tr.addEventListener('click', function () {
+                            lines.push({ invoiceId: inv.invoiceId, docNo: inv.docNo,
+                                regNo: l.regNo, patientName: patients[l.regNo] || '-',
+                                rcptAmt: Math.round((l.remaining || 0) * 100) / 100,
+                                itax: '', othDed: 0, remarks: '' });
+                            renderLines();
+                            invM.close();
+                        });
+                        tb.appendChild(tr);
+                    });
+                    if (inv.lines.length === 0) {
+                        any = true;
+                        var tr2 = document.createElement('tr');
+                        tr2.innerHTML = '<td><code>' + esc(inv.docNo) + '</code></td>'
+                            + '<td colspan="6" class="text-muted">Invoice ' + esc(inv.docNo)
+                            + ' has no open patient lines.</td><td></td>';
+                        tb.appendChild(tr2);
+                    }
+                });
+                if (!any) {
+                    tb.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">'
+                        + 'No open invoice still has outstanding money for this company. '
+                        + 'Money received in advance of an invoice belongs on the '
+                        + '<strong>Add Advance</strong> line of the receipt popup.</td></tr>';
+                }
+            });
+    }
+    document.getElementById('btnLineAdd').addEventListener('click', function () {
+        invM ? invM.open() : null;
+        loadCandidates();
+    });
+
+    // ---------------- advance-line patient search popup ----------------
+    function searchPatients() {
+        var company = document.getElementById('ed_Company').value;
+        if (!company) { SwalInfo('Pick a company first', '', 'warning'); return; }
+        document.getElementById('patCompany').value = company;
+        var term = document.getElementById('patTerm').value;
+        fetch('/Recovery/Invoice?handler=PatientSearch&company='
+                + encodeURIComponent(company) + '&term=' + encodeURIComponent(term || ''),
+            { headers: { 'RequestVerificationToken': TOKEN } })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                var tb = document.getElementById('patRows');
+                tb.innerHTML = '';
+                if (!d.length) {
+                    tb.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No billed inpatient matched.</td></tr>';
+                    return;
+                }
+                d.forEach(function (p) {
+                    var tr = document.createElement('tr');
+                    tr.style.cursor = 'pointer';
+                    tr.innerHTML = '<td><code>' + esc(p.regNo) + '</code></td>'
+                        + '<td>' + esc(p.patientName) + '</td>'
+                        + '<td class="text-muted">' + (p.billNo ? '#' + p.billNo : '-') + '</td>'
+                        + '<td class="text-end">' + Number(p.defaultAmt).toFixed(2) + '</td>'
+                        + '<td class="text-end"><span class="badge text-bg-secondary">Add</span></td>';
+                    tr.addEventListener('click', function () {
+                        lines.push({ invoiceId: null, docNo: '',
+                            regNo: p.regNo, patientName: p.patientName,
+                            rcptAmt: Math.round((p.defaultAmt || 0) * 100) / 100,
+                            itax: '', othDed: 0, remarks: 'advance' });
+                        renderLines();
+                        patM.close();
+                    });
+                    tb.appendChild(tr);
+                });
+            });
+    }
+    document.getElementById('btnLineAdvance').addEventListener('click', function () {
+        var company = document.getElementById('ed_Company').value;
+        if (!company) { SwalInfo('Pick a company first', 'Advance money is raised against a panel company, like the legacy screen.', 'warning'); return; }
+        document.getElementById('patCompany').value = company;
+        patM.open();
+        searchPatients();
+    });
+    document.getElementById('btnPatSearch').addEventListener('click', searchPatients);
+    document.getElementById('patTerm').addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); searchPatients(); }
+    });
+
+    // ---------------- row click -> detail ----------------
+    document.querySelectorAll('.rcpt-row').forEach(function (tr) {
+        tr.addEventListener('click', function () {
+            var id = parseInt(tr.dataset.id, 10);
+            fetch('?handler=Detail&id=' + id, { headers: { 'RequestVerificationToken': TOKEN } })
+                .then(function (r) { return r.json(); })
+                .then(function (d) {
+                    if (!d || !d.header) { SwalInfo('Not found', '', 'error'); return; }
+                    var h = d.header;
+                    document.getElementById('detTitle').innerHTML =
+                        '<i class="fa-solid fa-receipt me-2"></i>Receipt '
+                        + esc(h.receiptNo) + (h.status === 'X' ? ' (cancelled)' : '');
+                    var blocks = '<div class="row g-2 mb-2 small">'
+                        + '<div class="col-md-3"><span class="text-muted">Company</span><br>' + esc(h.companyCode) + '</div>'
+                        + '<div class="col-md-2"><span class="text-muted">Date</span><br>' + (h.rcptDate || '').substr(0, 10) + '</div>'
+                        + '<div class="col-md-2"><span class="text-muted">Method</span><br>' + (h.method === 'Q' ? 'Cheque' : 'Cash') + '</div>'
+                        + '<div class="col-md-2"><span class="text-muted">Status</span><br>' + statusBadge(h.status) + '</div>'
+                        + '<div class="col-md-3"><span class="text-muted">Received by</span><br>' + esc(h.rcvdBy || '-') + '</div>'
+                        + (h.method === 'Q' ? '<div class="col-md-12"><span class="text-muted">Cheque</span><br>' + esc(h.chequeNo || '-') + ' | ' + esc(h.bank || '-') + ' | ' + (h.chequeDate || '').substr(0, 10) + '</div>' : '')
+                        + '<div class="col-md-12"><span class="text-muted">Remarks</span><br>' + esc(h.remarks || '-') + '</div>'
+                        + '</div>';
+                    document.getElementById('detBlocks').innerHTML = blocks;
+                    var lb = document.getElementById('detLines');
+                    lb.innerHTML = '';
+                    var banked = 0, credited = 0;
+                    d.lines.forEach(function (l) {
+                        var cr = Number(l.rcptAmt) + Number(l.itaxDed) + Number(l.othDed);
+                        banked += Number(l.rcptAmt); credited += cr;
+                        var trl = document.createElement('tr');
+                        trl.innerHTML = '<td>' + (l.invoiceId ? '<code>' + esc(l.docNo) + '</code>' : '<span class="badge text-bg-secondary">advance</span>') + '</td>'
+                            + '<td><code>' + esc(l.regNo) + '</code></td>'
+                            + '<td>' + esc(l.patientName) + '</td>'
+                            + '<td class="text-end">' + Number(l.rcptAmt).toFixed(2) + '</td>'
+                            + '<td class="text-end">' + Number(l.itaxDed).toFixed(2) + '</td>'
+                            + '<td class="text-end">' + Number(l.othDed).toFixed(2) + '</td>'
+                            + '<td class="text-end text-primary">' + cr.toFixed(2) + '</td>'
+                            + '<td class="text-muted">' + esc(l.remarks || '') + '</td>';
+                        lb.appendChild(trl);
+                    });
+                    if (d.lines.length === 0)
+                        lb.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-3">'
+                            + (h.status === 'B' ? 'Allocation rows were removed when the cheque bounced.' :
+                               h.status === 'X' ? 'Allocation rows were removed when the receipt was cancelled.' :
+                               'No allocation lines on this receipt.') + '</td></tr>';
+                    else {
+                        var trT = document.createElement('tr');
+                        trT.innerHTML = '<td colspan="3" class="text-end"><strong>Totals</strong></td>'
+                            + '<td class="text-end"><strong>' + banked.toFixed(2) + '</strong></td>'
+                            + '<td colspan="2"></td>'
+                            + '<td class="text-end"><strong>' + credited.toFixed(2) + '</strong></td><td></td>';
+                        lb.appendChild(trT);
+                    }
+                    var ab = document.getElementById('detAudit');
+                    ab.innerHTML = '';
+                    d.audit.forEach(function (a) {
+                        var tr = document.createElement('tr');
+                        tr.innerHTML = '<td class="text-muted small">' + (a.createdAt || '').replace('T', ' ').substr(0, 19) + '</td>'
+                            + '<td><span class="badge text-bg-light border">' + esc(a.action) + '</span></td>'
+                            + '<td class="small">' + esc(a.entityKey || '') + (a.field ? ' / ' + esc(a.field) : '') + '</td>'
+                            + '<td class="small">' + esc(a.oldValue || '') + ' &rarr; ' + esc(a.newValue || '') + '</td>'
+                            + '<td class="small text-muted">' + esc(a.reason || '') + '</td>'
+                            + '<td class="small">' + esc(a.userName || '') + '</td>';
+                        ab.appendChild(tr);
+                    });
+                    if (d.audit.length === 0)
+                        ab.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-3">No audit rows.</td></tr>';
+
+                    // action buttons (privilege + status gated)
+                    var ac = document.getElementById('detActions');
+                    ac.innerHTML = '';
+                    if (CANEDIT && h.status === 'P' && h.method === 'Q') {
+                        var bClear = document.createElement('button');
+                        bClear.className = 'btn btn-success';
+                        bClear.innerHTML = '<i class="fa-solid fa-check me-1"></i>Mark Cleared';
+                        bClear.addEventListener('click', function () {
+                            actClear(h.id);
+                        });
+                        ac.appendChild(bClear);
+                        var bB = document.createElement('button');
+                        bB.className = 'btn btn-danger';
+                        bB.innerHTML = '<i class="fa-solid fa-rotate-left me-1"></i>Mark Bounced';
+                        bB.addEventListener('click', function () {
+                            document.getElementById('cxlId').value = h.id;
+                            document.getElementById('cxlMode').value = 'B';
+                            document.getElementById('cxlId').dataset.no = h.receiptNo;
+                            document.getElementById('cxlTitle').innerHTML =
+                                '<i class="fa-solid fa-rotate-left me-2"></i>Mark Bounced ' + esc(h.receiptNo);
+                            document.getElementById('cxlWarn').innerHTML =
+                                'The cheque did not honour. Its allocation rows are removed - the credited invoice money re-opens automatically. A reason is recorded.';
+                            document.getElementById('cxlReason').value = '';
+                            detM.close();
+                            cxlM.open();
+                        });
+                        ac.appendChild(bB);
+                    }
+                    if (CANEDIT && h.status !== 'X') {
+                        var bC = document.createElement('button');
+                        bC.className = 'btn btn-outline-danger';
+                        bC.innerHTML = '<i class="fa-solid fa-trash me-1"></i>Cancel Receipt';
+                        bC.addEventListener('click', function () {
+                            document.getElementById('cxlId').value = h.id;
+                            document.getElementById('cxlMode').value = 'X';
+                            document.getElementById('cxlId').dataset.no = h.receiptNo;
+                            document.getElementById('cxlTitle').innerHTML =
+                                '<i class="fa-solid fa-trash me-2"></i>Cancel Receipt <span class="text-danger">' + esc(h.receiptNo) + '</span>';
+                            document.getElementById('cxlWarn').innerHTML =
+                                'Cancelling keeps the receipt on file (status Cancelled) - the totals stay for the audit trail. Its allocation rows are removed and the credited invoice money re-opens automatically. A reason is recorded.';
+                            document.getElementById('cxlReason').value = '';
+                            detM.close();
+                            cxlM.open();
+                        });
+                        ac.appendChild(bC);
+                    }
+                    var bClose = document.createElement('button');
+                    bClose.className = 'btn btn-secondary';
+                    bClose.setAttribute('data-bs-dismiss', 'modal');
+                    bClose.innerHTML = 'Close';
+                    ac.appendChild(bClose);
+                    detM.open();
+                });
+        });
+    });
+
+    function statusBadge(s) {
+        return s === 'P' ? '<span class="badge text-bg-warning">Pending</span>'
+            : s === 'C' ? '<span class="badge text-bg-success">Cleared</span>'
+            : s === 'B' ? '<span class="badge text-bg-danger">Bounced</span>'
+            : '<span class="badge text-bg-secondary">Cancelled</span>';
+    }
+
+    function actClear(id) {
+        var body = new URLSearchParams();
+        body.append('id', id);
+        fetch('?handler=Clear', {
+            method: 'POST',
+            headers: { 'RequestVerificationToken': TOKEN,
+                'Content-Type': 'application/x-www-form-urlencoded' },
+            body: body.toString()
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (res) {
+            if (res.ok) {
+                detM.close();
+                SwalInfo('Cleared', 'Receipt ' + res.receiptNo + ' marked cleared.', 'success',
+                    function () { window.location.reload(); });
+            } else { SwalInfo('Not cleared', res.message, 'error'); }
+        })
+        .catch(function (e) { SwalInfo('Error', String(e), 'error'); });
+    }
+
+    // ---------------- red trash from the list ----------------
+    document.querySelectorAll('[data-del-id]').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+            e.preventDefault(); e.stopPropagation();
+            document.getElementById('cxlId').value = btn.dataset.delId;
+            document.getElementById('cxlMode').value = 'X';
+            document.getElementById('cxlId').dataset.no = btn.dataset.doc;
+            document.getElementById('cxlTitle').innerHTML =
+                '<i class="fa-solid fa-trash me-2"></i>Cancel Receipt <span class="text-danger">' + esc(btn.dataset.doc) + '</span>';
+            document.getElementById('cxlWarn').innerHTML =
+                'Cancelling keeps the receipt on file (status Cancelled) - the totals stay for the audit trail. Its allocation rows are removed and the credited invoice money re-opens automatically. A reason is recorded.';
+            document.getElementById('cxlReason').value = '';
+            cxlM.open();
+        });
+    });
+
+    document.getElementById('btnCxlConfirm').addEventListener('click', function () {
+        var id = document.getElementById('cxlId').value;
+        var mode = document.getElementById('cxlMode').value;
+        var reason = document.getElementById('cxlReason').value;
+        var no = document.getElementById('cxlId').dataset.no || '';
+        var body = new URLSearchParams();
+        body.append('id', id); body.append('reason', reason);
+        var handler = mode === 'B' ? 'Bounce' : 'Cancel';
+        fetch('?handler=' + handler, {
+            method: 'POST',
+            headers: { 'RequestVerificationToken': TOKEN,
+                'Content-Type': 'application/x-www-form-urlencoded' },
+            body: body.toString()
+        })
+        .then(function (r) { return r.json(); })
+        .then(function (res) {
+            if (res.ok) {
+                cxlM.close();
+                SwalInfo(mode === 'B' ? 'Bounced' : 'Cancelled',
+                    'Receipt ' + res.receiptNo + ' ' + (mode === 'B' ? 'bounced' : 'cancelled') + '.',
+                    'success', function () { window.location.reload(); });
+            } else {
+                SwalInfo('Not ' + (mode === 'B' ? 'marked bounced' : 'cancelled'), res.message, 'error');
+            }
+        })
+        .catch(function (e) { SwalInfo('Error', String(e), 'error'); });
+    });
+
+    // ---------------- save ----------------
+    document.getElementById('btnSaveRcpt').addEventListener('click', function () {
+        var input = {
+            companyCode: document.getElementById('ed_Company').value,
+            rcptDate: document.getElementById('ed_RcptDate').value,
+            method: chequeMode() ? 'Q' : 'C',
+            chequeNo: document.getElementById('ed_ChequeNo').value || null,
+            bank: document.getElementById('ed_Bank').value || null,
+            chequeDate: chequeMode() ? (document.getElementById('ed_ChequeDate').value || null) : null,
+            rcvdBy: document.getElementById('ed_RcvdBy').value,
+            remarks: document.getElementById('ed_Remarks').value,
+            lines: lines.map(function (l) {
+                return { invoiceId: l.invoiceId, regNo: l.regNo, rcptAmt: l.rcptAmt,
+                    itaxDed: l.itax === '' ? null : l.itax, othDed: l.othDed, remarks: l.remarks };
+            })
+        };
+        fetch('?handler=Save', { method: 'POST', headers: hdr(), body: JSON.stringify(input) })
+            .then(function (r) { return r.json(); })
+            .then(function (res) {
+                if (res.ok) {
+                    rcptM.close();
+                    SwalInfo('Saved', 'Receipt ' + res.receiptNo + ' recorded.', 'success',
+                        function () { window.location.reload(); });
+                } else {
+                    SwalInfo('Not saved', res.message, 'error');
+                }
+            })
+            .catch(function (e) { SwalInfo('Error', String(e), 'error'); });
+    });
+
+    // ---------------- helpers ----------------
+    function esc(s) {
+        return String(s === null || s === undefined ? '' : s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    rcptM = modal(document.getElementById('rcptModal'));
+    invM = modal(document.getElementById('invModal'));
+    detM = modal(document.getElementById('detModal'));
+    cxlM = modal(document.getElementById('cxlModal'));
+    patM = modal(document.getElementById('patModal'));
+    fillCompany(document.getElementById('ed_Company'), false);
+})();
+</script>

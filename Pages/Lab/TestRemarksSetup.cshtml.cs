@@ -19,6 +19,11 @@ namespace HmisWeb.Pages.Lab
     /// </summary>
     public class TestRemarksSetupModel : PageModel
     {
+        /// <summary>Mirror prefix of the laboratory bank on the shared services master.</summary>
+
+        private const string ItemPrefix = "INV-LB-";
+
+
         private readonly ApplicationDbContext _db;
         private readonly IAppSession _session;
 
@@ -85,7 +90,8 @@ namespace HmisWeb.Pages.Lab
             ErrorMessage = TempData["TrsError"] as string;
             Items = await _db.TestRemarks.Include(r => r.Item).Where(r => !r.Retired).OrderBy(r => r.Id).ToListAsync();
             TestList = await _db.Items
-                .Where(i => !i.Retired && (i.ItemType == ItemType.Investigation || i.ItemType == ItemType.Service))
+                .Where(i => !i.Retired && (i.ItemType == ItemType.Investigation || i.ItemType == ItemType.Service)
+                && i.Code.StartsWith(ItemPrefix))
                 .OrderBy(i => i.Name)
                 .Select(i => new SelectListItem { Value = i.Id.ToString(), Text = (i.Code ?? "") + " - " + i.Name }).ToListAsync();
         }

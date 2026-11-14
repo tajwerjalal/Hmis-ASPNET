@@ -12,8 +12,13 @@ using HmisWeb.Models;
 namespace HmisWeb.Pages.Lab
 {
     /// <summary>Test Information Report - descriptive information for tests. VFP Labsys report lb0230.</summary>
-    public class TestInformationReportModel : PageModel
+    public class TestInformationReportModel : HmisWeb.Pages.Shared.PagedPageModel
     {
+        /// <summary>Mirror prefix of the laboratory bank on the shared services master.</summary>
+
+        private const string ItemPrefix = "INV-LB-";
+
+
         private readonly ApplicationDbContext _db;
         public TestInformationReportModel(ApplicationDbContext db) { _db = db; }
 
@@ -38,10 +43,15 @@ namespace HmisWeb.Pages.Lab
 
         private async Task LoadAsync()
         {
-            Tests = await _db.Items.Include(i => i.Category)
-                .Where(i => !i.Retired && (i.ItemType == ItemType.Investigation || i.ItemType == ItemType.Service))
+            var testQuery = _db.Items.Include(i => i.Category)
+                .Where(i => !i.Retired && (i.ItemType == ItemType.Investigation || i.ItemType == ItemType.Service)
+                && i.Code.StartsWith(ItemPrefix))
                 .OrderBy(i => i.Name)
-                .ToListAsync();
+                ;
+
+            TotalCount = await testQuery.CountAsync();
+            ClampPaging();
+            Tests = await ApplyPaging(testQuery).ToListAsync();
 
             if (TestId.HasValue && TestId.Value > 0)
             {

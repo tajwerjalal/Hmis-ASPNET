@@ -1,5 +1,16 @@
 @page
 @model HmisWeb.Pages.Categories.IndexModel
+@*
+    Item Categories - list + add form of the category master.
+
+    Developer : [TAJWER JALAL]
+    Date      : 22-Oct-2026
+    Time      : 13:20
+    Change Log: 22-Oct-2026 13:20 - the retire confirmation moved from the native
+                confirm() to SweetAlert2, matching the consultant master screen.
+                The form still posts the same handler and id, the dialog only
+                decides whether the post happens.
+*@
 @{
     ViewData["Title"] = "Item Categories";
 }
@@ -42,11 +53,10 @@
                                 <td>@(item.SymanticType?.ToString() ?? "-")</td>
                                 <td>@(item.Institution?.Name ?? "-")</td>
                                 <td class="text-end">
-                                    <form method="post">
+                                    <form method="post" asp-page-handler="Delete" class="js-retire" data-name="@item.Name">
                                         @Html.AntiForgeryToken()
-                                        <input type="hidden" name="handler" value="Delete" />
                                         <input type="hidden" name="id" value="@item.Id" />
-                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Retire" onclick="return confirm('Retire this record?');"><i class="bi bi-trash"></i></button>
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Retire"><i class="bi bi-trash"></i></button>
                                     </form>
                                 </td>
                             </tr>
@@ -95,3 +105,40 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert2/11.10.1/sweetalert2.all.min.js"></script>
+    <script>
+        // retire confirmation: SweetAlert2 instead of the browser confirm().
+        // Every retire form is intercepted; the post only runs when the user
+        // confirms, so the server side handler is untouched.
+        (function () {
+            document.querySelectorAll('form.js-retire').forEach(function (form) {
+                form.addEventListener('submit', function (e) {
+                    e.preventDefault();
+
+                    var name = form.dataset.name || 'this category';
+
+                    if (!window.Swal) {
+                        if (window.confirm('Retire ' + name + '?')) form.submit();
+                        return;
+                    }
+
+                    window.Swal.fire({
+                        title: 'Retire category?',
+                        text: name + ' - the record is kept for history and leaves the list.',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: 'Retire',
+                        cancelButtonText: 'Cancel',
+                        confirmButtonColor: '#dc3545'
+                    }).then(function (result) {
+                        if (result.isConfirmed) {
+                            form.submit();
+                        }
+                    });
+                });
+            });
+        })();
+    </script>
+}

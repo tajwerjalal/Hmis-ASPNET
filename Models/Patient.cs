@@ -61,6 +61,61 @@ namespace HmisWeb.Models
         public bool? CardIssues { get; set; }
         public DateTime? CardIssuedDate { get; set; }
 
+        // ---- Legacy PATIENT columns -------------------------------------
+        // The PATIENT table is shared with the VFP patient master. CODE is the
+        // permanent patient code (PCODE / MRNo) and never changes. REGISTER is
+        // the visit table: a new REGISTER.REGNO is issued on every visit and
+        // PATIENT.CODE stays the same for the patient's lifetime.
+        //
+        // These columns were previously only read through raw SQL; mapping them
+        // lets the registration forms keep the legacy master in step with the
+        // app-side PERSON row without a second patient table.
+
+        [Column("NAME", TypeName = "varchar(50)")]
+        public string LegacyName { get; set; }
+
+        [Column("SEX", TypeName = "varchar(15)")]
+        public string LegacySex { get; set; }
+
+        [Column("AGE", TypeName = "varchar(3)")]
+        public string LegacyAge { get; set; }
+
+        [Column("ATYPE", TypeName = "varchar(10)")]
+        public string AType { get; set; }
+
+        [Column("ADDRESS", TypeName = "varchar(100)")]
+        public string Address { get; set; }
+
+        [Column("PHONE1", TypeName = "varchar(25)")]
+        public string Phone1 { get; set; }
+
+        [Column("PHONE2", TypeName = "varchar(25)")]
+        public string Phone2 { get; set; }
+
+        [Column("PHONE3", TypeName = "varchar(25)")]
+        public string Phone3 { get; set; }
+
+        [Column("RDATE", TypeName = "varchar(100)")]
+        public string RDate { get; set; }
+
+        [Column("NIC", TypeName = "varchar(15)")]
+        public string Nic { get; set; }
+
+        [Column("REGDATE", TypeName = "varchar(100)")]
+        public string RegDate { get; set; }
+
+        [Column("CASTE", TypeName = "varchar(15)")]
+        public string Caste { get; set; }
+
+        [Column("USERID", TypeName = "varchar(15)")]
+        public string UserId { get; set; }
+
+        [Column("UDATE", TypeName = "datetime")]
+        public DateTime UDate { get; set; } = DateTime.Now;
+
+        [Column("UTIME", TypeName = "varchar(5)")]
+        public string UTime { get; set; }
+
         [NotMapped]
         public int PendingTestCount { get; set; }
     }

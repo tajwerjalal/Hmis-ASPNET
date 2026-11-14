@@ -9,6 +9,15 @@ using Microsoft.EntityFrameworkCore;
 
 namespace HmisWeb.Pages.Hr
 {
+    /// <summary>
+    /// Consultant create/edit form.
+    ///
+    /// Developer : [TAJWER JALAL]
+    /// Date      : 23-Oct-2026
+    /// Time      : 10:30
+    /// Change Log: 23-Oct-2026 - nullable consultant fees are coalesced to 0
+    ///             when loaded into the edit form.
+    /// </summary>
     public class ConsultantEditModel : PageModel
     {
         private readonly ApplicationDbContext _db;
@@ -75,15 +84,15 @@ namespace HmisWeb.Pages.Hr
             Input.SpecialityId = c.SpecialityId;
             Input.DepartmentId = c.DepartmentId;
             Input.Degrees = c.Degrees ?? "";
-            Input.FirstVisitFee = c.FirstVisitFee;
-            Input.SubsequentVisitFee = c.SubsequentVisitFee;
+            Input.FirstVisitFee = c.FirstVisitFee ?? 0;
+            Input.SubsequentVisitFee = c.SubsequentVisitFee ?? 0;
             Input.SltRegNo = c.SltRegNo ?? "";
             Input.PmcNumber = c.PmcNumber ?? "";
             Input.WorkDays = c.WorkDays ?? "";
             Input.SessionStartTime = c.SessionStartTime ?? "";
             Input.SessionEndTime = c.SessionEndTime ?? "";
             Input.DefaultRoomNo = c.DefaultRoomNo ?? "";
-            Input.DefaultHospitalFee = c.DefaultHospitalFee;
+            Input.DefaultHospitalFee = c.DefaultHospitalFee ?? 0;
 
             return Page();
         }

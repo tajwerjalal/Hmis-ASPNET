@@ -133,7 +133,7 @@
                                             <td>
                                                 @if (f.BuyerType == "Patient" && f.Patient != null)
                                                 {
-                                                    <span>@(f.Patient.Person?.NameWithInitials ?? f.Patient.Person?.Name ?? "")</span>
+                                                    <span>@HmisWeb.Services.PatientDisplayName.Of(f.Patient)</span>
                                                 }
                                                 else
                                                 {
@@ -221,7 +221,7 @@
                                             <td>
                                                 @if (f.BuyerType == "Patient" && f.Patient != null)
                                                 {
-                                                    <span>@(f.Patient.Person?.NameWithInitials ?? f.Patient.Person?.Name ?? "")</span>
+                                                    <span>@HmisWeb.Services.PatientDisplayName.Of(f.Patient)</span>
                                                 }
                                                 else
                                                 {

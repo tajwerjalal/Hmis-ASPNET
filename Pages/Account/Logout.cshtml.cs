@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Authentication;
 using HmisWeb.Data;
 using HmisWeb.Services;
 
@@ -30,6 +31,7 @@ namespace HmisWeb.Pages.Account
                 await _db.SaveChangesAsync();
             }
             _appSession.Clear();
+            await HttpContext.SignOutAsync("HmisAuth");
             return RedirectToPage("/Account/Login");
         }
     }

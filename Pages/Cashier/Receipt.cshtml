@@ -2,145 +2,447 @@
 @model HmisWeb.Pages.Cashier.ReceiptModel
 @{
     ViewData["Title"] = "Cash Receipts";
+    var from = Model.FromDate?.ToString("yyyy-MM-dd");
+    var to = Model.ToDate?.ToString("yyyy-MM-dd");
+    var isHistory = string.Equals(Model.Tab, "history", StringComparison.OrdinalIgnoreCase);
 }
 
 <div class="container-fluid mt-3">
-    <h3><i class="bi bi-receipt"></i> Cash Receipts Transaction</h3>
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+        <h3 class="mb-0"><i class="bi bi-receipt"></i> Cash Receipts</h3>
+        <div class="d-flex gap-2">
+            <a class="btn btn-outline-secondary btn-sm" asp-page="./CashAudit">Cash Audit (Un-posted)</a>
+            <a class="btn btn-outline-secondary btn-sm" asp-page="./CashBook">Cash Book</a>
+            <a class="btn btn-outline-secondary btn-sm" asp-page="./DayEndPosting">Day End Posting</a>
+        </div>
+    </div>
 
     @if (!string.IsNullOrEmpty(Model.ErrorMessage))
     {
-        <div class="alert alert-danger">@Model.ErrorMessage</div>
+        <div class="alert alert-danger alert-dismissible fade show">
+            @Model.ErrorMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
     }
     @if (!string.IsNullOrEmpty(Model.Success))
     {
-        <div class="alert alert-success">@Model.Success</div>
+        <div class="alert alert-success alert-dismissible fade show">
+            <i class="bi bi-check-circle"></i> @Model.Success
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
     }
 
-    <form method="post" asp-page-handler="Save">
-        <div class="row g-2 mb-3">
-            <div class="col-md-2">
-                <label class="form-label">Date</label>
-                <input asp-for="Input.TrDate" type="date" class="form-control" />
+    <ul class="nav nav-tabs mb-3">
+        <li class="nav-item">
+            <a class="nav-link @(isHistory ? "" : "active")"
+               asp-page="./Receipt" asp-route-Tab="unpaid"
+               asp-route-FromDate="@from" asp-route-ToDate="@to"
+               asp-route-Q="@Model.Q" asp-route-Cashier="@Model.Cashier">
+                <i class="bi bi-list-check"></i> Unpaid Transactions
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link @(isHistory ? "active" : "")"
+               asp-page="./Receipt" asp-route-Tab="history"
+               asp-route-FromDate="@from" asp-route-ToDate="@to"
+               asp-route-Q="@Model.Q" asp-route-Cashier="@Model.Cashier">
+                <i class="bi bi-clock-history"></i> Receipt History
+            </a>
+        </li>
+    </ul>
+
+    <form method="get" class="card mb-3 shadow-sm">
+        <div class="card-body">
+            <input type="hidden" name="Tab" value="@Model.Tab" />
+            <div class="row g-2 align-items-end">
+                <div class="col-md-2">
+                    <label class="form-label mb-1">From Date</label>
+                    <input type="date" name="FromDate" value="@from" class="form-control form-control-sm" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label mb-1">To Date</label>
+                    <input type="date" name="ToDate" value="@to" class="form-control form-control-sm" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label mb-1">Patient / Register No. / Invoice</label>
+                    <input type="text" name="Q" value="@Model.Q" class="form-control form-control-sm"
+                           placeholder="Name, reg no, invoice, receipt no..." />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label mb-1">Cashier</label>
+                    <select name="Cashier" class="form-select form-select-sm">
+                        <option value="">— Any cashier —</option>
+                        @foreach (var c in Model.Cashiers)
+                        {
+                            if (c == Model.Cashier)
+                            {
+                                <option value="@c" selected>@c</option>
+                            }
+                            else
+                            {
+                                <option value="@c">@c</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="bi bi-search"></i> Search
+                    </button>
+                    <a class="btn btn-outline-secondary btn-sm" asp-page="./Receipt" asp-route-Tab="@Model.Tab">
+                        Today
+                    </a>
+                    <a class="btn btn-outline-secondary btn-sm"
+                       asp-page="./Receipt" asp-route-Tab="@Model.Tab"
+                       asp-route-FromDate="@DateTime.Today.AddDays(-30).ToString("yyyy-MM-dd")"
+                       asp-route-ToDate="@DateTime.Today.ToString("yyyy-MM-dd")">
+                        Last 30 days
+                    </a>
+                </div>
             </div>
-            <div class="col-md-1">
-                <label class="form-label">Time</label>
-                <input asp-for="Input.TrTime" class="form-control" />
-            </div>
-            <div class="col-md-2">
-                <label class="form-label">Type</label>
-                <input asp-for="Input.Type" class="form-control" />
-            </div>
-            <div class="col-md-2">
-                <label class="form-label">Register No.</label>
-                <input asp-for="Input.RegNo" type="number" class="form-control" />
-            </div>
-            <div class="col-md-2">
-                <label class="form-label">Mode</label>
-                <select asp-for="Input.Mode" class="form-select">
-                    <option value="1">Cash</option>
-                    <option value="2">Card</option>
-                </select>
-            </div>
-            <div class="col-md-3">
-                <label class="form-label">Reference</label>
-                <input asp-for="Input.Reference" class="form-control" />
+            <div class="form-text mt-2">
+                Unpaid transactions default to the working date. History can be searched by date range and cashier.
             </div>
         </div>
-
-        <div class="row g-2 mb-3">
-            <div class="col-md-2">
-                <label class="form-label">Card Name</label>
-                <input asp-for="Input.CardName" class="form-control" />
-            </div>
-            <div class="col-md-2">
-                <label class="form-label">Card No</label>
-                <input asp-for="Input.CardNo" class="form-control" />
-            </div>
-            <div class="col-md-2">
-                <label class="form-label">Card Valid</label>
-                <input asp-for="Input.CardValid" type="date" class="form-control" />
-            </div>
-            <div class="col-md-2">
-                <label class="form-label">Approval No</label>
-                <input asp-for="Input.CardApprNo" class="form-control" />
-            </div>
-            <div class="col-md-2">
-                <label class="form-label">Discount</label>
-                <input asp-for="Input.CDisc" type="number" step="0.01" class="form-control" />
-            </div>
-            <div class="col-md-2">
-                <label class="form-label">Discount By</label>
-                <input asp-for="Input.DiscBy" class="form-control" />
-            </div>
-        </div>
-
-        <h5>Detail Lines</h5>
-        <table class="table table-sm table-bordered" id="linesTable">
-            <thead class="table-light">
-                <tr><th>Account Head</th><th>Dept</th><th>Indent No</th><th>Remarks</th><th class="text-end">Amount</th></tr>
-            </thead>
-            <tbody>
-                @for (int i = 0; i < (Model.Input.Lines?.Count ?? 0); i++)
-                {
-                    <tr>
-                        <td>
-                            <select asp-for="Input.Lines[i].AccNo" class="form-select form-select-sm">
-                                <option value="">-- select --</option>
-                                @foreach (var a in Model.AccountHeads)
-                                {
-                                    <option value="@a.AccNo">@a.AccNo - @a.AccDesc</option>
-                                }
-                            </select>
-                        </td>
-                        <td>
-                            <select asp-for="Input.Lines[i].Dept" class="form-select form-select-sm">
-                                <option value="">--</option>
-                                @foreach (var d in Model.Departments)
-                                {
-                                    <option value="@d.Code">@d.Code - @d.Name</option>
-                                }
-                            </select>
-                        </td>
-                        <td><input asp-for="Input.Lines[i].IndentNo" class="form-control form-control-sm" /></td>
-                        <td><input asp-for="Input.Lines[i].Remarks" class="form-control form-control-sm" /></td>
-                        <td><input asp-for="Input.Lines[i].Amount" type="number" step="0.01" class="form-control form-control-sm text-end" /></td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-
-        <div class="mb-3">
-            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addLine()">+ Add Line</button>
-        </div>
-
-        <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Save Receipt</button>
-        <a asp-page="/cashier" class="btn btn-secondary">Back</a>
     </form>
 
-    <hr />
-    <h5>Recent Receipts</h5>
-    <table class="table table-sm table-striped">
-        <thead><tr><th>TrNo</th><th>Date</th><th>RegNo</th><th>Total</th><th>User</th></tr></thead>
-        <tbody>
-            @foreach (var r in Model.RecentReceipts)
-            {
-                <tr><td>@r.TrNo</td><td>@r.TrDate.ToString("dd-MM-yyyy")</td><td>@r.RegNo</td><td class="text-end">@r.TotalAmt.ToString("N2")</td><td>@r.UserId</td></tr>
-            }
-        </tbody>
-    </table>
+    @if (isHistory)
+    {
+        <div class="card shadow-sm">
+            <div class="card-header d-flex justify-content-between">
+                <span><i class="bi bi-clock-history"></i> Receipts posted between @Model.FromDate?.ToString("dd-MMM-yyyy") and @Model.ToDate?.ToString("dd-MMM-yyyy")</span>
+                <span class="text-muted small">@Model.History.Count receipt(s)</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Receipt No</th>
+                            <th>Date</th>
+                            <th>Time</th>
+                            <th>Type</th>
+                            <th>Reg No</th>
+                            <th>Mode</th>
+                            <th class="text-end">Total</th>
+                            <th class="text-end">Discount</th>
+                            <th>Reference</th>
+                            <th>Cashier</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.History.Count == 0)
+                        {
+                            <tr><td colspan="10" class="text-center text-muted py-4">No receipts found for the selected filters.</td></tr>
+                        }
+                        @foreach (var r in Model.History)
+                        {
+                            <tr>
+                                <td class="fw-semibold">@r.TrNo</td>
+                                <td>@r.TrDate.ToString("dd-MMM-yyyy")</td>
+                                <td>@r.TrTime</td>
+                                <td>@r.Type</td>
+                                <td>@r.RegNo</td>
+                                <td>@HmisWeb.Pages.Cashier.ReceiptModel.ModeText(r.Mode)</td>
+                                <td class="text-end">@r.TotalAmt.ToString("N2")</td>
+                                <td class="text-end">@r.CDisc.ToString("N2")</td>
+                                <td>@r.Reference</td>
+                                <td>@r.UserId</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card shadow-sm">
+            <div class="card-header d-flex justify-content-between">
+                <span><i class="bi bi-list-check"></i> Unpaid transactions between @Model.FromDate?.ToString("dd-MMM-yyyy") and @Model.ToDate?.ToString("dd-MMM-yyyy")</span>
+                <span class="text-muted small">@Model.Unpaid.Count transaction(s)</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Date</th>
+                            <th>Reg No</th>
+                            <th>Patient</th>
+                            <th>PHN / BHT</th>
+                            <th>Type</th>
+                            <th>Department</th>
+                            <th>Invoice / Indent</th>
+                            <th class="text-end">Net</th>
+                            <th class="text-end">Paid</th>
+                            <th class="text-end">Due</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Model.Unpaid.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="11" class="text-center text-muted py-4">
+                                    No unpaid transactions for the selected date(s).
+                                    <div class="small mt-1">Try widening the date range or clearing the search.</div>
+                                </td>
+                            </tr>
+                        }
+                        @foreach (var u in Model.Unpaid)
+                        {
+                            <tr>
+                                <td>@u.BillDate?.ToString("dd-MMM-yyyy")</td>
+                                <td>@u.RegNo</td>
+                                <td>
+                                    @u.PatientName
+                                    @if (u.IsIpd)
+                                    {
+                                        <span class="badge bg-info text-dark ms-1">IPD</span>
+                                    }
+                                </td>
+                                <td>@(string.IsNullOrWhiteSpace(u.BhtNo) ? u.Phn : u.BhtNo)</td>
+                                <td>@u.BillTypeName</td>
+                                <td>@u.DepartmentName</td>
+                                <td>@u.IndentNo</td>
+                                <td class="text-end">@u.NetTotal.ToString("N2")</td>
+                                <td class="text-end">@u.PaidAmount.ToString("N2")</td>
+                                <td class="text-end fw-semibold text-danger">@u.Outstanding.ToString("N2")</td>
+                                <td class="text-end">
+                                    <a class="btn btn-sm btn-success"
+                                       asp-page="./Receipt"
+                                       asp-route-Id="@u.BillId"
+                                       asp-route-Tab="unpaid"
+                                       asp-route-FromDate="@from"
+                                       asp-route-ToDate="@to"
+                                       asp-route-Q="@Model.Q"
+                                       asp-route-Cashier="@Model.Cashier">
+                                        <i class="bi bi-cash-coin"></i> Receive
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+
+    @if (Model.Selected != null)
+    {
+        <div class="modal fade" id="receiveModal" tabindex="-1" aria-labelledby="receiveModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-xl modal-dialog-scrollable">
+                <form method="post" asp-page-handler="Receive" id="receiveForm" class="modal-content">
+                        <div class="modal-header bg-success text-white">
+                            <h5 class="modal-title" id="receiveModalLabel">
+                                <i class="bi bi-cash-coin"></i> Cash Receipts Transaction
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <input type="hidden" asp-for="Input.BillId" />
+                            <input type="hidden" name="FromDate" value="@from" />
+                            <input type="hidden" name="ToDate" value="@to" />
+                            <input type="hidden" name="Q" value="@Model.Q" />
+                            <input type="hidden" name="Cashier" value="@Model.Cashier" />
+                            <input type="hidden" name="Tab" value="unpaid" />
+
+                            <div class="alert alert-light border mb-3">
+                                <div class="row g-1 small">
+                                    <div class="col-md-4"><strong>Patient:</strong> @Model.Selected.PatientName</div>
+                                    <div class="col-md-2"><strong>Reg No:</strong> @Model.Selected.RegNo</div>
+                                    <div class="col-md-3"><strong>PHN:</strong> @Model.Selected.Phn</div>
+                                    <div class="col-md-3"><strong>BHT:</strong> @Model.SelectedBhtNo</div>
+                                    <div class="col-md-4"><strong>Department:</strong> @Model.Selected.DepartmentName</div>
+                                    <div class="col-md-4"><strong>Invoice / Indent:</strong> @Model.Selected.IndentNo</div>
+                                    <div class="col-md-4">
+                                        <strong>Amount Due:</strong>
+                                        <span class="text-danger fw-bold">Rs @Model.SelectedDue.ToString("N2")</span>
+                                        @if (Model.SelectedIsIpd)
+                                        {
+                                            <span class="badge bg-info text-dark ms-1">IPD account</span>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row g-2">
+                                <div class="col-md-2">
+                                    <label class="form-label">Date</label>
+                                    <input asp-for="Input.TrDate" type="date" class="form-control form-control-sm" />
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">Time</label>
+                                    <input asp-for="Input.TrTime" type="time" class="form-control form-control-sm" />
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">Type</label>
+                                    <input asp-for="Input.Type" class="form-control form-control-sm" readonly />
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">Register No.</label>
+                                    <input asp-for="Input.RegNo" class="form-control form-control-sm" readonly />
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">Mode</label>
+                                    <select asp-for="Input.Mode" class="form-select form-select-sm" id="paymentMode">
+                                        <option value="0">Cash</option>
+                                        <option value="11">Credit Card</option>
+                                        <option value="12">Debit Card</option>
+                                        <option value="2">Cheque</option>
+                                        <option value="10">Bank Transfer</option>
+                                        <option value="4">Online</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">Reference</label>
+                                    <input asp-for="Input.Reference" class="form-control form-control-sm" placeholder="Card / cheque / online ref" />
+                                </div>
+                            </div>
+
+                            <div class="row g-2 mt-1" id="cardFields">
+                                <div class="col-md-3">
+                                    <label class="form-label">Card Name</label>
+                                    <input asp-for="Input.CardName" class="form-control form-control-sm" />
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Card No</label>
+                                    <input asp-for="Input.CardNo" class="form-control form-control-sm" />
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Card Valid</label>
+                                    <input asp-for="Input.CardValid" type="date" class="form-control form-control-sm" />
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Approval No</label>
+                                    <input asp-for="Input.CardApprNo" class="form-control form-control-sm" />
+                                </div>
+                            </div>
+
+                            <div class="row g-2 mt-1">
+                                <div class="col-md-2">
+                                    <label class="form-label">Discount</label>
+                                    <input asp-for="Input.CDisc" type="number" step="0.01" min="0" class="form-control form-control-sm" id="discount" />
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">Discount By</label>
+                                    <input asp-for="Input.DiscBy" class="form-control form-control-sm" />
+                                </div>
+                            </div>
+
+                            <h6 class="mt-3 mb-2"><i class="bi bi-list-ul"></i> Detail Lines</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered align-middle mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th style="width:16%">Account Head</th>
+                                            <th style="width:10%">Dept</th>
+                                            <th style="width:18%">Indent No</th>
+                                            <th>Remarks</th>
+                                            <th style="width:14%" class="text-end">Amount</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @if (Model.AutoLines.Count == 0)
+                                        {
+                                            <tr><td colspan="5" class="text-center text-muted">No detail lines.</td></tr>
+                                        }
+                                        @foreach (var l in Model.AutoLines)
+                                        {
+                                            <tr>
+                                                <td>@l.AccNo</td>
+                                                <td>@l.Dept</td>
+                                                <td>@l.IndentNo</td>
+                                                <td>@l.Remarks</td>
+                                                <td class="text-end">@l.Amount.ToString("N2")</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                    <tfoot>
+                                        <tr class="table-light">
+                                            <th colspan="4" class="text-end">Total</th>
+                                            <th class="text-end">@Model.AutoLines.Sum(x => x.Amount).ToString("N2")</th>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+
+                            <div class="row g-2 mt-2">
+                                <div class="col-md-2">
+                                    <label class="form-label">Received</label>
+                                    <input asp-for="Input.ReceivedAmount" type="number" step="0.01" min="0" class="form-control form-control-sm fw-bold" id="receivedAmount" />
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">Tendered</label>
+                                    <input asp-for="Input.Tendered" type="number" step="0.01" min="0" class="form-control form-control-sm" id="tenderedAmount" />
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">Change</label>
+                                    <input type="text" class="form-control form-control-sm bg-light" id="changeAmount" readonly />
+                                </div>
+                                <div class="col-md-6 d-flex align-items-end">
+                                    <div class="form-text">
+                                        Cash: change is calculated from the tendered amount. Card / cheque / online: the reference above is stored on the receipt.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <a class="btn btn-secondary"
+                               asp-page="./Receipt" asp-route-Tab="unpaid"
+                               asp-route-FromDate="@from" asp-route-ToDate="@to"
+                               asp-route-Q="@Model.Q" asp-route-Cashier="@Model.Cashier">
+                                Cancel
+                            </a>
+                            <button type="submit" class="btn btn-success">
+                                <i class="bi bi-check2-circle"></i> Post Receipt
+                            </button>
+                        </div>
+                    </form>
+            </div>
+        </div>
+    }
 </div>
 
 @section Scripts {
     <script>
-        function addLine() {
-            var tbody = document.querySelector('#linesTable tbody');
-            var idx = tbody.rows.length;
-            var row = tbody.insertRow();
-            row.innerHTML = '<td><select name="Input.Lines[' + idx + '].AccNo" class="form-select form-select-sm"><option value="">-- select --</option>@foreach (var a in Model.AccountHeads){<text><option value="@a.AccNo">@a.AccNo - @a.AccDesc</option></text>}</select></td>' +
-                '<td><select name="Input.Lines[' + idx + '].Dept" class="form-select form-select-sm"><option value="">--</option>@foreach (var d in Model.Departments){<text><option value="@d.Code">@d.Code - @d.Name</option></text>}</select></td>' +
-                '<td><input name="Input.Lines[' + idx + '].IndentNo" class="form-control form-control-sm" /></td>' +
-                '<td><input name="Input.Lines[' + idx + '].Remarks" class="form-control form-control-sm" /></td>' +
-                '<td><input name="Input.Lines[' + idx + '].Amount" type="number" step="0.01" class="form-control form-control-sm text-end" /></td>';
-        }
+        (function () {
+            var modalEl = document.getElementById('receiveModal');
+            if (!modalEl) { return; }
+
+            // Reopen the popup after a validation round-trip.
+            new bootstrap.Modal(modalEl).show();
+
+            var mode = document.getElementById('paymentMode');
+            var cardFields = document.getElementById('cardFields');
+            var received = document.getElementById('receivedAmount');
+            var tendered = document.getElementById('tenderedAmount');
+            var change = document.getElementById('changeAmount');
+            var discount = document.getElementById('discount');
+
+            function isCash() { return mode && mode.value === '0'; }
+
+            function toggleCard() {
+                if (!cardFields) { return; }
+                cardFields.style.display = isCash() ? 'none' : '';
+            }
+
+            function recalc() {
+                var r = parseFloat(received && received.value ? received.value : '0') || 0;
+                var t = parseFloat(tendered && tendered.value ? tendered.value : '0') || 0;
+                if (change) {
+                    change.value = isCash() ? Math.max(0, t - r).toFixed(2) : '0.00';
+                }
+            }
+
+            if (mode) { mode.addEventListener('change', function () { toggleCard(); recalc(); }); }
+            if (received) { received.addEventListener('input', recalc); }
+            if (tendered) { tendered.addEventListener('input', recalc); }
+            if (discount) {
+                discount.addEventListener('input', function () { recalc(); });
+            }
+
+            toggleCard();
+            recalc();
+        })();
     </script>
 }

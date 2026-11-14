@@ -1,0 +1,145 @@
+﻿VERSION =   3.00
+dataenvironment
+dataenvironment
+Dataenvironment
+ILeft = 5
+Top = 90
+Width = 520
+Height = 200
+Name = "Dataenvironment"
+
+Dataenvironment
+Left = 17
+Top = 14
+Width = 90
+Height = 90
+Alias = "collect"
+Database = ..\us.dbc
+CursorSource = "collect"
+Name = "Cursor3"
+
+Dataenvironment
+Left = 169
+Top = 15
+Width = 90
+Height = 90
+Alias = "trans"
+Database = ..\us.dbc
+CursorSource = "trans"
+Name = "Cursor4"
+
+relation
+relation
+	Relation2
+Dataenvironment
+wParentAlias = "collect"
+RelationalExpr = "indentno"
+ChildAlias = "trans"
+ChildOrder = "indent"
+Name = "Relation2"
+
+baseform
+ ..\..\common\class\baseclass.vcx
+frmindentrpt
+Top = -1
+Left = 0
+Height = 131
+Width = 243
+DoCreate = .T.
+Caption = "Indent Printout"
+ctoolbar = 
+menukey = us0250
+Name = "frmindentrpt"
+
+PROCEDURE Init
+lparameter lcindentno
+if type('lcindentno') <> 'L'
+	thisform.txtindent.value = lcindentno
+endi
+dodefault()
+ENDPROC
+PROCEDURE repoquery
+select * from collect where collect.indentno == thisform.txtindent.value into cursor tmpind
+
+select * from trans where trans.indentno == thisform.txtindent.value into cursor tmptran
+
+select * ;
+	from tmpind, tmptran ;
+	where tmpind.indentno == tmptran.indentno ;
+		into cursor tmpschd
+
+*select * ;
+*	from report, testtr ;
+*	where report.labno == thisform.txtindent.value and ;
+*		report.labno == testtr.labno ;
+*		into cursor tmpschd
+	
+if thisform.printflag
+	report form indentr to print noconsole
+else
+	report form indentr preview 
+endif
+
+use in tmpschd
+
+ENDPROC
+
+lcindentnob
+LCINDENTNO
+THISFORM	
+TXTINDENT
+indentr(!9
+INDENTNO
+THISFORM	
+TXTINDENT
+TMPSCHD	
+PRINTFLAG
+repoquery
+
+reportbtns
+ ..\..\common\class\baseclass.vcx
+commandgroup
+Reportbtns1
+frmindentrpt
+Left = 36
+Top = 72
+TabIndex = 3
+Name = "Reportbtns1"
+cmdview.Top = 5
+cmdview.Left = 5
+cmdview.Name = "cmdview"
+cmdPrint.Top = 5
+cmdPrint.Left = 65
+cmdPrint.Name = "cmdPrint"
+cmdexit.Top = 5
+cmdexit.Left = 125
+cmdexit.Name = "cmdexit"
+
+	txtindent
+frmindentrpt
+ControlSource = ""
+Format = "!R"
+Height = 23
+InputMask = "999-999999"
+Left = 96
+MaxLength = 9
+TabIndex = 1
+Top = 24
+Width = 96
+Comment = ""
+Name = "txtindent"
+
+lblLabno
+frmindentrpt
+lAutoSize = .T.
+BackStyle = 0
+Caption = "Indent No"
+Left = 28
+Top = 27
+TabIndex = 2
+Name = "lblLabno"
+
+kArial, 0, 8, 5, 14, 11, 20, 3, 0
+Comic Sans MS, 0, 7, 4, 13, 10, 11, 3, 0
+Arial, 0, 9, 5, 15, 12, 21, 3, 0
+

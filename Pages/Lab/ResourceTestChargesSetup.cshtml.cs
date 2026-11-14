@@ -20,6 +20,11 @@ namespace HmisWeb.Pages.Lab
     /// </summary>
     public class ResourceTestChargesSetupModel : PageModel
     {
+        /// <summary>Mirror prefix of the laboratory bank on the shared services master.</summary>
+
+        private const string ItemPrefix = "INV-LB-";
+
+
         private readonly ApplicationDbContext _db;
         private readonly IAppSession _session;
 
@@ -110,14 +115,16 @@ namespace HmisWeb.Pages.Lab
                 .Select(r => new SelectListItem { Value = r.Id.ToString(), Text = (r.Code ?? "") + " - " + r.Name }).ToListAsync();
 
             TestList = await _db.Items
-                .Where(i => !i.Retired && (i.ItemType == ItemType.Investigation || i.ItemType == ItemType.Service))
+                .Where(i => !i.Retired && (i.ItemType == ItemType.Investigation || i.ItemType == ItemType.Service)
+                && i.Code.StartsWith(ItemPrefix))
                 .OrderBy(i => i.Name)
                 .Select(i => new SelectListItem { Value = i.Id.ToString(), Text = (i.Code ?? "") + " - " + i.Name }).ToListAsync();
 
             var q = _db.ResourceServiceRates
                 .Include(r => r.Resource)
                 .Include(r => r.Item)
-                .Where(r => !r.Retired && (r.Item.ItemType == ItemType.Investigation || r.Item.ItemType == ItemType.Service));
+                .Where(r => !r.Retired && (r.Item.ItemType == ItemType.Investigation || r.Item.ItemType == ItemType.Service)
+                && r.Item.Code.StartsWith(ItemPrefix));
 
             if (ResourceId.HasValue && ResourceId.Value > 0) q = q.Where(r => r.ResourceId == ResourceId.Value);
 

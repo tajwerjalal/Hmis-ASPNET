@@ -1,0 +1,501 @@
+@page "/consultants"
+@model HmisWeb.Pages.Consultants.IndexModel
+@{
+    ViewData["Title"] = "Consultants";
+}
+
+<div class="d-flex justify-content-between align-items-end mb-2 flex-wrap gap-2">
+    <div>
+        <h4 class="mb-0 fw-bold"><i class="bi bi-person-badge me-2 text-primary"></i>Consultants</h4>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-page="/Corporate/ConsultantRates" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-cash-coin me-1"></i>Consultant Rate Card
+        </a>
+        @if (Model.CanEdit)
+        {
+            <button type="button" class="btn btn-primary btn-sm" id="btnAddConsultant"
+                    data-bs-toggle="modal" data-bs-target="#consultantModal">
+                <i class="bi bi-plus-circle me-1"></i>Add Consultant
+            </button>
+        }
+    </div>
+</div>
+
+<ul class="nav nav-tabs mb-3">
+    <li class="nav-item">
+        <a class="nav-link active" asp-page="/Consultants/Index">Consultants</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" asp-page="/Corporate/ConsultantRates">Consultant Rate Card</a>
+    </li>
+</ul>
+
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-5">
+                <label class="form-label small text-secondary mb-1">Search</label>
+                <input name="Q" value="@Model.Q" class="form-control form-control-sm"
+                       placeholder="code, name, speciality or phone" />
+            </div>
+            <div class="col-md-4">
+                <div class="form-check mt-3">
+                    <input class="form-check-input" type="checkbox" name="ShowRetired" value="true"
+                           id="showRetired" @(Model.ShowRetired ? "checked" : "") />
+                    <label class="form-check-label small" for="showRetired">Include non-active consultants (inactive, expired, resigned, retired, other)</label>
+                </div>
+            </div>
+            <div class="col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-search me-1"></i>Search
+                </button>
+                <a asp-page="/Consultants/Index" class="btn btn-sm btn-outline-secondary">Reset</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width:90px">Code</th>
+                        <th>Consultant</th>
+                        <th>Speciality</th>
+                        <th>Phone</th>
+                        <th>Degrees</th>
+                        <th style="width:70px">Dept</th>
+                        <th>Schedule &amp; fees</th>
+                        <th style="width:90px">Status</th>
+                        <th class="text-end" style="width:160px">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var c in Model.Items)
+                    {
+                        <tr class="@(c.Retired ? "table-secondary" : "")">
+                            <td class="fw-semibold">@c.Code</td>
+                            <td>
+                                @(string.IsNullOrWhiteSpace(c.Prefix) ? "" : c.Prefix + " ")
+                                @c.Name
+                            </td>
+                            <td class="small">@(string.IsNullOrWhiteSpace(c.Title) ? "-" : c.Title)</td>
+                            <td class="small">@(string.IsNullOrWhiteSpace(c.Phone) ? "-" : c.Phone)</td>
+                            <td class="small text-muted">@(string.IsNullOrWhiteSpace(c.Degree) ? "-" : c.Degree)</td>
+                            <td class="small">@(string.IsNullOrWhiteSpace(c.Dept) ? "-" : c.Dept)</td>
+                            <td class="small">
+                                @{
+                                    var morning = string.IsNullOrWhiteSpace(c.SessionStartTime) && string.IsNullOrWhiteSpace(c.SessionEndTime)
+                                        ? null
+                                        : $"{c.SessionStartTime}-{c.SessionEndTime}".Trim('-');
+                                    var evening = string.IsNullOrWhiteSpace(c.EveningStartTime) && string.IsNullOrWhiteSpace(c.EveningEndTime)
+                                        ? null
+                                        : $"{c.EveningStartTime}-{c.EveningEndTime}".Trim('-');
+                                }
+                                <div class="fw-semibold">@(string.IsNullOrWhiteSpace(c.WorkDays) ? "Days not set" : c.WorkDays)</div>
+                                @if (morning != null)
+                                {
+                                    <div class="text-muted">AM @morning</div>
+                                }
+                                @if (evening != null)
+                                {
+                                    <div class="text-muted">PM @evening</div>
+                                }
+                                <div class="text-muted">
+                                    First @(c.FirstVisitFee?.ToString("N2") ?? "-")
+                                    &middot; Follow-up @(c.SubsequentVisitFee?.ToString("N2") ?? "-")
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge @HmisWeb.Pages.Consultants.IndexModel.StatusCss(c.Status)"
+                                      title="@c.RetireComments">@c.Status</span>
+                            </td>
+                            <td class="text-end text-nowrap">
+                                @if (c.StaffId.HasValue)
+                                {
+                                    <a asp-page="/Corporate/ConsultantRates" asp-route-Consultant="@c.StaffId"
+                                       class="btn btn-outline-secondary btn-sm" title="Company rate card">
+                                        <i class="bi bi-cash-coin"></i>
+                                    </a>
+                                }
+                                @if (Model.CanEdit)
+                                {
+                                    <button type="button" class="btn btn-outline-primary btn-sm btn-edit"
+                                            data-id="@c.Id"
+                                            data-code="@c.Code"
+                                            data-prefix="@c.Prefix"
+                                            data-name="@c.Name"
+                                            data-title="@c.Title"
+                                            data-phone="@c.Phone"
+                                            data-degree="@c.Degree"
+                                            data-dept="@c.Dept"
+                                            data-retired="@(c.Retired ? "1" : "0")"
+                                            data-status="@c.Status"
+                                            data-reason="@c.RetireComments"
+                                            data-workdays="@c.WorkDays"
+                                            data-mstart="@c.SessionStartTime"
+                                            data-mend="@c.SessionEndTime"
+                                            data-estart="@c.EveningStartTime"
+                                            data-eend="@c.EveningEndTime"
+                                            data-ffirst="@(c.FirstVisitFee?.ToString(System.Globalization.CultureInfo.InvariantCulture))"
+                                            data-fsub="@(c.SubsequentVisitFee?.ToString(System.Globalization.CultureInfo.InvariantCulture))"
+                                            data-bs-toggle="modal" data-bs-target="#consultantModal"
+                                            title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    @if (c.Retired)
+                                    {
+                                        <form method="post" asp-page-handler="Restore" class="d-inline">
+                                            <input type="hidden" name="id" value="@c.Id" />
+                                            <button type="submit" class="btn btn-outline-success btn-sm"
+                                                    onclick="return confirm('Restore this consultant?');" title="Restore">
+                                                <i class="bi bi-arrow-counterclockwise"></i>
+                                            </button>
+                                        </form>
+                                    }
+                                    else
+                                    {
+                                        <button type="button" class="btn btn-outline-danger btn-sm btn-retire"
+                                                data-id="@c.Id" data-name="@c.Code - @c.Name" title="Retire">
+                                            <i class="bi bi-slash-circle"></i>
+                                        </button>
+                                    }
+                                }
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.Items.Any())
+                    {
+                        <tr>
+                            <td colspan="9" class="text-center text-secondary py-4">
+                                No consultant matches this filter.
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<partial name="_Pager" model="Model" />
+
+@if (Model.CanEdit)
+{
+    <!-- add / edit popup -->
+    <div class="modal fade" id="consultantModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <form method="post" asp-page-handler="Save" class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="consultantModalTitle">Add consultant</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" asp-for="Input.Id" id="cId" />
+                    <input type="hidden" asp-for="Input.OriginalCode" id="cOriginalCode" />
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Prefix</label>
+                            <select asp-for="Input.Prefix" class="form-select" id="cPrefix">
+                                <option value="">--</option>
+                                @foreach (var p in new[] { "DR.", "PROF.", "MR.", "MRS.", "MS." })
+                                {
+                                    <option value="@p">@p</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-9">
+                            <label class="form-label">Name <span class="text-danger">*</span></label>
+                            <input asp-for="Input.Name" class="form-control" id="cName" maxlength="100" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Code <span class="text-danger">*</span></label>
+                            <input asp-for="Input.Code" class="form-control" id="cCode" maxlength="5" />
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label">Speciality / Title</label>
+                            <input asp-for="Input.Title" class="form-control" id="cTitle" maxlength="100"
+                                   list="titleOptions" placeholder="pick a previous speciality or type a new one" />
+                            <datalist id="titleOptions">
+                                @foreach (var t in Model.TitleList)
+                                {
+                                    <option value="@t"></option>
+                                }
+                            </datalist>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Department</label>
+                            @* a datalist and not a select: some legacy rows carry stray
+                               values (0203, 1103) that would otherwise be dropped on save *@
+                            <input asp-for="Input.Dept" class="form-control" id="cDept" maxlength="4"
+                                   list="deptOptions" placeholder="legacy dept code" />
+                            <datalist id="deptOptions">
+                                @foreach (var d in Model.DeptList)
+                                {
+                                    <option value="@d.Value">@d.Text</option>
+                                }
+                            </datalist>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Phone</label>
+                            <input asp-for="Input.Phone" class="form-control" id="cPhone" maxlength="50" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Degrees</label>
+                            <input asp-for="Input.Degree" class="form-control" id="cDegree" maxlength="120"
+                                   placeholder="MBBS, FCPS" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Status</label>
+                            <select asp-for="Input.Status" class="form-select" id="cStatus">
+                                @foreach (var st in HmisWeb.Pages.Consultants.IndexModel.Statuses)
+                                {
+                                    <option value="@st">@st</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-md-8" id="cRetireReasonWrap" style="display:none">
+                            <label class="form-label">Reason <span class="text-danger">*</span></label>
+                            <textarea asp-for="Input.RetireReason" class="form-control" id="cRetireReason"
+                                      rows="2" maxlength="500"
+                                      placeholder="e.g. left the hospital, duplicate entry ..."></textarea>
+                        </div>
+
+                        <div class="col-12"><hr class="my-1" /></div>
+                        <div class="col-12">
+                            <div class="fw-semibold text-secondary small">
+                                <i class="bi bi-clock-history me-1"></i>Clinic schedule &amp; consultation fees
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Consulting days</label>
+                            <div class="d-flex flex-wrap gap-3">
+                                @foreach (var day in new[] { "MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN" })
+                                {
+                                    <div class="form-check">
+                                        <input class="form-check-input c-day" type="checkbox"
+                                               name="Input.WorkDays" value="@day" id="day_@day" />
+                                        <label class="form-check-label" for="day_@day">@day</label>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Morning clinic</label>
+                            <div class="input-group">
+                                <input asp-for="Input.SessionStartTime" type="time" class="form-control" id="cMorningStart" />
+                                <span class="input-group-text">to</span>
+                                <input asp-for="Input.SessionEndTime" type="time" class="form-control" id="cMorningEnd" />
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Evening clinic</label>
+                            <div class="input-group">
+                                <input asp-for="Input.EveningStartTime" type="time" class="form-control" id="cEveningStart" />
+                                <span class="input-group-text">to</span>
+                                <input asp-for="Input.EveningEndTime" type="time" class="form-control" id="cEveningEnd" />
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">First visit fee</label>
+                            <div class="input-group">
+                                <span class="input-group-text">Rs</span>
+                                <input asp-for="Input.FirstVisitFee" type="number" step="0.01" min="0"
+                                       class="form-control" id="cFirstFee" />
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Subsequent visit fee</label>
+                            <div class="input-group">
+                                <span class="input-group-text">Rs</span>
+                                <input asp-for="Input.SubsequentVisitFee" type="number" step="0.01" min="0"
+                                       class="form-control" id="cSubFee" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-muted small mt-3">
+                        The code is the link to the consultant used by OPD, OT and billing - it must be
+                        unique among the live consultants.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="bi bi-save me-1"></i>Save consultant
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- retire prompt (reason is required by the popup) -->
+    <form method="post" asp-page-handler="Retire" id="retireForm">
+        <input type="hidden" name="id" id="retireId" />
+        <input type="hidden" name="reason" id="retireReason" />
+    </form>
+}
+
+@if (!string.IsNullOrEmpty(Model.Success))
+{
+    <div class="alert alert-success alert-dismissible fade show py-2 mt-3" role="alert">
+        @Model.Success
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+@if (!string.IsNullOrEmpty(Model.Error))
+{
+    <div class="alert alert-danger alert-dismissible fade show py-2 mt-3" role="alert">
+        @Model.Error
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert2/11.10.1/sweetalert2.all.min.js"></script>
+    <script>
+        (function () {
+            var modal = document.getElementById('consultantModal');
+            var title = document.getElementById('consultantModalTitle');
+            var addBtn = document.getElementById('btnAddConsultant');
+
+            function toggleRetireReason() {
+                var status = document.getElementById('cStatus');
+                var wrap = document.getElementById('cRetireReasonWrap');
+                if (!status || !wrap) return;
+                var isActive = status.value === 'Active';
+                wrap.style.display = isActive ? 'none' : '';
+                if (isActive) {
+                    document.getElementById('cRetireReason').value = '';
+                }
+            }
+
+            function clearForm() {
+                document.getElementById('cId').value = '0';
+                document.getElementById('cOriginalCode').value = '';
+                document.getElementById('cPrefix').value = '';
+                document.getElementById('cName').value = '';
+                document.getElementById('cCode').value = '';
+                document.getElementById('cTitle').value = '';
+                document.getElementById('cPhone').value = '';
+                document.getElementById('cDegree').value = '';
+                document.getElementById('cDept').value = '';
+                document.getElementById('cStatus').value = 'Active';
+                document.getElementById('cRetireReason').value = '';
+                document.querySelectorAll('.c-day').forEach(function (cb) { cb.checked = false; });
+                document.getElementById('cMorningStart').value = '';
+                document.getElementById('cMorningEnd').value = '';
+                document.getElementById('cEveningStart').value = '';
+                document.getElementById('cEveningEnd').value = '';
+                document.getElementById('cFirstFee').value = '';
+                document.getElementById('cSubFee').value = '';
+                toggleRetireReason();
+            }
+
+            function toTimeInput(value) {
+                if (!value) return '';
+                var m = /^(\d{1,2}):(\d{2})/.exec(value);
+                if (m) return (m[1].length === 1 ? '0' + m[1] : m[1]) + ':' + m[2];
+                return value;
+            }
+
+            var statusSelect = document.getElementById('cStatus');
+            if (statusSelect) {
+                statusSelect.addEventListener('change', toggleRetireReason);
+            }
+
+            if (addBtn) {
+                addBtn.addEventListener('click', function () {
+                    clearForm();
+                    title.textContent = 'Add consultant';
+                });
+            }
+
+            document.querySelectorAll('.btn-edit').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    document.getElementById('cId').value = btn.dataset.id;
+                    document.getElementById('cOriginalCode').value = btn.dataset.code || '';
+                    document.getElementById('cPrefix').value = btn.dataset.prefix || '';
+                    document.getElementById('cName').value = btn.dataset.name || '';
+                    document.getElementById('cCode').value = btn.dataset.code || '';
+                    document.getElementById('cTitle').value = btn.dataset.title || '';
+                    document.getElementById('cPhone').value = btn.dataset.phone || '';
+                    document.getElementById('cDegree').value = btn.dataset.degree || '';
+                    document.getElementById('cDept').value = btn.dataset.dept || '';
+                    document.getElementById('cStatus').value = btn.dataset.status || 'Active';
+                    document.getElementById('cRetireReason').value = btn.dataset.reason || '';
+                    var days = (btn.dataset.workdays || '').split(',');
+                    document.querySelectorAll('.c-day').forEach(function (cb) {
+                        cb.checked = days.indexOf(cb.value) >= 0;
+                    });
+                    document.getElementById('cMorningStart').value = toTimeInput(btn.dataset.mstart);
+                    document.getElementById('cMorningEnd').value = toTimeInput(btn.dataset.mend);
+                    document.getElementById('cEveningStart').value = toTimeInput(btn.dataset.estart);
+                    document.getElementById('cEveningEnd').value = toTimeInput(btn.dataset.eend);
+                    document.getElementById('cFirstFee').value = btn.dataset.ffirst || '';
+                    document.getElementById('cSubFee').value = btn.dataset.fsub || '';
+                    toggleRetireReason();
+                    title.textContent = 'Edit consultant ' + (btn.dataset.code || '');
+                });
+            });
+
+            document.querySelectorAll('.btn-retire').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    if (!window.Swal) {
+                        if (!confirm('Retire ' + btn.dataset.name + '?')) return;
+                        document.getElementById('retireId').value = btn.dataset.id;
+                        document.getElementById('retireReason').value = 'Retired from consultant master.';
+                        document.getElementById('retireForm').submit();
+                        return;
+                    }
+                    window.Swal.fire({
+                        title: 'Retire consultant?',
+                        text: btn.dataset.name,
+                        input: 'textarea',
+                        inputLabel: 'Reason (kept with the record)',
+                        inputPlaceholder: 'e.g. left the hospital, duplicate entry ...',
+                        inputValidator: function (value) {
+                            return (!value || !value.trim()) ? 'A reason is required.' : undefined;
+                        },
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: 'Retire',
+                        confirmButtonColor: '#dc3545'
+                    }).then(function (result) {
+                        if (!result.isConfirmed) return;
+                        document.getElementById('retireId').value = btn.dataset.id;
+                        document.getElementById('retireReason').value = result.value;
+                        document.getElementById('retireForm').submit();
+                    });
+                });
+            });
+
+            if (modal) {
+                modal.addEventListener('hidden.bs.modal', clearForm);
+            }
+
+            @if (!string.IsNullOrEmpty(Model.Success))
+            {
+                <text>
+                if (window.Swal) {
+                    window.Swal.fire({ toast: true, position: 'top-end', icon: 'success',
+                        title: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Success)),
+                        showConfirmButton: false, timer: 2600 });
+                }
+                </text>
+            }
+            @if (!string.IsNullOrEmpty(Model.Error))
+            {
+                <text>
+                if (window.Swal) {
+                    window.Swal.fire({ toast: true, position: 'top-end', icon: 'error',
+                        title: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Error)),
+                        showConfirmButton: false, timer: 4000 });
+                }
+                </text>
+            }
+        })();
+    </script>
+}

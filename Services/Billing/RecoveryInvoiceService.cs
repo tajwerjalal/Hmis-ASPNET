@@ -414,9 +414,13 @@ namespace HmisWeb.Services.Billing
         }
 
         /// <summary>
-        /// Receipt allocation guard - RECOVERY_RCPT_ALLOC does not exist yet
-        /// (sprint 2), so table-missing degrades to "no receipts" and this
-        /// lights straight up when the allocation rows land.
+        /// Receipt allocation guard - RECOVERY_RCPT_ALLOC lands with sprint 2.
+        /// Only receipts that still carry an ACTIVE credit count: bounced
+        /// ('B') and cancelled ('X') receipts removed their allocation rows,
+        /// so the line is free to be reworked. Table-missing degrades to
+        /// "no receipts" (pre-sprint-2 builds).
+        /// Change Log 21-Oct-2026 (Tajwer Jalal): active-credit filter added
+        /// after the e2e run showed the bounce path leaves no rows behind.
         /// </summary>
         private async Task<bool> HasReceiptAsync(long invoiceId, string regNo)
         {
@@ -424,8 +428,9 @@ namespace HmisWeb.Services.Billing
             try
             {
                 using var cmd = conn.CreateCommand();
-                cmd.CommandText = "SELECT COUNT(*) FROM RECOVERY_RCPT_ALLOC"
-                    + " WHERE InvoiceId = @inv AND RegNo = @reg";
+                cmd.CommandText = "SELECT COUNT(*) FROM RECOVERY_RCPT_ALLOC a"
+                    + " JOIN RECOVERY_RCPT r ON r.Id = a.ReceiptId"
+                    + " WHERE a.InvoiceId = @inv AND a.RegNo = @reg AND r.Status NOT IN ('B','X')";
                 AddParam(cmd, "@inv", invoiceId);
                 AddParam(cmd, "@reg", regNo);
                 try

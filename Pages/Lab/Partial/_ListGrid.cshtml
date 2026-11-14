@@ -1,0 +1,164 @@
+@model HmisWeb.Pages.Lab.TestResultEntryModel
+@*
+    ============================================================================
+    File........: Pages/Lab/Partial/_ListGrid.cshtml
+    Purpose.....: Read-only paged browse of REPORT (legacy lb0110 "List" page).
+    Inputs......: Model.List (LabIndentPage) - items, filters, paging.
+    Outputs.....: Search form + table + pager. Row clicks are handled by
+                  lab-testresult.js and open the Entry tab via AJAX.
+    Business
+      rules.....: 1. Search by Lab No, Registration No (HRNO) and Patient Name.
+                  2. "Only pending" hides indents whose tests all have a report
+                     date; untick it to browse every report.
+                  3. Rows are ordered by LABNO descending (newest first).
+    Developer...: Tajwer Jalal
+    Date/Time...: 2026-11-02 11:23
+    ============================================================================
+*@
+@{
+    var list = Model.List ?? new HmisWeb.Models.Lab.LabIndentPage();
+}
+
+<form id="listSearchForm" class="row g-2 align-items-end mb-3">
+    <div class="col-sm-6 col-md-2">
+        <label class="form-label small mb-1" for="listLabNo">Lab No</label>
+        <input id="listLabNo" name="labNoFilter" value="@list.LabNoFilter"
+               class="form-control form-control-sm" placeholder="230000001" autocomplete="off" />
+    </div>
+    <div class="col-sm-6 col-md-2">
+        <label class="form-label small mb-1" for="listHrno">Reg. No</label>
+        <input id="listHrno" name="hrno" value="@list.HrnoFilter"
+               class="form-control form-control-sm" placeholder="HR / Reg No" autocomplete="off" />
+    </div>
+    <div class="col-sm-6 col-md-3">
+        <label class="form-label small mb-1" for="listName">Patient Name</label>
+        <input id="listName" name="name" value="@list.NameFilter"
+               class="form-control form-control-sm" placeholder="Name contains..." autocomplete="off" />
+    </div>
+    <div class="col-sm-6 col-md-2">
+        <div class="form-check mt-md-4 pt-md-1">
+            <input class="form-check-input" type="checkbox" id="listPendingOnly"
+                   name="pendingOnly" value="true" @(list.IncludeReported ? "" : "checked") />
+            <label class="form-check-label small" for="listPendingOnly">Only pending</label>
+        </div>
+    </div>
+    <div class="col-sm-12 col-md-3 d-flex gap-2">
+        <button type="submit" class="btn btn-primary btn-sm">
+            <i class="bi bi-search me-1"></i>Search
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="btnClearListFilters">
+            <i class="bi bi-x-circle me-1"></i>Clear
+        </button>
+    </div>
+</form>
+
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <span class="small text-muted">
+        @list.Total indent(s) found
+        @if (list.TotalPages > 1)
+        {
+            <span>&middot; page @list.Page of @list.TotalPages</span>
+        }
+    </span>
+    <div class="d-flex align-items-center gap-2">
+        <label class="small text-muted mb-0" for="listPageSize">Rows</label>
+        <select id="listPageSize" class="form-select form-select-sm" style="width:80px">
+            @foreach (var size in new[] { 10, 25, 50, 100 })
+            {
+                <option value="@size" selected="@(list.PageSize == size)">@size</option>
+            }
+        </select>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-hover table-sm align-middle mb-0">
+        <thead class="table-light">
+            <tr>
+                <th>Lab No</th>
+                <th>Date</th>
+                <th>Time</th>
+                <th>Cid</th>
+                <th>Hrno</th>
+                <th>Type</th>
+                <th>Name</th>
+                <th>Sex</th>
+                <th>Age</th>
+                <th>Atype</th>
+                <th>Bedno</th>
+                <th class="text-center">Tests</th>
+                <th class="text-center">Pending</th>
+                <th class="text-end">Net</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (list.Items.Count == 0)
+            {
+                <tr>
+                    <td colspan="15" class="text-center text-muted py-4">
+                        <i class="bi bi-inbox fs-4 d-block mb-1"></i>
+                        No lab reports matched the filters.
+                    </td>
+                </tr>
+            }
+            else
+            {
+                foreach (var item in list.Items)
+                {
+                    <tr class="indent-row" data-labno="@item.LabNo" style="cursor:pointer"
+                        title="Open @item.LabNoDisplay - @item.Name">
+                        <td class="fw-semibold text-primary text-nowrap">@item.LabNoDisplay</td>
+                        <td class="text-nowrap">@(item.Date?.ToString("dd/MM/yyyy") ?? "")</td>
+                        <td class="text-nowrap">@item.Time</td>
+                        <td>@item.Cid</td>
+                        <td>@item.Hrno</td>
+                        <td>@item.Type</td>
+                        <td class="text-nowrap">@item.Name</td>
+                        <td>@item.Sex</td>
+                        <td>@item.Age</td>
+                        <td>@HmisWeb.Models.Lab.LabIndentHeader.ATypeLabel(item.AType)</td>
+                        <td>@item.BedNo</td>
+                        <td class="text-center">@item.TestCount</td>
+                        <td class="text-center">
+                            @if (item.PendingCount > 0)
+                            {
+                                <span class="badge bg-warning text-dark">@item.PendingCount</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-success">0</span>
+                            }
+                        </td>
+                        <td class="text-end text-nowrap">@item.Net.ToString("N2")</td>
+                        <td class="text-end">
+                            <button type="button" class="btn btn-sm btn-primary indent-open" data-labno="@item.LabNo">
+                                <i class="bi bi-pencil-square me-1"></i>Enter
+                            </button>
+                        </td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</div>
+
+@if (list.TotalPages > 1)
+{
+    <nav class="mt-3" aria-label="Indent list paging">
+        <ul class="pagination pagination-sm mb-0">
+            <li class="page-item @(list.Page <= 1 ? "disabled" : "")">
+                <button type="button" class="page-link list-page" data-page="@(list.Page - 1)">Previous</button>
+            </li>
+            @for (var p = Math.Max(1, list.Page - 2); p <= Math.Min(list.TotalPages, list.Page + 2); p++)
+            {
+                <li class="page-item @(p == list.Page ? "active" : "")">
+                    <button type="button" class="page-link list-page" data-page="@p">@p</button>
+                </li>
+            }
+            <li class="page-item @(list.Page >= list.TotalPages ? "disabled" : "")">
+                <button type="button" class="page-link list-page" data-page="@(list.Page + 1)">Next</button>
+            </li>
+        </ul>
+    </nav>
+}

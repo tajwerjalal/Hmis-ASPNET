@@ -102,9 +102,9 @@
                                 <td>@(s.Code ?? "-")</td>
                                 <td>
                                     <div class="fw-semibold small">@s.Name</div>
-                                    @if (!string.IsNullOrEmpty(s.PrintName))
+                                    @if (!string.IsNullOrEmpty(s.Sname))
                                     {
-                                        <small class="text-secondary">@s.PrintName</small>
+                                        <small class="text-secondary">@s.Sname</small>
                                     }
                                 </td>
                                 <td>@(s.Category?.Name ?? "-")</td>
@@ -166,3 +166,5 @@
         }
     </div>
 </div>
+
+<partial name="_Pager" model="Model" />

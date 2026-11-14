@@ -4,6 +4,18 @@ using HmisWeb.Data.Enums;
 
 namespace HmisWeb.Models
 {
+    /// <summary>
+    /// One patient encounter (OPD visit or IPD stay).
+    ///
+    /// Extended for the registration forms with the panel-company data of the
+    /// legacy register (employee code / name / relation, company card, reference
+    /// valid upto, bed entitlement) and the discharge status.
+    ///
+    /// Developer : [TAJWER JALAL]
+    /// Date      : 22-Oct-2026
+    /// Time      : 16:20
+    /// Change Log: 22-Oct-2026 - transfer-time company fields + discharge status.
+    /// </summary>
     [Table("PATIENTENCOUNTER")]
     public class PatientEncounter
     {
@@ -71,6 +83,32 @@ namespace HmisWeb.Models
         public string TreatmentPlan { get; set; }
         public string Management { get; set; }
         public string FollowUp { get; set; }
+        [Column(TypeName = "nvarchar(20)")]
+        [MaxLength(20)]
+        public string EmployeeCode { get; set; }
+
+        [Column(TypeName = "nvarchar(100)")]
+        [MaxLength(100)]
+        public string EmployeeName { get; set; }
+
+        [Column(TypeName = "nvarchar(30)")]
+        [MaxLength(30)]
+        public string EmployeeRelation { get; set; }
+
+        [Column(TypeName = "nvarchar(30)")]
+        [MaxLength(30)]
+        public string CardNo { get; set; }
+
+        [Column(TypeName = "date")]
+        public DateTime? RefValid { get; set; }
+
+        [Column(TypeName = "varchar(10)")]
+        [MaxLength(10)]
+        public string BedEntitlement { get; set; }
+
+        [Column(TypeName = "nvarchar(30)")]
+        [MaxLength(30)]
+        public string DischargeStatus { get; set; }
         public DateTime? CreatedAt { get; set; }
         public DateTime? EditedAt { get; set; }
         public DateTime? RetiredAt { get; set; }
